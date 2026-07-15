@@ -8,6 +8,7 @@ import { generateReference } from "@/lib/utils";
 import { WITHDRAWAL_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { notifyUser } from "@/lib/server/notifications";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
+import { attemptAutomaticPayout } from "@/lib/server/withdrawal-payout";
 
 const schema = z.object({ amount: z.number().positive(), bankAccountId: z.string().min(1) });
 
@@ -83,7 +84,13 @@ export async function POST(req: NextRequest) {
     });
     await writeAuditLog({ userId: user.id, action: "withdrawal.request", ipAddress, userAgent, metadata: { reference, amount } });
 
-    return NextResponse.json({ withdrawal });
+    // Best-effort instant payout — never blocks or fails the request itself;
+    // on any error the withdrawal just stays PENDING for manual admin review.
+    const updated = await attemptAutomaticPayout(withdrawal.id)
+      .then(() => prisma.withdrawal.findUnique({ where: { id: withdrawal.id } }))
+      .catch(() => null);
+
+    return NextResponse.json({ withdrawal: updated ?? withdrawal });
   } catch (error) {
     return handleApiError(error);
   }

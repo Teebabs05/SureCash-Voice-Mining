@@ -25,6 +25,7 @@ interface Withdrawal {
   fee: string;
   status: string;
   createdAt: string;
+  payoutProvider: string;
   bankAccount: BankAccount;
 }
 
@@ -183,6 +184,9 @@ export default function WithdrawPage() {
                   <p className="text-sm font-medium">{formatCurrency(w.amount)}</p>
                   <p className="text-xs text-foreground/50">{new Date(w.createdAt).toLocaleDateString()}</p>
                 </div>
+                {w.status === "PROCESSING" && w.payoutProvider !== "MANUAL" && (
+                  <p className="text-xs text-brand-purple">⚡ Processing instantly via {w.payoutProvider}</p>
+                )}
                 <WithdrawalStepper status={w.status} />
               </Card>
             ))}

@@ -79,6 +79,14 @@ enum SupportTicketStatus {
   CLOSED
 }
 
+enum PayoutProvider {
+  MANUAL
+  PAYSTACK
+  MONNIFY
+  KORAPAY
+  PAYVESSEL
+}
+
 enum DepositStatus {
   PENDING
   APPROVED
@@ -302,17 +310,18 @@ model Deposit {
 }
 
 model BankAccount {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bankName      String
-  bankCode      String
-  accountNumber String
-  accountName   String
-  isVerified    Boolean  @default(false)
-  isPrimary     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankName              String
+  bankCode              String
+  accountNumber         String
+  accountName           String
+  isVerified            Boolean  @default(false)
+  isPrimary             Boolean  @default(false)
+  paystackRecipientCode String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   withdrawals Withdrawal[]
 
@@ -320,21 +329,25 @@ model BankAccount {
 }
 
 model Withdrawal {
-  id              String           @id @default(cuid())
-  userId          String
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bankAccountId   String
-  bankAccount     BankAccount      @relation(fields: [bankAccountId], references: [id])
-  amount          Decimal          @db.Decimal(18, 2)
-  fee             Decimal          @default(0) @db.Decimal(18, 2)
-  reference       String           @unique
-  status          WithdrawalStatus @default(PENDING)
-  otpVerifiedAt   DateTime?
-  processedById   String?
-  processedAt     DateTime?
-  rejectionReason String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                  String           @id @default(cuid())
+  userId              String
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccountId       String
+  bankAccount         BankAccount      @relation(fields: [bankAccountId], references: [id])
+  amount              Decimal          @db.Decimal(18, 2)
+  fee                 Decimal          @default(0) @db.Decimal(18, 2)
+  reference           String           @unique
+  status              WithdrawalStatus @default(PENDING)
+  otpVerifiedAt       DateTime?
+  payoutProvider      PayoutProvider   @default(MANUAL)
+  payoutReference     String?
+  autoPayoutAttempted Boolean          @default(false)
+  autoPayoutError     String?
+  processedById       String?
+  processedAt         DateTime?
+  rejectionReason     String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   @@index([userId])
   @@index([status])

@@ -39,7 +39,8 @@ The seed also creates: levels 1–7 (Beginner → Elite), achievement definition
 Copy `.env.example` to `.env` and fill in what you have. Everything not configured falls back to a safe stub (logs to console, or clearly marked "not configured" errors) so the app runs fully offline/locally without any paid API keys:
 
 - `VOICE_AI_PROVIDER` — `stub` (default) | `whisper` | `gemini` | `azure`
-- `PAYSTACK_SECRET_KEY` — the only payment gateway with a real integration; others (`MONNIFY_*`, `KORAPAY_*`, `PAYVESSEL_*`, `FLUTTERWAVE_*`) are stub adapters ready for real credentials
+- `PAYSTACK_SECRET_KEY` — the only payment gateway with a real integration (both deposits and instant withdrawal payouts); others (`MONNIFY_*`, `KORAPAY_*`, `PAYVESSEL_*`, `FLUTTERWAVE_*`) are stub adapters ready for real credentials
+- `DEFAULT_PAYOUT_PROVIDER` — which gateway attempts instant withdrawal disbursement (`PAYSTACK` default | `MONNIFY` | `KORAPAY` | `PAYVESSEL`)
 - `EMAIL_PROVIDER` / `OTP_PROVIDER` — default to console logging; swap in Resend/Termii/Twilio adapters in `src/lib/notifications/`
 - `RECAPTCHA_SECRET_KEY` — reCAPTCHA verification on registration is a no-op until this is set
 
@@ -57,7 +58,7 @@ Every user has six wallets: **Main, Mining, Voice, Referral, Task, Bonus**. All 
 - **Gamification** — XP & levels with bonus payouts, achievement badges, daily missions, leaderboards (top earners/miners/referrers), daily lucky spin.
 - **Membership tiers** — Free/Silver/Gold/VIP multiply voice-task daily limits and mining rewards, and reduce withdrawal fees. Admins change a user's tier from the Users table.
 - **Deposits** — manual bank transfer with receipt upload (admin-approved) or instant gateway checkout (Paystack live; others stubbed).
-- **Withdrawals** — bank-account add flow with automatic name resolution + OTP confirmation before a new account can receive payouts; admin approve (paid) / reject (auto-reversed to Main wallet).
+- **Withdrawals** — bank-account add flow with automatic name resolution + OTP confirmation before a new account can receive payouts. On request, the platform attempts **instant automatic disbursement** through the configured gateway (Paystack Transfer API is fully wired: creates a transfer recipient, initiates the transfer, and the Paystack webhook confirms `transfer.success`/`transfer.failed` to finalize the payout); Monnify/Korapay/PayVessel are stub adapters. If auto-payout isn't configured or fails, the withdrawal falls back to the existing manual flow (admin can retry auto-payout, move it into "processing", mark paid, or reject with an automatic wallet reversal) — this never blocks or fails the user's withdrawal request itself.
 - **Promo codes** — admin-issued codes users redeem once for bonus-wallet credit.
 - **Support** — user-created tickets with admin replies, plus a static FAQ page.
 - **Community feed** — a real-activity feed (withdrawals paid, voice approvals, achievements, referral bonuses) — never fabricated data.
@@ -80,7 +81,7 @@ Every user has six wallets: **Main, Mining, Voice, Referral, Task, Bonus**. All 
 Built as a solid, fully-working MVP — these are the pieces intentionally left as extension points rather than fully implemented, so nothing is silently missing:
 
 - **Voice AI heuristics** (background-noise, replay, synthesized-voice detection) are labeled placeholder heuristics in `src/lib/voice-ai/detectors.ts` — solid enough to exercise the full pipeline, but a production deployment should replace them with a real audio-analysis/classifier pass.
-- **Payment gateways**: only Paystack is a real integration; Monnify/Korapay/PayVessel/Flutterwave throw a clear "not configured" error until real API credentials are wired into `src/lib/payments/provider.ts`.
+- **Payment gateways**: only Paystack is a real integration (deposits via `src/lib/payments/provider.ts`, instant withdrawal payouts via `src/lib/payments/payout-provider.ts`); Monnify/Korapay/PayVessel/Flutterwave throw a clear "not configured" error until real API credentials are wired in, and automatic withdrawals simply fall back to the manual admin flow in that case.
 - **Push notifications**: the service worker listens for and displays pushes, but there's no server-side VAPID subscription/send flow yet — add `web-push` + a `PushSubscription` table to complete it.
 - **USDT/crypto withdrawals** are not implemented (bank-account withdrawal only).
 - **SMS/WhatsApp notifications** are stub-only (console log) — swap in a real provider in `src/lib/notifications/otp.ts`.

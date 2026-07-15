@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Check, X, PlayCircle } from "lucide-react";
+import { Check, X, PlayCircle, Zap, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -14,6 +14,9 @@ interface Withdrawal {
   fee: string;
   status: string;
   createdAt: string;
+  payoutProvider: string;
+  autoPayoutAttempted: boolean;
+  autoPayoutError: string | null;
   user: { fullName: string; email: string };
   bankAccount: { bankName: string; accountNumber: string; accountName: string };
 }
@@ -33,12 +36,18 @@ export default function AdminWithdrawalsPage() {
     load(filter);
   }, [filter, load]);
 
-  async function act(id: string, action: "approve" | "reject" | "process") {
+  async function act(id: string, action: "approve" | "reject" | "process" | "retry-payout") {
     setBusyId(id);
     try {
       await apiFetch(`/api/admin/withdrawals/${id}/${action}`, { method: "POST", body: JSON.stringify({}) });
       toast.success(
-        action === "approve" ? "Withdrawal paid" : action === "reject" ? "Withdrawal rejected" : "Withdrawal is now processing"
+        action === "approve"
+          ? "Withdrawal paid"
+          : action === "reject"
+            ? "Withdrawal rejected"
+            : action === "retry-payout"
+              ? "Automatic payout retried"
+              : "Withdrawal is now processing"
       );
       load(filter);
     } catch (err) {
@@ -81,9 +90,24 @@ export default function AdminWithdrawalsPage() {
                 <p className="text-xs text-foreground/50">
                   {w.bankAccount.bankName} · {w.bankAccount.accountNumber} · {w.bankAccount.accountName}
                 </p>
+                {w.status === "PROCESSING" && (
+                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-brand-purple">
+                    <Zap className="h-3 w-3" /> Auto-payout via {w.payoutProvider}
+                  </p>
+                )}
+                {w.autoPayoutError && w.status === "PENDING" && (
+                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-red-500">
+                    <AlertTriangle className="h-3 w-3" /> Auto-payout failed: {w.autoPayoutError}
+                  </p>
+                )}
               </div>
               {(w.status === "PENDING" || w.status === "PROCESSING") && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  {w.status === "PENDING" && w.autoPayoutAttempted && (
+                    <Button size="sm" variant="outline" loading={busyId === w.id} onClick={() => act(w.id, "retry-payout")}>
+                      <Zap className="h-3.5 w-3.5" /> Retry auto-payout
+                    </Button>
+                  )}
                   {w.status === "PENDING" && (
                     <Button size="sm" variant="outline" loading={busyId === w.id} onClick={() => act(w.id, "process")}>
                       <PlayCircle className="h-3.5 w-3.5" /> Start processing
