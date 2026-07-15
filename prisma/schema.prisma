@@ -1,0 +1,656 @@
+// SureCash Mining Platform — database schema
+// See SureCash_Mining_Master_Plan for the module list this backs.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum WalletType {
+  MAIN
+  MINING
+  VOICE
+  REFERRAL
+  TASK
+  BONUS
+}
+
+enum TxnType {
+  CREDIT
+  DEBIT
+}
+
+enum TxnReason {
+  DAILY_MINING
+  VOICE_TASK_REWARD
+  TASK_REWARD
+  REFERRAL_BONUS
+  DEPOSIT
+  WITHDRAWAL
+  WITHDRAWAL_REVERSAL
+  ADMIN_ADJUSTMENT
+  SPIN_REWARD
+  MISSION_REWARD
+  LEVEL_UP_BONUS
+  WALLET_TRANSFER
+}
+
+enum VoiceRecordingStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+  FLAGGED
+}
+
+enum DepositMethod {
+  MANUAL_BANK
+  PAYSTACK
+  MONNIFY
+  KORAPAY
+  PAYVESSEL
+  FLUTTERWAVE
+}
+
+enum UserTier {
+  FREE
+  SILVER
+  GOLD
+  VIP
+}
+
+enum SupportTicketStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+}
+
+enum DepositStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  OTP_REQUIRED
+  PROCESSING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum NotificationType {
+  SYSTEM
+  WALLET
+  VOICE_TASK
+  REFERRAL
+  ADMIN
+  SECURITY
+  GAMIFICATION
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FraudStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum OtpPurpose {
+  BANK_ACCOUNT_CHANGE
+  WITHDRAWAL
+  EMAIL_VERIFICATION
+  LOGIN_2FA
+  PHONE_VERIFICATION
+}
+
+// ---------------------------------------------------------------------------
+// Core identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  fullName     String
+  role         UserRole @default(USER)
+
+  emailVerified Boolean  @default(false)
+  phoneVerified Boolean  @default(false)
+  isBanned      Boolean  @default(false)
+  banReason     String?
+  tier          UserTier @default(FREE)
+
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
+  referralCode String  @unique
+  referredById String?
+  referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])
+  referrals    User[]  @relation("Referrals")
+
+  xp            Int       @default(0)
+  level         Int       @default(1)
+  streakCount   Int       @default(0)
+  longestStreak Int       @default(0)
+  lastMiningAt  DateTime?
+  lastCheckInAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wallets                   Wallet[]
+  walletTransactions        WalletTransaction[]
+  voiceRecordings           VoiceRecording[]
+  referralRecordsAsReferrer Referral[]               @relation("ReferrerRecords")
+  referralRecordsAsReferred Referral[]               @relation("ReferredRecords")
+  deposits                  Deposit[]
+  withdrawals               Withdrawal[]
+  bankAccounts              BankAccount[]
+  achievements              UserAchievement[]
+  notifications             Notification[]
+  devices                   Device[]
+  fraudReports              FraudReport[]            @relation("FraudSubject")
+  fraudReportsReviewed      FraudReport[]            @relation("FraudReviewer")
+  missionProgress           UserMissionProgress[]
+  taskCompletions           UserTaskCompletion[]
+  spinHistory               SpinHistory[]
+  otpCodes                  OtpCode[]
+  auditLogs                 AuditLog[]
+  emailVerificationTokens   EmailVerificationToken[]
+  refreshTokens             RefreshToken[]
+  adminProfile              AdminProfile?
+  promoCodeRedemptions      PromoCodeRedemption[]
+  supportTickets            SupportTicket[]
+  supportTicketReplies      SupportTicketReply[]
+
+  @@index([referredById])
+  @@index([role])
+}
+
+model AdminProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department  String?
+  permissions String[] @default([])
+  createdAt   DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model OtpCode {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   OtpPurpose
+  codeHash  String
+  metadata  Json?
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int        @default(0)
+  createdAt DateTime   @default(now())
+
+  @@index([userId, purpose])
+}
+
+// ---------------------------------------------------------------------------
+// Wallets & payments
+// ---------------------------------------------------------------------------
+
+model Wallet {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      WalletType
+  balance   Decimal    @default(0) @db.Decimal(18, 2)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  transactions WalletTransaction[]
+
+  @@unique([userId, type])
+}
+
+model WalletTransaction {
+  id           String    @id @default(cuid())
+  walletId     String
+  wallet       Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         TxnType
+  reason       TxnReason
+  amount       Decimal   @db.Decimal(18, 2)
+  balanceAfter Decimal   @db.Decimal(18, 2)
+  reference    String    @unique
+  description  String?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([walletId])
+}
+
+model Deposit {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Decimal       @db.Decimal(18, 2)
+  method       DepositMethod
+  reference    String        @unique
+  receiptUrl   String?
+  status       DepositStatus @default(PENDING)
+  gatewayData  Json?
+  verifiedById String?
+  verifiedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankName      String
+  bankCode      String
+  accountNumber String
+  accountName   String
+  isVerified    Boolean  @default(false)
+  isPrimary     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  withdrawals Withdrawal[]
+
+  @@unique([userId, accountNumber, bankCode])
+}
+
+model Withdrawal {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankAccountId   String
+  bankAccount     BankAccount      @relation(fields: [bankAccountId], references: [id])
+  amount          Decimal          @db.Decimal(18, 2)
+  fee             Decimal          @default(0) @db.Decimal(18, 2)
+  reference       String           @unique
+  status          WithdrawalStatus @default(PENDING)
+  otpVerifiedAt   DateTime?
+  processedById   String?
+  processedAt     DateTime?
+  rejectionReason String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Voice AI mining
+// ---------------------------------------------------------------------------
+
+model VoiceTask {
+  id           String   @id @default(cuid())
+  title        String
+  promptText   String
+  language     String   @default("en")
+  rewardAmount Decimal  @db.Decimal(18, 2)
+  dailyLimit   Int      @default(5)
+  minDuration  Int      @default(3)
+  maxDuration  Int      @default(30)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  recordings VoiceRecording[]
+}
+
+model VoiceRecording {
+  id           String               @id @default(cuid())
+  userId       String
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voiceTaskId  String
+  voiceTask    VoiceTask            @relation(fields: [voiceTaskId], references: [id])
+  audioUrl     String
+  audioHash    String
+  durationSec  Float
+  status       VoiceRecordingStatus @default(PENDING)
+  rewardAmount Decimal?             @db.Decimal(18, 2)
+  deviceId     String?
+  device       Device?              @relation(fields: [deviceId], references: [id])
+  createdAt    DateTime             @default(now())
+  reviewedAt   DateTime?
+
+  aiResult AiResult?
+
+  @@index([userId])
+  @@index([audioHash])
+  @@index([voiceTaskId])
+}
+
+model AiResult {
+  id                 String         @id @default(cuid())
+  recordingId        String         @unique
+  recording          VoiceRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+  provider           String
+  transcript         String?
+  confidence         Float
+  isDuplicate        Boolean        @default(false)
+  isReplayAttack     Boolean        @default(false)
+  hasBackgroundNoise Boolean        @default(false)
+  isSynthesizedVoice Boolean        @default(false)
+  passed             Boolean
+  rawResponse        Json?
+  createdAt          DateTime       @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Referrals
+// ---------------------------------------------------------------------------
+
+model Referral {
+  id             String   @id @default(cuid())
+  referrerId     String
+  referrer       User     @relation("ReferrerRecords", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId     String   @unique
+  referred       User     @relation("ReferredRecords", fields: [referredId], references: [id], onDelete: Cascade)
+  rewardAmount   Decimal  @default(0) @db.Decimal(18, 2)
+  rewardCredited Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([referrerId])
+}
+
+// ---------------------------------------------------------------------------
+// Gamification
+// ---------------------------------------------------------------------------
+
+model Level {
+  level       Int     @id
+  title       String
+  xpRequired  Int
+  bonusAmount Decimal @default(0) @db.Decimal(18, 2)
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  code        String @unique
+  title       String
+  description String
+  icon        String @default("trophy")
+  xpReward    Int    @default(0)
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  earnedAt      DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+model DailyMission {
+  id           String     @id @default(cuid())
+  title        String
+  description  String
+  type         String
+  target       Int        @default(1)
+  rewardXp     Int        @default(0)
+  rewardAmount Decimal    @default(0) @db.Decimal(18, 2)
+  rewardWallet WalletType @default(BONUS)
+  isActive     Boolean    @default(true)
+
+  progress UserMissionProgress[]
+}
+
+model UserMissionProgress {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionId String
+  mission   DailyMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  date      DateTime     @default(now()) @db.Date
+  progress  Int          @default(0)
+  completed Boolean      @default(false)
+  claimedAt DateTime?
+
+  @@unique([userId, missionId, date])
+}
+
+model SpinReward {
+  id       String     @id @default(cuid())
+  label    String
+  amount   Decimal    @db.Decimal(18, 2)
+  wallet   WalletType @default(BONUS)
+  weight   Int        @default(1)
+  colorHex String     @default("#6A00FF")
+  isActive Boolean    @default(true)
+
+  history SpinHistory[]
+}
+
+model SpinHistory {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spinRewardId String
+  spinReward   SpinReward @relation(fields: [spinRewardId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Task center
+// ---------------------------------------------------------------------------
+
+model TaskCenterTask {
+  id            String   @id @default(cuid())
+  title         String
+  description   String
+  type          String
+  actionUrl     String?
+  rewardAmount  Decimal  @db.Decimal(18, 2)
+  isRepeatable  Boolean  @default(false)
+  requiresProof Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  completions UserTaskCompletion[]
+}
+
+model UserTaskCompletion {
+  id         String         @id @default(cuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId     String
+  task       TaskCenterTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status     String         @default("completed")
+  proofUrl   String?
+  proofText  String?
+  rewardPaid Decimal        @db.Decimal(18, 2)
+  createdAt  DateTime       @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Admin, security, notifications
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String?
+  user        User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  type        NotificationType @default(SYSTEM)
+  isRead      Boolean          @default(false)
+  isBroadcast Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([userId])
+}
+
+model Device {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint    String
+  userAgent      String?
+  ipAddress      String?
+  isTrusted      Boolean  @default(false)
+  isVpnSuspected Boolean  @default(false)
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  recordings VoiceRecording[]
+
+  @@unique([userId, fingerprint])
+}
+
+model FraudReport {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation("FraudSubject", fields: [userId], references: [id], onDelete: Cascade)
+  type         String
+  details      String
+  severity     FraudSeverity @default(LOW)
+  status       FraudStatus   @default(OPEN)
+  reviewedById String?
+  reviewedBy   User?         @relation("FraudReviewer", fields: [reviewedById], references: [id])
+  createdAt    DateTime      @default(now())
+  resolvedAt   DateTime?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  ipAddress String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Promo codes & support
+// ---------------------------------------------------------------------------
+
+model PromoCode {
+  id              String     @id @default(cuid())
+  code            String     @unique
+  amount          Decimal    @db.Decimal(18, 2)
+  wallet          WalletType @default(BONUS)
+  maxRedemptions  Int        @default(1)
+  redemptionCount Int        @default(0)
+  expiresAt       DateTime?
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+
+  redemptions PromoCodeRedemption[]
+}
+
+model PromoCodeRedemption {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, promoCodeId])
+}
+
+model SupportTicket {
+  id        String              @id @default(cuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  message   String
+  status    SupportTicketStatus @default(OPEN)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  replies SupportTicketReply[]
+}
+
+model SupportTicketReply {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  message   String
+  isAdmin   Boolean       @default(false)
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+}

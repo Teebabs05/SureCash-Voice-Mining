@@ -1,0 +1,190 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
+import { Plus, Check, X } from "lucide-react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency } from "@/lib/utils";
+
+interface TaskCenterTask {
+  id: string;
+  title: string;
+  description: string;
+  rewardAmount: string;
+  isActive: boolean;
+  requiresProof: boolean;
+}
+
+interface PendingCompletion {
+  id: string;
+  proofUrl: string | null;
+  proofText: string | null;
+  createdAt: string;
+  user: { fullName: string; email: string };
+  task: { title: string; rewardAmount: string };
+}
+
+export default function AdminTasksPage() {
+  const [tasks, setTasks] = useState<TaskCenterTask[]>([]);
+  const [pending, setPending] = useState<PendingCompletion[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    type: "social",
+    actionUrl: "",
+    rewardAmount: "",
+    requiresProof: false,
+  });
+
+  const loadTasks = useCallback(() => {
+    apiFetch<{ tasks: TaskCenterTask[] }>("/api/admin/tasks").then((res) => setTasks(res.tasks));
+  }, []);
+  const loadPending = useCallback(() => {
+    apiFetch<{ completions: PendingCompletion[] }>("/api/admin/task-completions").then((res) => setPending(res.completions));
+  }, []);
+
+  useEffect(() => {
+    loadTasks();
+    loadPending();
+  }, [loadTasks, loadPending]);
+
+  async function createTask() {
+    try {
+      await apiFetch("/api/admin/tasks", {
+        method: "POST",
+        body: JSON.stringify({ ...form, rewardAmount: Number(form.rewardAmount) }),
+      });
+      toast.success("Task created");
+      setForm({ title: "", description: "", type: "social", actionUrl: "", rewardAmount: "", requiresProof: false });
+      setShowForm(false);
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not create task");
+    }
+  }
+
+  async function toggleActive(task: TaskCenterTask) {
+    setBusyId(task.id);
+    try {
+      await apiFetch(`/api/admin/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ isActive: !task.isActive }) });
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function resolveCompletion(id: string, action: "approve" | "reject") {
+    setBusyId(id);
+    try {
+      await apiFetch(`/api/admin/task-completions/${id}/resolve`, { method: "POST", body: JSON.stringify({ action }) });
+      toast.success(`Submission ${action}d`);
+      loadPending();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <h1 className="text-2xl font-bold">Task Center</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Task templates</CardTitle>
+        </CardHeader>
+        <div className="flex flex-col gap-2">
+          {tasks.map((t) => (
+            <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
+              <div>
+                <p className="text-sm font-semibold">
+                  {t.title} {t.requiresProof && <span className="text-xs text-brand-purple">(needs proof)</span>}
+                </p>
+                <p className="text-xs text-foreground/50">{t.description}</p>
+                <p className="text-xs font-medium text-brand-green">{formatCurrency(t.rewardAmount)}</p>
+              </div>
+              <Button size="sm" variant={t.isActive ? "outline" : "primary"} loading={busyId === t.id} onClick={() => toggleActive(t)}>
+                {t.isActive ? "Deactivate" : "Activate"}
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {showForm ? (
+          <div className="mt-3 flex flex-col gap-2">
+            <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Input
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+            <Input
+              placeholder="Action URL (optional)"
+              value={form.actionUrl}
+              onChange={(e) => setForm({ ...form, actionUrl: e.target.value })}
+            />
+            <Input
+              placeholder="Reward amount"
+              type="number"
+              value={form.rewardAmount}
+              onChange={(e) => setForm({ ...form, rewardAmount: e.target.value })}
+            />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.requiresProof}
+                onChange={(e) => setForm({ ...form, requiresProof: e.target.checked })}
+              />
+              Requires manual proof review
+            </label>
+            <Button onClick={createTask}>Create task</Button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowForm(true)}
+            className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+          >
+            <Plus className="h-4 w-4" /> New task
+          </button>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pending proof review ({pending.length})</CardTitle>
+        </CardHeader>
+        <div className="flex flex-col gap-3">
+          {pending.length === 0 && <p className="text-sm text-foreground/50">Nothing pending</p>}
+          {pending.map((c) => (
+            <div key={c.id} className="rounded-xl bg-surface-muted p-3">
+              <p className="text-sm font-semibold">{c.user.fullName}</p>
+              <p className="text-xs text-foreground/50">{c.task.title} · {formatCurrency(c.task.rewardAmount)}</p>
+              {c.proofUrl && (
+                <a href={c.proofUrl} target="_blank" className="text-xs text-brand-purple underline">
+                  {c.proofUrl}
+                </a>
+              )}
+              {c.proofText && <p className="mt-1 text-xs text-foreground/70">&ldquo;{c.proofText}&rdquo;</p>}
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" loading={busyId === c.id} onClick={() => resolveCompletion(c.id, "approve")}>
+                  <Check className="h-3.5 w-3.5" /> Approve
+                </Button>
+                <Button size="sm" variant="danger" loading={busyId === c.id} onClick={() => resolveCompletion(c.id, "reject")}>
+                  <X className="h-3.5 w-3.5" /> Reject
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
