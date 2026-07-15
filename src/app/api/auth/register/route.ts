@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       html: verificationEmailHtml(user.fullName, verifyUrl),
     });
 
-    await createSession({ userId: user.id, role: user.role });
+    await createSession({ userId: user.id, role: user.role, ipAddress, userAgent });
     await writeAuditLog({ userId: user.id, action: "auth.register", ipAddress, userAgent });
 
     return NextResponse.json({

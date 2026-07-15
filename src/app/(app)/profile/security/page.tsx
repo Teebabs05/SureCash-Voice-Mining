@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Smartphone, ShieldAlert, History } from "lucide-react";
+import { ArrowLeft, Smartphone, ShieldAlert, History, Monitor, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,14 @@ interface LoginEvent {
   userAgent: string | null;
   createdAt: string;
 }
+interface Session {
+  id: string;
+  userAgent: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  isCurrent: boolean;
+}
 
 export default function SecurityPage() {
   const router = useRouter();
@@ -37,8 +45,14 @@ export default function SecurityPage() {
   const [phoneOtp, setPhoneOtp] = useState("");
   const [devices, setDevices] = useState<Device[]>([]);
   const [logins, setLogins] = useState<LoginEvent[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "" });
   const [loading, setLoading] = useState(false);
+  const [sessionBusyId, setSessionBusyId] = useState<string | null>(null);
+
+  function loadSessions() {
+    apiFetch<{ sessions: Session[] }>("/api/security/sessions").then((res) => setSessions(res.sessions));
+  }
 
   useEffect(() => {
     apiFetch<Me>("/api/auth/me").then((res) => {
@@ -48,7 +62,34 @@ export default function SecurityPage() {
     });
     apiFetch<{ devices: Device[] }>("/api/devices").then((res) => setDevices(res.devices));
     apiFetch<{ logins: LoginEvent[] }>("/api/security/login-history").then((res) => setLogins(res.logins));
+    loadSessions();
   }, []);
+
+  async function revokeSession(id: string) {
+    setSessionBusyId(id);
+    try {
+      await apiFetch(`/api/security/sessions/${id}/revoke`, { method: "POST" });
+      toast.success("Session signed out");
+      loadSessions();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not revoke session");
+    } finally {
+      setSessionBusyId(null);
+    }
+  }
+
+  async function revokeOtherSessions() {
+    setLoading(true);
+    try {
+      const res = await apiFetch<{ revokedCount: number }>("/api/security/sessions/revoke-others", { method: "POST" });
+      toast.success(`Signed out ${res.revokedCount} other session(s)`);
+      loadSessions();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not revoke sessions");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function sendPhoneOtp() {
     setLoading(true);
@@ -165,6 +206,40 @@ export default function SecurityPage() {
           <Button loading={loading} onClick={changePassword}>
             Update password
           </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Active sessions</CardTitle>
+          {sessions.length > 1 && (
+            <Button size="sm" variant="outline" loading={loading} onClick={revokeOtherSessions}>
+              <LogOut className="h-3.5 w-3.5" /> Sign out others
+            </Button>
+          )}
+        </CardHeader>
+        <div className="flex flex-col divide-y divide-border">
+          {sessions.length === 0 && <p className="py-4 text-center text-sm text-foreground/50">No active sessions</p>}
+          {sessions.map((s) => (
+            <div key={s.id} className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-2">
+                <Monitor className="h-4 w-4 flex-none text-foreground/40" />
+                <div>
+                  <p className="max-w-[180px] truncate text-xs font-medium">
+                    {s.userAgent ?? "Unknown device"} {s.isCurrent && <span className="text-brand-green">(this device)</span>}
+                  </p>
+                  <p className="text-[10px] text-foreground/40">
+                    {s.ipAddress ?? "unknown IP"} · last active {new Date(s.lastSeenAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              {!s.isCurrent && (
+                <Button size="sm" variant="ghost" loading={sessionBusyId === s.id} onClick={() => revokeSession(s.id)}>
+                  Sign out
+                </Button>
+              )}
+            </div>
+          ))}
         </div>
       </Card>
 

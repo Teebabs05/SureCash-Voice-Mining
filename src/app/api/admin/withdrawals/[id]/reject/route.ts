@@ -18,7 +18,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const withdrawal = await prisma.withdrawal.findUnique({ where: { id } });
     if (!withdrawal) return jsonError("Withdrawal not found", 404);
-    if (withdrawal.status !== "PENDING") return jsonError("Withdrawal already processed", 409);
+    if (withdrawal.status !== "PENDING" && withdrawal.status !== "PROCESSING") {
+      return jsonError("Withdrawal already processed", 409);
+    }
 
     await prisma.$transaction(async (tx) => {
       await tx.withdrawal.update({

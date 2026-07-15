@@ -28,8 +28,22 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     await requireAdmin();
     const { id } = await params;
-    await prisma.voiceTask.update({ where: { id }, data: { isActive: false } });
-    return NextResponse.json({ success: true });
+
+    const recordingCount = await prisma.voiceRecording.count({ where: { voiceTaskId: id } });
+    if (recordingCount > 0) {
+      // Recordings reference this task — deleting would orphan reward/history
+      // data, so deactivate instead and let the admin hard-delete only once
+      // it has no submissions.
+      await prisma.voiceTask.update({ where: { id }, data: { isActive: false } });
+      return NextResponse.json({
+        success: true,
+        hardDeleted: false,
+        message: `Task has ${recordingCount} recording(s) — deactivated instead of deleted.`,
+      });
+    }
+
+    await prisma.voiceTask.delete({ where: { id } });
+    return NextResponse.json({ success: true, hardDeleted: true });
   } catch (error) {
     return handleApiError(error);
   }

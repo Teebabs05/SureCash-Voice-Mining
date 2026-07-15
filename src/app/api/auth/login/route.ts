@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ requires2fa: true, uid: user.id });
     }
 
-    await createSession({ userId: user.id, role: user.role });
+    await createSession({ userId: user.id, role: user.role, ipAddress, userAgent });
     await writeAuditLog({ userId: user.id, action: "auth.login", ipAddress, userAgent });
 
     return NextResponse.json({

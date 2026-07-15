@@ -15,12 +15,14 @@ import {
   Ticket,
   Gift,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 
 const items = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/deposits", label: "Deposits", icon: Banknote },
   { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },

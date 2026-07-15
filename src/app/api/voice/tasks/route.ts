@@ -4,6 +4,17 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { TIER_CONFIG } from "@/lib/config";
 
+/** Fisher-Yates shuffle — randomizes sentence order per request so users
+ * don't always record the same prompts in the same sequence. */
+function shuffle<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export async function GET() {
   try {
     const user = await requireUser();
@@ -21,11 +32,13 @@ export async function GET() {
     const multiplier = TIER_CONFIG[user.tier].dailyLimitMultiplier;
 
     return NextResponse.json({
-      tasks: tasks.map((t) => ({
-        ...t,
-        dailyLimit: t.dailyLimit * multiplier,
-        completedToday: countMap.get(t.id) ?? 0,
-      })),
+      tasks: shuffle(
+        tasks.map((t) => ({
+          ...t,
+          dailyLimit: t.dailyLimit * multiplier,
+          completedToday: countMap.get(t.id) ?? 0,
+        }))
+      ),
     });
   } catch (error) {
     return handleApiError(error);

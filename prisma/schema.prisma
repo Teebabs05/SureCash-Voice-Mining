@@ -181,7 +181,7 @@ model User {
   otpCodes                  OtpCode[]
   auditLogs                 AuditLog[]
   emailVerificationTokens   EmailVerificationToken[]
-  refreshTokens             RefreshToken[]
+  sessions                  Session[]
   adminProfile              AdminProfile?
   promoCodeRedemptions      PromoCodeRedemption[]
   supportTickets            SupportTicket[]
@@ -200,14 +200,20 @@ model AdminProfile {
   createdAt   DateTime @default(now())
 }
 
-model RefreshToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+// Server-side record backing each issued JWT session cookie, so sessions can
+// be listed and individually revoked ("log out other devices") — the JWT
+// itself only proves identity; this table is checked on every request to
+// confirm the session hasn't been revoked or expired.
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
 
   @@index([userId])
 }

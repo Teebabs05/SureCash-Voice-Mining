@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
+import { WithdrawalStepper } from "@/components/wallet/withdrawal-stepper";
 
 interface BankAccount {
   id: string;
@@ -177,21 +178,12 @@ export default function WithdrawPage() {
           <h2 className="mb-2 text-sm font-semibold text-foreground/70">Withdrawal history</h2>
           <div className="flex flex-col gap-2">
             {withdrawals.map((w) => (
-              <Card key={w.id} className="flex items-center justify-between p-3">
-                <div>
+              <Card key={w.id} className="flex flex-col gap-3 p-3">
+                <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">{formatCurrency(w.amount)}</p>
                   <p className="text-xs text-foreground/50">{new Date(w.createdAt).toLocaleDateString()}</p>
                 </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-semibold",
-                    (w.status === "APPROVED" || w.status === "PAID") && "bg-brand-green/15 text-brand-green",
-                    w.status === "PENDING" && "bg-brand-gold/15 text-[#a67c00]",
-                    w.status === "REJECTED" && "bg-red-500/15 text-red-500"
-                  )}
-                >
-                  {w.status}
-                </span>
+                <WithdrawalStepper status={w.status} />
               </Card>
             ))}
           </div>

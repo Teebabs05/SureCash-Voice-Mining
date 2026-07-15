@@ -61,16 +61,19 @@ Every user has six wallets: **Main, Mining, Voice, Referral, Task, Bonus**. All 
 - **Promo codes** — admin-issued codes users redeem once for bonus-wallet credit.
 - **Support** — user-created tickets with admin replies, plus a static FAQ page.
 - **Community feed** — a real-activity feed (withdrawals paid, voice approvals, achievements, referral bonuses) — never fabricated data.
-- **Admin panel** — overview analytics, users (ban/tier), deposits, withdrawals, voice task management + flagged-recording review, Task Center management + proof review, fraud dashboard, promo codes, support tickets, broadcast notifications, settings.
+- **Withdrawal tracking** — a visual Submitted → Processing → Paid stepper on both the user and admin side; admins can move a withdrawal into "processing" before marking it paid.
+- **Security Center** — active session list with per-device and "sign out all other sessions" revocation (backed by a real DB-tracked `Session` model, not just the JWT), plus login history and device tracking.
+- **Admin panel** — overview stats, a dedicated Analytics page (7-day retention, verification/deposit conversion, most active users, voice AI success rate), users (ban/tier), deposits, withdrawals, voice task management (create/activate/delete + flagged-recording review), Task Center management + proof review, fraud dashboard (report queue + flagged-users/VPN-devices/multi-device aggregate views), promo codes, support tickets, segmented broadcast notifications (All/VIP/New/Inactive), settings.
 
 ## Security
 
-- httpOnly JWT session cookie, SameSite=Lax
+- httpOnly JWT session cookie, SameSite=Lax, backed by a DB `Session` record checked on every request — sessions can be individually revoked or bulk-revoked ("log out other devices"), which a stateless JWT alone can't do
 - `src/middleware.ts`: security headers, cross-origin POST/PUT/PATCH/DELETE blocking (CSRF), a global per-IP rate limit, with the Paystack webhook exempted
 - Per-route rate limiting on register/login/voice-submit/OTP endpoints (in-memory — swap for Redis/Upstash before scaling to multiple instances)
 - Device fingerprinting (client-side hash) + a heuristic VPN-suspicion signal, stored per device
 - Full audit log (`AuditLog`) for auth events, admin actions, and withdrawals
-- Fraud reports auto-created for duplicate/replay/synthesized-voice detections, reviewable from the admin Fraud Dashboard
+- Fraud reports auto-created for duplicate/replay/synthesized-voice detections, reviewable from the admin Fraud Dashboard's report queue and aggregate views (most-flagged users, VPN-suspected devices, multi-device accounts)
+- Voice task prompts are served in randomized order per request so recordings aren't predictable
 
 ## Known limitations / roadmap
 
@@ -80,6 +83,8 @@ Built as a solid, fully-working MVP — these are the pieces intentionally left 
 - **Payment gateways**: only Paystack is a real integration; Monnify/Korapay/PayVessel/Flutterwave throw a clear "not configured" error until real API credentials are wired into `src/lib/payments/provider.ts`.
 - **Push notifications**: the service worker listens for and displays pushes, but there's no server-side VAPID subscription/send flow yet — add `web-push` + a `PushSubscription` table to complete it.
 - **USDT/crypto withdrawals** are not implemented (bank-account withdrawal only).
+- **SMS/WhatsApp notifications** are stub-only (console log) — swap in a real provider in `src/lib/notifications/otp.ts`.
+- **Multi-level referral tree**: the referral dashboard shows direct referrals only, not a downstream tree.
 - **Rate limiting** is in-memory (per-process) — fine for a single instance, needs a shared store (Redis) before horizontal scaling.
 
 ## Project structure

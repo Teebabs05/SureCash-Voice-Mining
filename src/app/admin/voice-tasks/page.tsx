@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Check, X } from "lucide-react";
+import { Plus, Check, X, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,21 @@ export default function AdminVoiceTasksPage() {
     }
   }
 
+  async function deleteTask(task: VoiceTask) {
+    setBusyId(task.id);
+    try {
+      const res = await apiFetch<{ hardDeleted: boolean; message?: string }>(`/api/admin/voice-tasks/${task.id}`, {
+        method: "DELETE",
+      });
+      toast.success(res.hardDeleted ? "Task deleted" : res.message ?? "Task deactivated");
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function resolveRecording(id: string, action: "approve" | "reject") {
     setBusyId(id);
     try {
@@ -121,14 +136,19 @@ export default function AdminVoiceTasksPage() {
                   {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant={t.isActive ? "outline" : "primary"}
-                loading={busyId === t.id}
-                onClick={() => toggleActive(t)}
-              >
-                {t.isActive ? "Deactivate" : "Activate"}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={t.isActive ? "outline" : "primary"}
+                  loading={busyId === t.id}
+                  onClick={() => toggleActive(t)}
+                >
+                  {t.isActive ? "Deactivate" : "Activate"}
+                </Button>
+                <Button size="sm" variant="danger" loading={busyId === t.id} onClick={() => deleteTask(t)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.findUniqueOrThrow({ where: { id: uid } });
     await prisma.otpCode.update({ where: { id: otp.id }, data: { usedAt: new Date() } });
-    await createSession({ userId: user.id, role: user.role });
+    await createSession({ userId: user.id, role: user.role, ipAddress, userAgent });
     await writeAuditLog({ userId: user.id, action: "auth.login_2fa_success", ipAddress, userAgent });
 
     return NextResponse.json({
