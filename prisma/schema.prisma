@@ -317,6 +317,11 @@ model BankAccount {
   bankCode              String
   accountNumber         String
   accountName           String
+  // Set automatically when a bank verification API resolved this account
+  // number to a real account name (the "instant bank account detection"
+  // flow) — distinct from `isVerified`, which tracks the separate OTP step
+  // confirming the account owner authorized adding this payout destination.
+  autoVerified          Boolean  @default(false)
   isVerified            Boolean  @default(false)
   isPrimary             Boolean  @default(false)
   paystackRecipientCode String?

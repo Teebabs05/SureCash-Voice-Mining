@@ -3,15 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
-import { resolveBankAccount } from "@/lib/payments/bank-verification";
+import { resolveBankAccount, getBankList } from "@/lib/payments/bank-verification";
 import { generateOtpCode, hashToken } from "@/lib/server/auth";
 import { sendOtpCode } from "@/lib/notifications/otp";
 import { sendEmail } from "@/lib/notifications/email";
 
 const schema = z.object({
-  bankName: z.string().min(2),
   bankCode: z.string().min(2),
-  accountNumber: z.string().min(6).max(20),
+  accountNumber: z.string().regex(/^[0-9]{10}$/, "Account number must be 10 digits"),
 });
 
 export async function GET() {
@@ -34,15 +33,27 @@ export async function POST(req: NextRequest) {
     });
     if (existing) return jsonError("This bank account is already linked", 409);
 
+    const banks = await getBankList();
+    const bank = banks.find((b) => b.code === body.bankCode);
+    if (!bank) return jsonError("Unknown bank selected", 422);
+
     const resolved = await resolveBankAccount({ bankCode: body.bankCode, accountNumber: body.accountNumber });
+
+    // Automatic verification is the whole point of this flow — if a real
+    // provider is configured, refuse to save an account it couldn't
+    // resolve to a name (matches "cannot save an invalid account number").
+    if (resolved.configured && !resolved.verified) {
+      return jsonError("Could not verify this account number for the selected bank. Please double-check the details.", 422);
+    }
 
     const account = await prisma.bankAccount.create({
       data: {
         userId: user.id,
-        bankName: body.bankName,
+        bankName: bank.name,
         bankCode: body.bankCode,
         accountNumber: body.accountNumber,
-        accountName: resolved.accountName,
+        accountName: resolved.configured ? resolved.accountName : "Unverified — pending manual review",
+        autoVerified: resolved.verified,
         isVerified: false,
       },
     });

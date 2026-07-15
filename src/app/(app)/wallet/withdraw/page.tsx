@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Plus, ShieldCheck, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,14 @@ import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
 import { WithdrawalStepper } from "@/components/wallet/withdrawal-stepper";
+import { BankAccountForm } from "@/components/wallet/bank-account-form";
 
 interface BankAccount {
   id: string;
   bankName: string;
   accountNumber: string;
   accountName: string;
+  autoVerified: boolean;
   isVerified: boolean;
 }
 
@@ -37,7 +39,6 @@ export default function WithdrawPage() {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
-  const [newAccount, setNewAccount] = useState({ bankName: "", bankCode: "", accountNumber: "" });
   const [pendingOtpAccountId, setPendingOtpAccountId] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
 
@@ -53,22 +54,11 @@ export default function WithdrawPage() {
     load();
   }, [load]);
 
-  async function addAccount() {
-    setLoading(true);
-    try {
-      const res = await apiFetch<{ account: BankAccount }>("/api/bank-accounts", {
-        method: "POST",
-        body: JSON.stringify(newAccount),
-      });
-      toast.success("OTP sent — confirm to activate this account");
-      setPendingOtpAccountId(res.account.id);
-      setShowAddAccount(false);
-      load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not add bank account");
-    } finally {
-      setLoading(false);
-    }
+  function onAccountAdded(account: BankAccount) {
+    toast.success("OTP sent — confirm to activate this account");
+    setPendingOtpAccountId(account.id);
+    setShowAddAccount(false);
+    load();
   }
 
   async function confirmOtp() {
@@ -145,17 +135,25 @@ export default function WithdrawPage() {
                 <p className="font-medium">{acc.accountName}</p>
                 <p className="text-xs text-foreground/50">{acc.bankName} · {acc.accountNumber}</p>
               </div>
-              {acc.isVerified && <ShieldCheck className="h-4 w-4 text-brand-green" />}
+              <div className="flex items-center gap-1.5">
+                {acc.autoVerified && (
+                  <span title="Automatically verified">
+                    <BadgeCheck className="h-4 w-4 text-brand-purple" />
+                  </span>
+                )}
+                {acc.isVerified && (
+                  <span title="OTP confirmed">
+                    <ShieldCheck className="h-4 w-4 text-brand-green" />
+                  </span>
+                )}
+              </div>
             </button>
           ))}
         </div>
 
         {showAddAccount ? (
-          <div className="mt-3 flex flex-col gap-2">
-            <Input placeholder="Bank name" value={newAccount.bankName} onChange={(e) => setNewAccount({ ...newAccount, bankName: e.target.value })} />
-            <Input placeholder="Bank code" value={newAccount.bankCode} onChange={(e) => setNewAccount({ ...newAccount, bankCode: e.target.value })} />
-            <Input placeholder="Account number" value={newAccount.accountNumber} onChange={(e) => setNewAccount({ ...newAccount, accountNumber: e.target.value })} />
-            <Button loading={loading} onClick={addAccount}>Add & send OTP</Button>
+          <div className="mt-3">
+            <BankAccountForm onAdded={onAccountAdded} />
           </div>
         ) : (
           <button
