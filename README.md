@@ -89,7 +89,6 @@ Built as a solid, fully-working MVP — these are the pieces intentionally left 
 - **Push notifications**: the service worker listens for and displays pushes, but there's no server-side VAPID subscription/send flow yet — add `web-push` + a `PushSubscription` table to complete it.
 - **USDT withdrawals are manual-only** — there's no real crypto disbursement/custody integration, so an admin always sends the USDT and marks it paid by hand (unlike bank withdrawals, which can auto-pay via Paystack).
 - **SMS/WhatsApp notifications** are stub-only (console log) — swap in a real provider in `src/lib/notifications/otp.ts`.
-- **Mining base reward / referral signup bonus** Settings fields are stored but not yet read by the mining/referral routes (they still use the constants in `src/lib/config.ts`) — only the withdrawal-related settings are live.
 - **Multi-level referral tree**: the referral dashboard shows direct referrals only, not a downstream tree.
 - **Rate limiting** is in-memory (per-process) — fine for a single instance, needs a shared store (Redis) before horizontal scaling.
 

@@ -14,7 +14,7 @@ import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { sendEmail, verificationEmailHtml } from "@/lib/notifications/email";
 import { verifyRecaptcha } from "@/lib/security/recaptcha";
-import { REFERRAL_CONFIG } from "@/lib/config";
+import { getReferralSignupBonus } from "@/lib/server/referral-settings";
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
       referralCode = generateReferralCode();
     }
 
+    const referralSignupBonus = await getReferralSignupBonus();
+
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
         data: {
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
           data: {
             referrerId: referredById,
             referredId: created.id,
-            rewardAmount: REFERRAL_CONFIG.signupBonus,
+            rewardAmount: referralSignupBonus,
           },
         });
       }

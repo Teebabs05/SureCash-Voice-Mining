@@ -6,6 +6,7 @@ import { creditWallet } from "@/lib/server/wallet";
 import { bumpMiningStreak, addXp, incrementMissionProgress, checkAchievements } from "@/lib/server/gamification";
 import { payReferralCommission } from "@/lib/server/referral-commission";
 import { MINING_CONFIG, XP_CONFIG, TIER_CONFIG } from "@/lib/config";
+import { getMiningBaseReward } from "@/lib/server/mining-settings";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { notifyUser } from "@/lib/server/notifications";
 import type { NextRequest } from "next/server";
@@ -23,11 +24,13 @@ export async function POST(req: NextRequest) {
       return jsonError("Mining is still on cooldown", 429);
     }
 
+    const miningBaseReward = await getMiningBaseReward();
+
     const result = await prisma.$transaction(async (tx) => {
       const updatedUser = await bumpMiningStreak(user.id, tx);
 
       const baseReward =
-        MINING_CONFIG.baseReward +
+        miningBaseReward +
         Math.min(updatedUser.streakCount * MINING_CONFIG.streakBonusPerDay, MINING_CONFIG.maxStreakBonus);
       const reward = Number((baseReward * TIER_CONFIG[user.tier].miningRewardMultiplier).toFixed(2));
 

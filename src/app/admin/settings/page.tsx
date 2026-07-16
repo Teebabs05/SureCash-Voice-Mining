@@ -19,8 +19,8 @@ const LIVE_SETTING_FIELDS = [
   { key: "usdt_ngn_rate", label: "USDT → NGN exchange rate" },
 ];
 
-const PLANNED_SETTING_FIELDS = [
-  { key: "mining_base_reward", label: "Mining base reward" },
+const GAMIFICATION_SETTING_FIELDS = [
+  { key: "mining_base_reward", label: "Mining base reward (before streak/tier bonus)" },
   { key: "referral_signup_bonus", label: "Referral signup bonus" },
 ];
 
@@ -88,14 +88,16 @@ export default function AdminSettingsPage() {
 
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Other values</CardTitle>
+          <CardTitle>Mining & referral configuration</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
-          Stored for reference only — not yet read by the mining/referral routes (they still use the constants in
-          <code className="mx-1 rounded bg-surface-muted px-1">src/lib/config.ts</code>).
+          Also live — read directly by
+          <code className="mx-1 rounded bg-surface-muted px-1">/api/mining/claim</code>,
+          <code className="mx-1 rounded bg-surface-muted px-1">/api/mining/status</code>, and
+          <code className="mx-1 rounded bg-surface-muted px-1">/api/auth/register</code>.
         </p>
         <div className="flex flex-col gap-3">
-          {PLANNED_SETTING_FIELDS.map(({ key, label }) => (
+          {GAMIFICATION_SETTING_FIELDS.map(({ key, label }) => (
             <div key={key} className="flex items-end gap-2">
               <Input
                 label={label}
@@ -103,7 +105,7 @@ export default function AdminSettingsPage() {
                 value={settings[key] ?? ""}
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
               />
-              <Button size="sm" variant="outline" loading={loading === key} onClick={() => save(key)}>
+              <Button size="sm" loading={loading === key} onClick={() => save(key)}>
                 Save
               </Button>
             </div>

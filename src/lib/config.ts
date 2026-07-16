@@ -31,6 +31,8 @@ export const SETTINGS_KEYS = {
   withdrawalMinAmount: "withdrawal_min_amount",
   withdrawalUsdtNetworkFee: "withdrawal_usdt_network_fee",
   usdtNgnRate: "usdt_ngn_rate",
+  miningBaseReward: "mining_base_reward",
+  referralSignupBonus: "referral_signup_bonus",
 } as const;
 
 export const XP_CONFIG = {
