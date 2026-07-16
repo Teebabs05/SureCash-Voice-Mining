@@ -2,6 +2,7 @@ import { initiateTransfer as billstackInitiateTransfer } from "@/lib/payments/bi
 import { initiateTransfer as monnifyInitiateTransfer } from "@/lib/payments/monnify";
 import { initiateTransfer as korapayInitiateTransfer } from "@/lib/payments/korapay";
 import { initiateTransfer as payvesselInitiateTransfer } from "@/lib/payments/payvessel";
+import { initiateTransfer as flutterwaveInitiateTransfer } from "@/lib/payments/flutterwave";
 
 export interface PayoutRecipient {
   recipientCode: string;
@@ -218,8 +219,37 @@ class PayvesselPayoutProvider implements PayoutProviderAdapter {
   }
 }
 
+/**
+ * Flutterwave's Transfers API is also a single call with no separate
+ * "create recipient" step, same pattern as the other providers here.
+ */
+class FlutterwavePayoutProvider implements PayoutProviderAdapter {
+  name = "FLUTTERWAVE";
+
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string; email?: string }): Promise<PayoutRecipient> {
+    return { recipientCode: JSON.stringify(params) };
+  }
+
+  async initiateTransfer(params: {
+    amount: number;
+    recipientCode: string;
+    reference: string;
+    reason: string;
+  }): Promise<PayoutResult> {
+    const recipient = JSON.parse(params.recipientCode) as { bankCode: string; accountNumber: string; accountName: string };
+    const result = await flutterwaveInitiateTransfer({
+      bankCode: recipient.bankCode,
+      accountNumber: recipient.accountNumber,
+      amount: params.amount,
+      reference: params.reference,
+      narration: params.reason,
+    });
+    return { status: result.status, transferCode: result.reference, message: result.message };
+  }
+}
+
 export function getPayoutProvider(
-  provider: "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK"
+  provider: "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK" | "FLUTTERWAVE"
 ): PayoutProviderAdapter {
   switch (provider) {
     case "PAYSTACK":
@@ -232,18 +262,21 @@ export function getPayoutProvider(
       return new PayvesselPayoutProvider();
     case "BILLSTACK":
       return new BillstackPayoutProvider();
+    case "FLUTTERWAVE":
+      return new FlutterwavePayoutProvider();
   }
 }
 
 /** Which gateway to attempt automatic disbursement through by default. */
-export function getDefaultPayoutProvider(): "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK" {
+export function getDefaultPayoutProvider(): "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK" | "FLUTTERWAVE" {
   const configured = process.env.DEFAULT_PAYOUT_PROVIDER;
   if (
     configured === "MONNIFY" ||
     configured === "KORAPAY" ||
     configured === "PAYVESSEL" ||
     configured === "PAYSTACK" ||
-    configured === "BILLSTACK"
+    configured === "BILLSTACK" ||
+    configured === "FLUTTERWAVE"
   ) {
     return configured;
   }

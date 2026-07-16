@@ -1,5 +1,6 @@
 import { initializeTransaction, verifyTransaction } from "@/lib/payments/monnify";
 import { initializeCharge, verifyCharge } from "@/lib/payments/korapay";
+import { initializePayment, verifyPayment } from "@/lib/payments/flutterwave";
 
 export interface PaymentInitResult {
   authorizationUrl: string;
@@ -88,6 +89,24 @@ class KorapayProvider implements PaymentProvider {
   }
 }
 
+class FlutterwaveProvider implements PaymentProvider {
+  name = "FLUTTERWAVE";
+
+  async initialize(params: { amount: number; email: string; reference: string; name?: string }): Promise<PaymentInitResult> {
+    const result = await initializePayment({
+      amount: params.amount,
+      email: params.email,
+      name: params.name || params.email,
+      reference: params.reference,
+    });
+    return { authorizationUrl: result.paymentLink, reference: result.reference };
+  }
+
+  async verify(reference: string): Promise<PaymentVerifyResult> {
+    return verifyPayment(reference);
+  }
+}
+
 /** Placeholder adapters — implement the same interface once API credentials are available. */
 class UnconfiguredProvider implements PaymentProvider {
   constructor(public name: string) {}
@@ -112,6 +131,6 @@ export function getPaymentProvider(
     case "PAYVESSEL":
       return new UnconfiguredProvider("PayVessel");
     case "FLUTTERWAVE":
-      return new UnconfiguredProvider("Flutterwave");
+      return new FlutterwaveProvider();
   }
 }

@@ -87,6 +87,7 @@ enum PayoutProvider {
   KORAPAY
   PAYVESSEL
   BILLSTACK
+  FLUTTERWAVE
 }
 
 enum WithdrawalMethod {
