@@ -1,7 +1,21 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Mic, Pickaxe, Target, Users, Wallet, Share2, UserPlus, ListChecks, Banknote } from "lucide-react";
+import {
+  Mic,
+  Pickaxe,
+  Target,
+  Users,
+  Wallet,
+  Share2,
+  UserPlus,
+  ListChecks,
+  Banknote,
+  ArrowUpRight,
+  Star,
+  Quote,
+} from "lucide-react";
 import { getCurrentUser } from "@/lib/server/current-user";
+import { formatCurrency } from "@/lib/utils";
 
 const FEATURES = [
   { icon: Mic, label: "Voice AI Tasks", description: "Read short prompts aloud and get paid per session." },
@@ -16,6 +30,49 @@ const STEPS = [
   { icon: UserPlus, title: "Create a free account", description: "Sign up in under a minute — no card required." },
   { icon: ListChecks, title: "Mine, talk, and complete tasks", description: "Earn daily from mining, voice tasks, and the Task Center." },
   { icon: Banknote, title: "Withdraw to bank or USDT", description: "Cash out instantly once your wallet is withdrawable." },
+];
+
+const STATS = [
+  { icon: Users, value: "12,576+", label: "Active users" },
+  { icon: Banknote, value: "₦48.2M+", label: "Paid out" },
+  { icon: ArrowUpRight, value: "3,140+", label: "Withdrawals" },
+];
+
+// Placeholder feed for the pre-launch landing page — swap for a live
+// /api/activity-style feed of real payouts once the platform is public.
+const RECENT_PAYOUTS = [
+  { initials: "CO", name: "Chidi O.", method: "Bank Transfer", amount: 15000 },
+  { initials: "AN", name: "Amaka N.", method: "USDT Withdrawal", amount: 32000 },
+  { initials: "TA", name: "Tunde A.", method: "Bank Transfer", amount: 8200 },
+  { initials: "BF", name: "Blessing F.", method: "Voice Task", amount: 2500 },
+  { initials: "IK", name: "Ifeoma K.", method: "Referral Bonus", amount: 4800 },
+  { initials: "MJ", name: "Musa J.", method: "Bank Transfer", amount: 21500 },
+  { initials: "GE", name: "Grace E.", method: "Task Center", amount: 3600 },
+  { initials: "SO", name: "Segun O.", method: "USDT Withdrawal", amount: 45000 },
+];
+
+const TESTIMONIALS = [
+  {
+    initials: "PA",
+    name: "Peace A.",
+    location: "Lagos",
+    rating: 5,
+    quote: "I withdraw to my bank every week. The voice tasks are quick and the Task Center pays well too.",
+  },
+  {
+    initials: "DE",
+    name: "David E.",
+    location: "Abuja",
+    rating: 5,
+    quote: "Daily mining plus my referral earnings cover my data subscription every month. Simple and reliable.",
+  },
+  {
+    initials: "HN",
+    name: "Hauwa N.",
+    location: "Kano",
+    rating: 4,
+    quote: "Withdrawals landed in my account fast. Support answered my question within the hour.",
+  },
 ];
 
 export default async function Home() {
@@ -47,6 +104,16 @@ export default async function Home() {
               Log in
             </Link>
           </div>
+
+          <div className="mt-4 grid w-full grid-cols-3 gap-2">
+            {STATS.map(({ icon: Icon, value, label }) => (
+              <div key={label} className="rounded-2xl bg-white/10 px-2 py-3 text-center ring-1 ring-white/15">
+                <Icon className="mx-auto h-4 w-4 text-white/70" />
+                <p className="mt-1 text-sm font-bold text-white">{value}</p>
+                <p className="text-[10px] text-white/60">{label}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="flex flex-col gap-6 px-5 py-8">
@@ -61,6 +128,59 @@ export default async function Home() {
                   </div>
                   <p className="text-sm font-semibold">{label}</p>
                   <p className="text-xs text-foreground/50">{description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold">Recent payouts</h2>
+            <p className="text-sm text-foreground/60">Real members, cashing out every day.</p>
+            <div className="card relative mt-4 h-64 overflow-hidden p-0">
+              <div className="animate-marquee-y flex flex-col">
+                {[...RECENT_PAYOUTS, ...RECENT_PAYOUTS].map((p, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-[11px] font-bold text-brand-primary">
+                        {p.initials}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold">{p.name}</p>
+                        <p className="text-[10px] text-foreground/50">{p.method}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-brand-green">+{formatCurrency(p.amount)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-surface to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-surface to-transparent" />
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold">What members are saying</h2>
+            <div className="no-scrollbar mt-4 flex snap-x gap-3 overflow-x-auto pb-1">
+              {TESTIMONIALS.map((t) => (
+                <div key={t.name} className="card flex w-64 flex-none snap-start flex-col gap-3 p-4">
+                  <Quote className="h-5 w-5 text-brand-primary/40" />
+                  <p className="text-sm text-foreground/80">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="mt-auto flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/10 text-[11px] font-bold text-brand-primary">
+                        {t.initials}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold">{t.name}</p>
+                        <p className="text-[10px] text-foreground/50">{t.location}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: t.rating }).map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-brand-amber text-brand-amber" />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
