@@ -1,4 +1,5 @@
 import { initiateTransfer as billstackInitiateTransfer } from "@/lib/payments/billstack";
+import { initiateTransfer as monnifyInitiateTransfer } from "@/lib/payments/monnify";
 
 export interface PayoutRecipient {
   recipientCode: string;
@@ -106,6 +107,35 @@ class BillstackPayoutProvider implements PayoutProviderAdapter {
   }
 }
 
+/**
+ * Monnify's disbursement API is also a single call with no separate
+ * "create recipient" step, same pattern as BillStack.
+ */
+class MonnifyPayoutProvider implements PayoutProviderAdapter {
+  name = "MONNIFY";
+
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient> {
+    return { recipientCode: JSON.stringify(params) };
+  }
+
+  async initiateTransfer(params: {
+    amount: number;
+    recipientCode: string;
+    reference: string;
+    reason: string;
+  }): Promise<PayoutResult> {
+    const recipient = JSON.parse(params.recipientCode) as { bankCode: string; accountNumber: string; accountName: string };
+    const result = await monnifyInitiateTransfer({
+      bankCode: recipient.bankCode,
+      accountNumber: recipient.accountNumber,
+      amount: params.amount,
+      reference: params.reference,
+      narration: params.reason,
+    });
+    return { status: result.status, transferCode: result.reference, message: result.message };
+  }
+}
+
 /** Placeholder adapters — implement the same interface once API credentials are available. */
 class UnconfiguredPayoutProvider implements PayoutProviderAdapter {
   constructor(public name: string) {}
@@ -124,7 +154,7 @@ export function getPayoutProvider(
     case "PAYSTACK":
       return new PaystackPayoutProvider();
     case "MONNIFY":
-      return new UnconfiguredPayoutProvider("Monnify");
+      return new MonnifyPayoutProvider();
     case "KORAPAY":
       return new UnconfiguredPayoutProvider("Korapay");
     case "PAYVESSEL":

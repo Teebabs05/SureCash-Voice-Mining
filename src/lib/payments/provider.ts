@@ -1,3 +1,5 @@
+import { initializeTransaction, verifyTransaction } from "@/lib/payments/monnify";
+
 export interface PaymentInitResult {
   authorizationUrl: string;
   reference: string;
@@ -10,7 +12,7 @@ export interface PaymentVerifyResult {
 
 export interface PaymentProvider {
   name: string;
-  initialize(params: { amount: number; email: string; reference: string }): Promise<PaymentInitResult>;
+  initialize(params: { amount: number; email: string; reference: string; name?: string }): Promise<PaymentInitResult>;
   verify(reference: string): Promise<PaymentVerifyResult>;
 }
 
@@ -18,7 +20,7 @@ class PaystackProvider implements PaymentProvider {
   name = "PAYSTACK";
   private key = process.env.PAYSTACK_SECRET_KEY;
 
-  async initialize(params: { amount: number; email: string; reference: string }): Promise<PaymentInitResult> {
+  async initialize(params: { amount: number; email: string; reference: string; name?: string }): Promise<PaymentInitResult> {
     if (!this.key) throw new Error("Paystack is not configured");
 
     const res = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -49,6 +51,24 @@ class PaystackProvider implements PaymentProvider {
   }
 }
 
+class MonnifyProvider implements PaymentProvider {
+  name = "MONNIFY";
+
+  async initialize(params: { amount: number; email: string; reference: string; name?: string }): Promise<PaymentInitResult> {
+    const result = await initializeTransaction({
+      amount: params.amount,
+      email: params.email,
+      name: params.name || params.email,
+      reference: params.reference,
+    });
+    return { authorizationUrl: result.checkoutUrl, reference: params.reference };
+  }
+
+  async verify(reference: string): Promise<PaymentVerifyResult> {
+    return verifyTransaction(reference);
+  }
+}
+
 /** Placeholder adapters — implement the same interface once API credentials are available. */
 class UnconfiguredProvider implements PaymentProvider {
   constructor(public name: string) {}
@@ -67,7 +87,7 @@ export function getPaymentProvider(
     case "PAYSTACK":
       return new PaystackProvider();
     case "MONNIFY":
-      return new UnconfiguredProvider("Monnify");
+      return new MonnifyProvider();
     case "KORAPAY":
       return new UnconfiguredProvider("Korapay");
     case "PAYVESSEL":

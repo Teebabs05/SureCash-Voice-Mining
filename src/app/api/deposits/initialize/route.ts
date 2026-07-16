@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     let authorizationUrl: string;
     try {
-      const result = await provider.initialize({ amount, email: user.email, reference });
+      const result = await provider.initialize({ amount, email: user.email, reference, name: user.fullName });
       authorizationUrl = result.authorizationUrl;
     } catch (err) {
       return jsonError(err instanceof Error ? err.message : `${method} is unavailable`, 503);
