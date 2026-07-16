@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Copy } from "lucide-react";
+import { ArrowLeft, Upload, Copy, ArrowRight, Landmark } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,12 @@ const GATEWAYS = [
   { method: "FLUTTERWAVE", label: "Flutterwave" },
 ] as const;
 
+const MANUAL_BANK = {
+  bankName: "SureCash Trust MFB",
+  accountNumber: "0123456789",
+  accountName: "SureCash Mining Ltd",
+};
+
 interface Deposit {
   id: string;
   amount: string;
@@ -36,6 +42,7 @@ export default function DepositPage() {
   const [tab, setTab] = useState<"gateway" | "transfer" | "manual">("gateway");
   const [amount, setAmount] = useState("");
   const [receipt, setReceipt] = useState<File | null>(null);
+  const [manualStep, setManualStep] = useState<"amount" | "transfer" | "upload">("amount");
   const [loading, setLoading] = useState(false);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
@@ -92,6 +99,7 @@ export default function DepositPage() {
       toast.success("Deposit submitted for review");
       setAmount("");
       setReceipt(null);
+      setManualStep("amount");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not submit deposit");
@@ -122,7 +130,7 @@ export default function DepositPage() {
         ))}
       </div>
 
-      {tab !== "transfer" && (
+      {tab === "gateway" && (
         <Input
           label="Amount"
           type="number"
@@ -171,16 +179,77 @@ export default function DepositPage() {
         </Card>
       )}
 
-      {tab === "manual" && (
+      {tab === "manual" && manualStep === "amount" && (
         <Card>
           <p className="text-sm text-foreground/70">
-            Transfer to our bank account, then upload your receipt below for verification.
+            A fallback for when instant payment gateways are down. Enter the amount you&apos;re sending, then
+            transfer to our bank account and upload your receipt for admin review.
           </p>
-          <div className="mt-3 rounded-xl bg-surface-muted p-3 text-sm">
-            <p>Bank: SureCash Trust MFB</p>
-            <p>Account: 0123456789</p>
-            <p>Name: SureCash Mining Ltd</p>
+          <Input
+            className="mt-3"
+            label="Amount"
+            type="number"
+            min={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+          />
+          <Button
+            className="mt-3 w-full"
+            onClick={() => {
+              if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
+              setManualStep("transfer");
+            }}
+          >
+            Continue
+          </Button>
+        </Card>
+      )}
+
+      {tab === "manual" && manualStep === "transfer" && (
+        <Card>
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
+              <Landmark className="h-6 w-6 text-foreground/60" />
+            </div>
+            <p className="text-2xl font-bold">Pay {formatCurrency(amount)}</p>
+            <p className="text-sm text-foreground/60">
+              Please proceed to your mobile banking app to complete your bank transfer to {MANUAL_BANK.accountName}.
+            </p>
           </div>
+
+          <div className="mt-4 flex flex-col divide-y divide-border rounded-xl bg-surface-muted px-4">
+            <div className="flex items-center justify-between py-3 text-sm">
+              <span className="text-foreground/60">Amount</span>
+              <span className="font-semibold">{formatCurrency(amount)}</span>
+            </div>
+            <div className="flex items-center justify-between py-3 text-sm">
+              <span className="text-foreground/60">Account number</span>
+              <span className="font-semibold">{MANUAL_BANK.accountNumber}</span>
+            </div>
+            <div className="flex items-center justify-between py-3 text-sm">
+              <span className="text-foreground/60">Bank name</span>
+              <span className="font-semibold">{MANUAL_BANK.bankName}</span>
+            </div>
+          </div>
+
+          <Button className="mt-4 w-full" variant="secondary" onClick={() => setManualStep("upload")}>
+            I have completed the transfer <ArrowRight className="h-4 w-4" />
+          </Button>
+          <button
+            onClick={() => setManualStep("amount")}
+            className="mt-2 w-full text-center text-xs text-foreground/50"
+          >
+            Change amount
+          </button>
+        </Card>
+      )}
+
+      {tab === "manual" && manualStep === "upload" && (
+        <Card>
+          <p className="text-sm text-foreground/70">
+            Upload your receipt for {formatCurrency(amount)} so an admin can verify and credit your wallet.
+          </p>
           <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-6 text-sm text-foreground/60">
             <Upload className="h-4 w-4" />
             {receipt ? receipt.name : "Upload receipt"}
@@ -194,6 +263,12 @@ export default function DepositPage() {
           <Button className="mt-3 w-full" loading={loading} onClick={submitManual}>
             Submit for review
           </Button>
+          <button
+            onClick={() => setManualStep("transfer")}
+            className="mt-2 w-full text-center text-xs text-foreground/50"
+          >
+            Back
+          </button>
         </Card>
       )}
 
