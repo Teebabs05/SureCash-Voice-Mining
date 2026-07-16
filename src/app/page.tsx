@@ -83,8 +83,16 @@ export default async function Home() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md">
         <div className="profile-banner flex flex-col items-center gap-4 px-6 pb-12 pt-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25">
-            <Mic className="h-8 w-8" />
+          <div className="flex items-end gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25">
+              <Banknote className="h-5 w-5" />
+            </div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/25">
+              <Mic className="h-8 w-8" />
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25">
+              <Pickaxe className="h-5 w-5" />
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-white">SureCash Mining</h1>
           <p className="max-w-xs text-sm text-white/75">
