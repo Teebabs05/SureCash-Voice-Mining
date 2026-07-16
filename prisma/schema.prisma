@@ -22,11 +22,8 @@ enum UserRole {
 
 enum WalletType {
   MAIN
-  MINING
-  VOICE
-  REFERRAL
-  TASK
-  BONUS
+  ENGAGEMENT
+  SALES
 }
 
 enum TxnType {
@@ -564,7 +561,7 @@ model DailyMission {
   target       Int        @default(1)
   rewardXp     Int        @default(0)
   rewardAmount Decimal    @default(0) @db.Decimal(18, 2)
-  rewardWallet WalletType @default(BONUS)
+  rewardWallet WalletType @default(ENGAGEMENT)
   isActive     Boolean    @default(true)
 
   progress UserMissionProgress[]
@@ -588,7 +585,7 @@ model SpinReward {
   id       String     @id @default(cuid())
   label    String
   amount   Decimal    @db.Decimal(18, 2)
-  wallet   WalletType @default(BONUS)
+  wallet   WalletType @default(ENGAGEMENT)
   weight   Int        @default(1)
   colorHex String     @default("#6A00FF")
   isActive Boolean    @default(true)
@@ -737,7 +734,7 @@ model PromoCode {
   id              String     @id @default(cuid())
   code            String     @unique
   amount          Decimal    @db.Decimal(18, 2)
-  wallet          WalletType @default(BONUS)
+  wallet          WalletType @default(ENGAGEMENT)
   maxRedemptions  Int        @default(1)
   redemptionCount Int        @default(0)
   expiresAt       DateTime?

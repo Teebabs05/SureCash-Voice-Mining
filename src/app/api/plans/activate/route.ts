@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       if (user.referredById) {
         await creditWallet({
           userId: user.referredById,
-          type: "REFERRAL",
+          type: "SALES",
           amount: Number(plan.referralCommission),
           reason: "PLAN_COMMISSION",
           description: `Commission: your referral activated ${plan.name}`,

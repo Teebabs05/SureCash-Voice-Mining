@@ -31,7 +31,7 @@ async function approveAndPay(
 
   await creditWallet({
     userId: params.userId,
-    type: "TASK",
+    type: "ENGAGEMENT",
     amount: params.reward,
     reason: "TASK_REWARD",
     description: `Task reward: ${params.title}`,

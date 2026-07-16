@@ -25,7 +25,7 @@ export async function payReferralCommission(params: {
 
   await creditWallet({
     userId: earner.referredById,
-    type: "REFERRAL",
+    type: "SALES",
     amount: commission,
     reason: "REFERRAL_BONUS",
     description: `${REFERRAL_CONFIG.commissionPercent}% commission from a referred user's earnings`,

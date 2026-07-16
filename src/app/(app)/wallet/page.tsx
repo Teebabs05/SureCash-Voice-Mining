@@ -27,7 +27,7 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<WalletTxn[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTransfer, setShowTransfer] = useState(false);
-  const [transfer, setTransfer] = useState({ from: "MAIN", to: "BONUS", amount: "" });
+  const [transfer, setTransfer] = useState({ from: "MAIN", to: "ENGAGEMENT", amount: "" });
   const [transferLoading, setTransferLoading] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);

@@ -22,7 +22,7 @@ export async function addXp(userId: string, amount: number, client: Tx) {
     if (Number(nextLevel.bonusAmount) > 0) {
       await creditWallet({
         userId,
-        type: "BONUS",
+        type: "ENGAGEMENT",
         amount: Number(nextLevel.bonusAmount),
         reason: "LEVEL_UP_BONUS",
         description: `Level ${nextLevel.level} bonus: ${nextLevel.title}`,

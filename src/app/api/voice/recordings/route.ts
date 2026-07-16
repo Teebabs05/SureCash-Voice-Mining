@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
       if (passed) {
         await creditWallet({
           userId: user.id,
-          type: "VOICE",
+          type: "ENGAGEMENT",
           amount: Number(effectiveReward),
           reason: "VOICE_TASK_REWARD",
           description: `Voice task reward: ${voiceTask.title}`,

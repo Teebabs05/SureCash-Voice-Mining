@@ -1,6 +1,6 @@
 export const APP_NAME = process.env.APP_NAME ?? "SureCash Mining";
 
-export const WALLET_TYPES = ["MAIN", "MINING", "VOICE", "REFERRAL", "TASK", "BONUS"] as const;
+export const WALLET_TYPES = ["MAIN", "ENGAGEMENT", "SALES"] as const;
 
 export const MINING_CONFIG = {
   baseReward: 10,

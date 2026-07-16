@@ -98,9 +98,9 @@ async function main() {
   // ---------------------------------------------------------------------
   await prisma.dailyMission.createMany({
     data: [
-      { title: "Mine once today", description: "Claim your daily mining reward", type: "MINING", target: 1, rewardXp: 10, rewardAmount: 20, rewardWallet: "BONUS" },
-      { title: "Complete 3 voice tasks", description: "Submit 3 approved voice recordings", type: "VOICE_TASK", target: 3, rewardXp: 20, rewardAmount: 30, rewardWallet: "BONUS" },
-      { title: "Complete 1 task", description: "Finish any task from the Task Center", type: "TASK_CENTER", target: 1, rewardXp: 10, rewardAmount: 15, rewardWallet: "BONUS" },
+      { title: "Mine once today", description: "Claim your daily mining reward", type: "MINING", target: 1, rewardXp: 10, rewardAmount: 20, rewardWallet: "ENGAGEMENT" },
+      { title: "Complete 3 voice tasks", description: "Submit 3 approved voice recordings", type: "VOICE_TASK", target: 3, rewardXp: 20, rewardAmount: 30, rewardWallet: "ENGAGEMENT" },
+      { title: "Complete 1 task", description: "Finish any task from the Task Center", type: "TASK_CENTER", target: 1, rewardXp: 10, rewardAmount: 15, rewardWallet: "ENGAGEMENT" },
     ],
     skipDuplicates: true,
   });
@@ -110,12 +110,12 @@ async function main() {
   // ---------------------------------------------------------------------
   await prisma.spinReward.createMany({
     data: [
-      { label: "₦50 Bonus", amount: 50, wallet: "BONUS", weight: 30, colorHex: "#6A00FF" },
-      { label: "₦100 Bonus", amount: 100, wallet: "BONUS", weight: 20, colorHex: "#FFD700" },
-      { label: "₦200 Bonus", amount: 200, wallet: "BONUS", weight: 10, colorHex: "#00C853" },
-      { label: "₦500 Jackpot", amount: 500, wallet: "BONUS", weight: 3, colorHex: "#FF2FB0" },
-      { label: "Try Again", amount: 0, wallet: "BONUS", weight: 25, colorHex: "#94A3B8" },
-      { label: "₦20 Bonus", amount: 20, wallet: "BONUS", weight: 12, colorHex: "#00C2FF" },
+      { label: "₦50 Bonus", amount: 50, wallet: "ENGAGEMENT", weight: 30, colorHex: "#6A00FF" },
+      { label: "₦100 Bonus", amount: 100, wallet: "ENGAGEMENT", weight: 20, colorHex: "#FFD700" },
+      { label: "₦200 Bonus", amount: 200, wallet: "ENGAGEMENT", weight: 10, colorHex: "#00C853" },
+      { label: "₦500 Jackpot", amount: 500, wallet: "ENGAGEMENT", weight: 3, colorHex: "#FF2FB0" },
+      { label: "Try Again", amount: 0, wallet: "ENGAGEMENT", weight: 25, colorHex: "#94A3B8" },
+      { label: "₦20 Bonus", amount: 20, wallet: "ENGAGEMENT", weight: 12, colorHex: "#00C2FF" },
     ],
     skipDuplicates: true,
   });
@@ -126,7 +126,7 @@ async function main() {
   await prisma.promoCode.upsert({
     where: { code: "WELCOME50" },
     update: {},
-    create: { code: "WELCOME50", amount: 50, wallet: "BONUS", maxRedemptions: 1000 },
+    create: { code: "WELCOME50", amount: 50, wallet: "ENGAGEMENT", maxRedemptions: 1000 },
   });
 
   // ---------------------------------------------------------------------
@@ -146,10 +146,7 @@ async function main() {
       referralCode: "ADMIN0001",
       tier: "VIP",
       wallets: {
-        create: [
-          { type: "MAIN" }, { type: "MINING" }, { type: "VOICE" },
-          { type: "REFERRAL" }, { type: "TASK" }, { type: "BONUS" },
-        ],
+        create: [{ type: "MAIN" }, { type: "ENGAGEMENT" }, { type: "SALES" }],
       },
       adminProfile: { create: { department: "Platform", permissions: ["*"] } },
     },
@@ -177,11 +174,8 @@ async function main() {
       wallets: {
         create: [
           { type: "MAIN", balance: 500 },
-          { type: "MINING", balance: 120 },
-          { type: "VOICE", balance: 80 },
-          { type: "REFERRAL", balance: 50 },
-          { type: "TASK", balance: 30 },
-          { type: "BONUS", balance: 10 },
+          { type: "ENGAGEMENT", balance: 240 },
+          { type: "SALES", balance: 50 },
         ],
       },
     },

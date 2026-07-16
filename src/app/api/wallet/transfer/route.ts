@@ -6,7 +6,7 @@ import { handleApiError } from "@/lib/server/api-response";
 import { creditWallet, debitWallet } from "@/lib/server/wallet";
 import { generateReference } from "@/lib/utils";
 
-const walletTypes = ["MAIN", "MINING", "VOICE", "REFERRAL", "TASK", "BONUS"] as const;
+const walletTypes = ["MAIN", "ENGAGEMENT", "SALES"] as const;
 
 const schema = z
   .object({

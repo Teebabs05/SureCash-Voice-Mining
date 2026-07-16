@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (action === "approve") {
         await creditWallet({
           userId: completion.userId,
-          type: "TASK",
+          type: "ENGAGEMENT",
           amount: Number(effectiveReward),
           reason: "TASK_REWARD",
           description: `Task reward (verified): ${completion.task.title}`,

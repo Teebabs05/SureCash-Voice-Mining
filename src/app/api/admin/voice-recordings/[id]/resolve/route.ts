@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (action === "approve") {
         await creditWallet({
           userId: recording.userId,
-          type: "VOICE",
+          type: "ENGAGEMENT",
           amount: Number(recording.voiceTask.rewardAmount),
           reason: "VOICE_TASK_REWARD",
           description: `Voice task reward (manual review): ${recording.voiceTask.title}`,

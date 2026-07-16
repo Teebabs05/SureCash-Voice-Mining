@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       if (referral && !referral.rewardCredited) {
         await creditWallet({
           userId: referral.referrerId,
-          type: "REFERRAL",
+          type: "SALES",
           amount: Number(referral.rewardAmount),
           reason: "REFERRAL_BONUS",
           description: `Referral bonus for inviting ${user.fullName}`,

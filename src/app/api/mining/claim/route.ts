@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
       const txn = await creditWallet({
         userId: user.id,
-        type: "MINING",
+        type: "ENGAGEMENT",
         amount: reward,
         reason: "DAILY_MINING",
         description: `Daily mining reward (streak day ${updatedUser.streakCount})`,
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         milestoneBonus = milestone.bonus;
         await creditWallet({
           userId: user.id,
-          type: "BONUS",
+          type: "ENGAGEMENT",
           amount: milestoneBonus,
           reason: "MISSION_REWARD",
           description: `${milestone.day}-day streak milestone bonus`,

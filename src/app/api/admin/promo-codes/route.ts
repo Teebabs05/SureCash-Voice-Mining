@@ -7,7 +7,7 @@ import { handleApiError } from "@/lib/server/api-response";
 const schema = z.object({
   code: z.string().trim().toUpperCase().min(3),
   amount: z.number().positive(),
-  wallet: z.enum(["MAIN", "MINING", "VOICE", "REFERRAL", "TASK", "BONUS"]).default("BONUS"),
+  wallet: z.enum(["MAIN", "ENGAGEMENT", "SALES"]).default("ENGAGEMENT"),
   maxRedemptions: z.number().int().positive().default(1),
   expiresAt: z.string().datetime().optional(),
 });
