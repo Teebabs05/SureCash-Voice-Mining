@@ -10,7 +10,9 @@ import { WithdrawalStepper } from "@/components/wallet/withdrawal-stepper";
 
 interface Withdrawal {
   id: string;
+  method: string;
   amount: string;
+  usdtAmount: string | null;
   fee: string;
   status: string;
   createdAt: string;
@@ -18,7 +20,8 @@ interface Withdrawal {
   autoPayoutAttempted: boolean;
   autoPayoutError: string | null;
   user: { fullName: string; email: string };
-  bankAccount: { bankName: string; accountNumber: string; accountName: string };
+  bankAccount: { bankName: string; accountNumber: string; accountName: string } | null;
+  cryptoWallet: { address: string; network: string } | null;
 }
 
 export default function AdminWithdrawalsPage() {
@@ -86,11 +89,21 @@ export default function AdminWithdrawalsPage() {
                 <p className="text-xs text-foreground/50">{w.user.email}</p>
                 <p className="mt-1 text-sm">
                   {formatCurrency(w.amount)} (fee {formatCurrency(w.fee)})
+                  {w.method === "USDT" && w.usdtAmount && (
+                    <span className="ml-1 text-xs text-foreground/50">≈ {w.usdtAmount} USDT</span>
+                  )}
                 </p>
-                <p className="text-xs text-foreground/50">
-                  {w.bankAccount.bankName} · {w.bankAccount.accountNumber} · {w.bankAccount.accountName}
-                </p>
-                {w.status === "PROCESSING" && (
+                {w.method === "BANK" && w.bankAccount && (
+                  <p className="text-xs text-foreground/50">
+                    {w.bankAccount.bankName} · {w.bankAccount.accountNumber} · {w.bankAccount.accountName}
+                  </p>
+                )}
+                {w.method === "USDT" && w.cryptoWallet && (
+                  <p className="break-all text-xs text-foreground/50">
+                    USDT ({w.cryptoWallet.network}) · {w.cryptoWallet.address}
+                  </p>
+                )}
+                {w.status === "PROCESSING" && w.payoutProvider !== "MANUAL" && (
                   <p className="mt-1 flex items-center gap-1 text-xs font-medium text-brand-purple">
                     <Zap className="h-3 w-3" /> Auto-payout via {w.payoutProvider}
                   </p>
@@ -103,7 +116,7 @@ export default function AdminWithdrawalsPage() {
               </div>
               {(w.status === "PENDING" || w.status === "PROCESSING") && (
                 <div className="flex flex-wrap gap-2">
-                  {w.status === "PENDING" && w.autoPayoutAttempted && (
+                  {w.method === "BANK" && w.status === "PENDING" && w.autoPayoutAttempted && (
                     <Button size="sm" variant="outline" loading={busyId === w.id} onClick={() => act(w.id, "retry-payout")}>
                       <Zap className="h-3.5 w-3.5" /> Retry auto-payout
                     </Button>

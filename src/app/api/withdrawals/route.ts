@@ -5,12 +5,22 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { debitWallet } from "@/lib/server/wallet";
 import { generateReference } from "@/lib/utils";
-import { WITHDRAWAL_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { notifyUser } from "@/lib/server/notifications";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { attemptAutomaticPayout } from "@/lib/server/withdrawal-payout";
+import {
+  getWithdrawalMinAmount,
+  getEffectiveFeePercent,
+  getUsdtNetworkFee,
+  getUsdtNgnRate,
+} from "@/lib/server/withdrawal-fee";
 
-const schema = z.object({ amount: z.number().positive(), bankAccountId: z.string().min(1) });
+const schema = z.object({
+  amount: z.number().positive(),
+  method: z.enum(["BANK", "USDT"]).default("BANK"),
+  bankAccountId: z.string().min(1).optional(),
+  cryptoWalletId: z.string().min(1).optional(),
+});
 
 export async function GET() {
   try {
@@ -18,7 +28,7 @@ export async function GET() {
     const withdrawals = await prisma.withdrawal.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
-      include: { bankAccount: true },
+      include: { bankAccount: true, cryptoWallet: true },
     });
     return NextResponse.json({ withdrawals });
   } catch (error) {
@@ -33,62 +43,123 @@ export async function POST(req: NextRequest) {
       return jsonError("Please verify your email before withdrawing", 403);
     }
 
-    const { amount, bankAccountId } = schema.parse(await req.json());
+    const body = schema.parse(await req.json());
     const { ipAddress, userAgent } = getRequestMeta(req);
 
-    if (amount < WITHDRAWAL_CONFIG.minAmount) {
-      return jsonError(`Minimum withdrawal is ${WITHDRAWAL_CONFIG.minAmount}`, 422);
+    const minAmount = await getWithdrawalMinAmount();
+    if (body.amount < minAmount) {
+      return jsonError(`Minimum withdrawal is ${minAmount}`, 422);
     }
 
-    const bankAccount = await prisma.bankAccount.findUnique({ where: { id: bankAccountId } });
-    if (!bankAccount || bankAccount.userId !== user.id) {
-      return jsonError("Bank account not found", 404);
-    }
-    if (!bankAccount.isVerified) {
-      return jsonError("Please confirm this bank account with the OTP sent to you before withdrawing", 403);
-    }
-
-    const feePercent = TIER_CONFIG[user.tier].withdrawalFeePercent;
-    const fee = Number((amount * (feePercent / 100)).toFixed(2));
-    const totalDebit = amount + fee;
+    const feePercent = await getEffectiveFeePercent(user.tier);
     const reference = generateReference("WTH");
 
-    const withdrawal = await prisma.$transaction(async (tx) => {
-      await debitWallet({
-        userId: user.id,
-        type: "MAIN",
-        amount: totalDebit,
-        reason: "WITHDRAWAL",
-        description: `Withdrawal request ${reference}`,
-        reference,
-        client: tx,
-      });
+    let withdrawal;
 
-      return tx.withdrawal.create({
-        data: {
+    if (body.method === "BANK") {
+      if (!body.bankAccountId) return jsonError("Select a bank account", 422);
+
+      const bankAccount = await prisma.bankAccount.findUnique({ where: { id: body.bankAccountId } });
+      if (!bankAccount || bankAccount.userId !== user.id) {
+        return jsonError("Bank account not found", 404);
+      }
+      if (!bankAccount.isVerified) {
+        return jsonError("Please confirm this bank account with the OTP sent to you before withdrawing", 403);
+      }
+
+      const fee = Number((body.amount * (feePercent / 100)).toFixed(2));
+      const totalDebit = body.amount + fee;
+
+      withdrawal = await prisma.$transaction(async (tx) => {
+        await debitWallet({
           userId: user.id,
-          bankAccountId,
-          amount,
-          fee,
+          type: "MAIN",
+          amount: totalDebit,
+          reason: "WITHDRAWAL",
+          description: `Withdrawal request ${reference}`,
           reference,
-          status: "PENDING",
-        },
+          client: tx,
+        });
+
+        return tx.withdrawal.create({
+          data: {
+            userId: user.id,
+            method: "BANK",
+            bankAccountId: body.bankAccountId,
+            amount: body.amount,
+            fee,
+            reference,
+            status: "PENDING",
+          },
+        });
       });
-    });
+    } else {
+      if (!body.cryptoWalletId) return jsonError("Select a USDT wallet", 422);
+
+      const cryptoWallet = await prisma.cryptoWallet.findUnique({ where: { id: body.cryptoWalletId } });
+      if (!cryptoWallet || cryptoWallet.userId !== user.id) {
+        return jsonError("USDT wallet not found", 404);
+      }
+      if (!cryptoWallet.isVerified) {
+        return jsonError("Please confirm this wallet with the OTP sent to you before withdrawing", 403);
+      }
+
+      const [networkFee, ngnRate] = await Promise.all([getUsdtNetworkFee(), getUsdtNgnRate()]);
+      const percentFee = Number((body.amount * (feePercent / 100)).toFixed(2));
+      const fee = Number((percentFee + networkFee).toFixed(2));
+      const totalDebit = body.amount + fee;
+      const usdtAmount = Number((body.amount / ngnRate).toFixed(2));
+
+      withdrawal = await prisma.$transaction(async (tx) => {
+        await debitWallet({
+          userId: user.id,
+          type: "MAIN",
+          amount: totalDebit,
+          reason: "WITHDRAWAL",
+          description: `USDT withdrawal request ${reference}`,
+          reference,
+          client: tx,
+        });
+
+        return tx.withdrawal.create({
+          data: {
+            userId: user.id,
+            method: "USDT",
+            cryptoWalletId: body.cryptoWalletId,
+            amount: body.amount,
+            usdtAmount,
+            fee,
+            reference,
+            status: "PENDING",
+          },
+        });
+      });
+    }
 
     await notifyUser({
       userId: user.id,
       title: "Withdrawal requested",
-      body: `Your withdrawal of ${amount} is being processed.`,
+      body: `Your withdrawal of ${body.amount} is being processed.`,
       type: "WALLET",
     });
-    await writeAuditLog({ userId: user.id, action: "withdrawal.request", ipAddress, userAgent, metadata: { reference, amount } });
+    await writeAuditLog({
+      userId: user.id,
+      action: "withdrawal.request",
+      ipAddress,
+      userAgent,
+      metadata: { reference, amount: body.amount, method: body.method },
+    });
 
-    // Best-effort instant payout — never blocks or fails the request itself;
-    // on any error the withdrawal just stays PENDING for manual admin review.
-    const updated = await attemptAutomaticPayout(withdrawal.id)
-      .then(() => prisma.withdrawal.findUnique({ where: { id: withdrawal.id } }))
-      .catch(() => null);
+    // Best-effort instant payout — bank withdrawals only (no crypto
+    // disbursement gateway is wired up). Never blocks or fails the request
+    // itself; on any error the withdrawal just stays PENDING for manual
+    // admin review.
+    const updated =
+      body.method === "BANK"
+        ? await attemptAutomaticPayout(withdrawal.id)
+            .then(() => prisma.withdrawal.findUnique({ where: { id: withdrawal.id } }))
+            .catch(() => null)
+        : null;
 
     return NextResponse.json({ withdrawal: updated ?? withdrawal });
   } catch (error) {

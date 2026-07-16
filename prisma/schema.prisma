@@ -87,6 +87,17 @@ enum PayoutProvider {
   PAYVESSEL
 }
 
+enum WithdrawalMethod {
+  BANK
+  USDT
+}
+
+enum CryptoNetwork {
+  TRC20
+  ERC20
+  BEP20
+}
+
 enum DepositStatus {
   PENDING
   APPROVED
@@ -178,6 +189,7 @@ model User {
   deposits                  Deposit[]
   withdrawals               Withdrawal[]
   bankAccounts              BankAccount[]
+  cryptoWallets             CryptoWallet[]
   achievements              UserAchievement[]
   notifications             Notification[]
   devices                   Device[]
@@ -333,12 +345,34 @@ model BankAccount {
   @@unique([userId, accountNumber, bankCode])
 }
 
+model CryptoWallet {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address    String
+  network    CryptoNetwork
+  // OTP-confirmed ownership, mirroring BankAccount.isVerified — crypto
+  // addresses have no name-resolution API to auto-verify against, so this
+  // OTP step is the only ownership confirmation available.
+  isVerified Boolean       @default(false)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  withdrawals Withdrawal[]
+
+  @@unique([userId, address, network])
+}
+
 model Withdrawal {
   id                  String           @id @default(cuid())
   userId              String
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bankAccountId       String
-  bankAccount         BankAccount      @relation(fields: [bankAccountId], references: [id])
+  method              WithdrawalMethod @default(BANK)
+  bankAccountId       String?
+  bankAccount         BankAccount?     @relation(fields: [bankAccountId], references: [id])
+  cryptoWalletId      String?
+  cryptoWallet        CryptoWallet?    @relation(fields: [cryptoWalletId], references: [id])
+  usdtAmount          Decimal?         @db.Decimal(18, 2)
   amount              Decimal          @db.Decimal(18, 2)
   fee                 Decimal          @default(0) @db.Decimal(18, 2)
   reference           String           @unique

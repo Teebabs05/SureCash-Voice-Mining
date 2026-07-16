@@ -27,7 +27,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await notifyUser({
         userId: withdrawal.userId,
         title: "Withdrawal paid",
-        body: `Your withdrawal of ${withdrawal.amount} has been sent to your bank account.`,
+        body:
+          withdrawal.method === "USDT"
+            ? `Your withdrawal of ${withdrawal.usdtAmount ?? ""} USDT has been sent to your wallet.`
+            : `Your withdrawal of ${withdrawal.amount} has been sent to your bank account.`,
         type: "WALLET",
         client: tx,
       });

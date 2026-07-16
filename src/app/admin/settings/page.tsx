@@ -12,11 +12,21 @@ interface Setting {
   value: unknown;
 }
 
-const DEFAULT_KEYS = ["mining_base_reward", "referral_signup_bonus", "withdrawal_min_amount", "withdrawal_fee_percent"];
+const LIVE_SETTING_FIELDS = [
+  { key: "withdrawal_min_amount", label: "Withdrawal minimum amount" },
+  { key: "withdrawal_fee_percent", label: "Withdrawal fee % (base, before tier discount)" },
+  { key: "withdrawal_usdt_network_fee", label: "USDT network fee (flat, on top of %)" },
+  { key: "usdt_ngn_rate", label: "USDT → NGN exchange rate" },
+];
+
+const PLANNED_SETTING_FIELDS = [
+  { key: "mining_base_reward", label: "Mining base reward" },
+  { key: "referral_signup_bonus", label: "Referral signup bonus" },
+];
 
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ settings: Setting[] }>("/api/admin/settings").then((res) => {
@@ -27,39 +37,73 @@ export default function AdminSettingsPage() {
   }, []);
 
   async function save(key: string) {
-    setLoading(true);
+    const raw = settings[key] ?? "";
+    const numeric = Number(raw);
+    if (raw !== "" && Number.isNaN(numeric)) {
+      return toast.error("Enter a valid number");
+    }
+
+    setLoading(key);
     try {
       await apiFetch("/api/admin/settings", {
         method: "PUT",
-        body: JSON.stringify({ key, value: settings[key] ?? "" }),
+        body: JSON.stringify({ key, value: raw === "" ? "" : numeric }),
       });
-      toast.success(`${key} saved`);
+      toast.success(`${key.replaceAll("_", " ")} updated`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save setting");
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Settings</h1>
+
       <Card className="max-w-lg">
         <CardHeader>
-          <CardTitle>Platform configuration</CardTitle>
+          <CardTitle>Withdrawal configuration</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
-          These are informational overrides stored for reference; wire them into the config layer to take full effect.
+          These take effect live (cached up to 30s) — read directly on every withdrawal request in
+          <code className="mx-1 rounded bg-surface-muted px-1">src/lib/server/withdrawal-fee.ts</code>.
         </p>
         <div className="flex flex-col gap-3">
-          {DEFAULT_KEYS.map((key) => (
+          {LIVE_SETTING_FIELDS.map(({ key, label }) => (
             <div key={key} className="flex items-end gap-2">
               <Input
-                label={key.replaceAll("_", " ")}
+                label={label}
+                type="number"
                 value={settings[key] ?? ""}
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
               />
-              <Button size="sm" loading={loading} onClick={() => save(key)}>
+              <Button size="sm" loading={loading === key} onClick={() => save(key)}>
+                Save
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Other values</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Stored for reference only — not yet read by the mining/referral routes (they still use the constants in
+          <code className="mx-1 rounded bg-surface-muted px-1">src/lib/config.ts</code>).
+        </p>
+        <div className="flex flex-col gap-3">
+          {PLANNED_SETTING_FIELDS.map(({ key, label }) => (
+            <div key={key} className="flex items-end gap-2">
+              <Input
+                label={label}
+                type="number"
+                value={settings[key] ?? ""}
+                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+              />
+              <Button size="sm" variant="outline" loading={loading === key} onClick={() => save(key)}>
                 Save
               </Button>
             </div>

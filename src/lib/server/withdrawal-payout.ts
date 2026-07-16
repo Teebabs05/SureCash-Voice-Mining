@@ -19,24 +19,26 @@ export async function attemptAutomaticPayout(withdrawalId: string) {
     include: { bankAccount: true },
   });
   if (!withdrawal || withdrawal.status !== "PENDING") return;
+  if (withdrawal.method !== "BANK" || !withdrawal.bankAccount) return;
 
+  const bankAccount = withdrawal.bankAccount;
   const provider = getDefaultPayoutProvider();
   const adapter = getPayoutProvider(provider);
 
   try {
-    let recipientCode = provider === "PAYSTACK" ? withdrawal.bankAccount.paystackRecipientCode : null;
+    let recipientCode = provider === "PAYSTACK" ? bankAccount.paystackRecipientCode : null;
 
     if (!recipientCode) {
       const recipient = await adapter.resolveRecipient({
-        bankCode: withdrawal.bankAccount.bankCode,
-        accountNumber: withdrawal.bankAccount.accountNumber,
-        accountName: withdrawal.bankAccount.accountName,
+        bankCode: bankAccount.bankCode,
+        accountNumber: bankAccount.accountNumber,
+        accountName: bankAccount.accountName,
       });
       recipientCode = recipient.recipientCode;
 
       if (provider === "PAYSTACK") {
         await prisma.bankAccount.update({
-          where: { id: withdrawal.bankAccountId },
+          where: { id: bankAccount.id },
           data: { paystackRecipientCode: recipientCode },
         });
       }

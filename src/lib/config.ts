@@ -21,7 +21,17 @@ export const REFERRAL_CONFIG = {
 export const WITHDRAWAL_CONFIG = {
   minAmount: 500,
   feePercent: 1.5,
+  usdtNetworkFee: 500,
+  usdtNgnRate: 1500,
 };
+
+/** Admin Settings keys that override the defaults above at runtime. */
+export const SETTINGS_KEYS = {
+  withdrawalFeePercent: "withdrawal_fee_percent",
+  withdrawalMinAmount: "withdrawal_min_amount",
+  withdrawalUsdtNetworkFee: "withdrawal_usdt_network_fee",
+  usdtNgnRate: "usdt_ngn_rate",
+} as const;
 
 export const XP_CONFIG = {
   perMining: 5,
@@ -30,11 +40,14 @@ export const XP_CONFIG = {
   perMissionClaim: 15,
 };
 
-/** Free/Silver/Gold/VIP activation tiers — multiply daily voice-task limits,
- * mining rewards, and reduce withdrawal fees as a paid-tier incentive. */
+/** Free/Silver/Gold/VIP activation tiers — multiply daily voice-task limits
+ * and mining rewards, and discount withdrawal fees as a paid-tier
+ * incentive. withdrawalFeeMultiplier is relative to the admin-configurable
+ * base withdrawal fee percent (see SETTINGS_KEYS.withdrawalFeePercent), so
+ * changing the base fee in Settings scales every tier's fee proportionally. */
 export const TIER_CONFIG = {
-  FREE: { dailyLimitMultiplier: 1, miningRewardMultiplier: 1, withdrawalFeePercent: 1.5 },
-  SILVER: { dailyLimitMultiplier: 3, miningRewardMultiplier: 1.1, withdrawalFeePercent: 1.2 },
-  GOLD: { dailyLimitMultiplier: 6, miningRewardMultiplier: 1.25, withdrawalFeePercent: 0.8 },
-  VIP: { dailyLimitMultiplier: 999, miningRewardMultiplier: 1.5, withdrawalFeePercent: 0 },
+  FREE: { dailyLimitMultiplier: 1, miningRewardMultiplier: 1, withdrawalFeeMultiplier: 1 },
+  SILVER: { dailyLimitMultiplier: 3, miningRewardMultiplier: 1.1, withdrawalFeeMultiplier: 0.8 },
+  GOLD: { dailyLimitMultiplier: 6, miningRewardMultiplier: 1.25, withdrawalFeeMultiplier: 0.53 },
+  VIP: { dailyLimitMultiplier: 999, miningRewardMultiplier: 1.5, withdrawalFeeMultiplier: 0 },
 } as const;

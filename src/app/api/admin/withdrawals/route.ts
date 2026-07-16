@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       where: status ? { status: status as never } : undefined,
       orderBy: { createdAt: "desc" },
       take: 100,
-      include: { user: { select: { fullName: true, email: true } }, bankAccount: true },
+      include: { user: { select: { fullName: true, email: true } }, bankAccount: true, cryptoWallet: true },
     });
 
     return NextResponse.json({ withdrawals });
