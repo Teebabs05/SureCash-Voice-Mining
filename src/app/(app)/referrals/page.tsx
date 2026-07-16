@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Users, CheckCircle2, Clock } from "lucide-react";
+import { Copy, Users, CheckCircle2, Clock, Network } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ interface ReferralData {
     rewardCredited: boolean;
     referred: { fullName: string; emailVerified: boolean; createdAt: string };
   }>;
+  network: Array<{ level: number; count: number; verifiedCount: number }>;
+  networkSize: number;
 }
 
 export default function ReferralsPage() {
@@ -62,6 +64,32 @@ export default function ReferralsPage() {
           <p className="text-xs text-foreground/50">Total earned</p>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <span className="flex items-center gap-2">
+              <Network className="h-4 w-4" /> Your network
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Only your direct invites (level 1) earn you commission — deeper levels are shown for visibility into your
+          network&apos;s growth.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {data.network.map((l) => (
+            <div key={l.level} className="rounded-xl bg-surface-muted p-3 text-center">
+              <p className="text-lg font-bold">{l.count}</p>
+              <p className="text-xs text-foreground/50">Level {l.level}</p>
+              <p className="text-[10px] text-foreground/40">{l.verifiedCount} verified</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-center text-xs text-foreground/50">
+          Total network: <span className="font-semibold text-foreground/70">{data.networkSize}</span> people
+        </p>
+      </Card>
 
       <Card>
         <CardHeader>
