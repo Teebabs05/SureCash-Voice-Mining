@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { PaymentGatewaysCard } from "@/components/admin/payment-gateways-card";
+import { NotificationsIntegrationsCard } from "@/components/admin/notifications-integrations-card";
 
 interface Setting {
   key: string;
@@ -116,7 +117,12 @@ export default function AdminSettingsPage() {
         </div>
       </Card>
 
-      {role === "SUPERADMIN" && <PaymentGatewaysCard />}
+      {role === "SUPERADMIN" && (
+        <>
+          <PaymentGatewaysCard />
+          <NotificationsIntegrationsCard />
+        </>
+      )}
     </div>
   );
 }

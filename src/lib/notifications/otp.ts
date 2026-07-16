@@ -1,3 +1,6 @@
+import "server-only";
+import { getCredential } from "@/lib/server/credentials";
+
 export interface OtpProvider {
   sendOtp(destination: string, code: string): Promise<void>;
 }
@@ -35,12 +38,12 @@ function toTermiiFormat(phone: string): string {
  * (caught by the calling route), not a silent failure.
  */
 class TermiiOtpProvider implements OtpProvider {
-  private apiKey = process.env.TERMII_API_KEY;
-  private senderId = process.env.TERMII_SENDER_ID || "SureCash";
+  constructor(
+    private apiKey: string,
+    private senderId: string
+  ) {}
 
   async sendOtp(destination: string, code: string) {
-    if (!this.apiKey) throw new Error("Termii is not configured");
-
     const res = await fetch("https://api.ng.termii.com/api/sms/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -61,14 +64,16 @@ class TermiiOtpProvider implements OtpProvider {
   }
 }
 
-function getOtpProvider(): OtpProvider {
-  if (process.env.OTP_PROVIDER === "termii" && process.env.TERMII_API_KEY) {
-    return new TermiiOtpProvider();
+async function getOtpProvider(): Promise<OtpProvider> {
+  const apiKey = await getCredential("TERMII_API_KEY");
+  if (apiKey) {
+    const senderId = (await getCredential("TERMII_SENDER_ID")) || "SureCash";
+    return new TermiiOtpProvider(apiKey, senderId);
   }
   return new ConsoleOtpProvider();
 }
 
 export async function sendOtpCode(destination: string, code: string) {
-  const provider = getOtpProvider();
+  const provider = await getOtpProvider();
   await provider.sendOtp(destination, code);
 }

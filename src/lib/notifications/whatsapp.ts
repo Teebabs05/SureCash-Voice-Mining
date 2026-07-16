@@ -1,4 +1,5 @@
 import "server-only";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * WhatsApp Business Cloud API (Meta Graph API) client — a notification
@@ -21,14 +22,14 @@ import "server-only";
 const API_VERSION = "v21.0";
 const BASE_URL = "https://graph.facebook.com";
 
-function getConfig(): { accessToken: string; phoneNumberId: string } | null {
-  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+async function getConfig(): Promise<{ accessToken: string; phoneNumberId: string } | null> {
+  const accessToken = await getCredential("WHATSAPP_ACCESS_TOKEN");
+  const phoneNumberId = await getCredential("WHATSAPP_PHONE_NUMBER_ID");
   return accessToken && phoneNumberId ? { accessToken, phoneNumberId } : null;
 }
 
-export function isWhatsAppConfigured(): boolean {
-  return Boolean(getConfig());
+export async function isWhatsAppConfigured(): Promise<boolean> {
+  return Boolean(await getConfig());
 }
 
 function toE164Digits(phone: string): string {
@@ -49,7 +50,7 @@ async function postMessage(config: { accessToken: string; phoneNumberId: string 
 }
 
 export async function sendWhatsAppText(phone: string, message: string) {
-  const config = getConfig();
+  const config = await getConfig();
   if (!config) throw new Error("WhatsApp is not configured");
 
   await postMessage(config, {
@@ -62,7 +63,7 @@ export async function sendWhatsAppText(phone: string, message: string) {
 
 /** templateName must already be approved in Meta Business Manager; bodyParams fill its {{1}}, {{2}}... placeholders in order. */
 export async function sendWhatsAppTemplate(phone: string, templateName: string, bodyParams: string[] = []) {
-  const config = getConfig();
+  const config = await getConfig();
   if (!config) throw new Error("WhatsApp is not configured");
 
   await postMessage(config, {
@@ -71,7 +72,7 @@ export async function sendWhatsAppTemplate(phone: string, templateName: string, 
     type: "template",
     template: {
       name: templateName,
-      language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en_US" },
+      language: { code: (await getCredential("WHATSAPP_TEMPLATE_LANGUAGE")) || "en_US" },
       components: bodyParams.length
         ? [{ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) }]
         : undefined,
@@ -80,7 +81,7 @@ export async function sendWhatsAppTemplate(phone: string, templateName: string, 
 }
 
 export async function sendWhatsAppNotification(phone: string, title: string, body: string) {
-  const templateName = process.env.WHATSAPP_TEMPLATE_NAME;
+  const templateName = await getCredential("WHATSAPP_TEMPLATE_NAME");
   if (templateName) {
     await sendWhatsAppTemplate(phone, templateName, [title, body]);
   } else {

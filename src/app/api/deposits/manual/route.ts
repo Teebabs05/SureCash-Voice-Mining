@@ -6,6 +6,8 @@ import { saveUploadedFile } from "@/lib/server/storage";
 import { generateReference } from "@/lib/utils";
 import { notifyUser } from "@/lib/server/notifications";
 import { hashBuffer } from "@/lib/server/file-hash";
+import { getSetting } from "@/lib/server/settings";
+import { sendEmail, manualDepositSubmittedEmailHtml } from "@/lib/notifications/email";
 
 export const runtime = "nodejs";
 
@@ -55,6 +57,23 @@ export async function POST(req: NextRequest) {
       body: `Your deposit of ${amount} is pending admin review.`,
       type: "WALLET",
     });
+
+    // Best-effort — a notification failure should never block the user's
+    // submission, which has already succeeded at this point.
+    getSetting("support_notification_email", "").then((supportEmail) => {
+      if (!supportEmail) return;
+      return sendEmail({
+        to: supportEmail,
+        subject: "New manual deposit awaiting review",
+        html: manualDepositSubmittedEmailHtml({
+          fullName: user.fullName,
+          email: user.email,
+          amount: String(amount),
+          reference: deposit.reference,
+          reviewUrl: `${process.env.NEXT_PUBLIC_APP_URL}/admin/deposits`,
+        }),
+      });
+    }).catch(() => {});
 
     return NextResponse.json({ deposit });
   } catch (error) {

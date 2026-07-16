@@ -1,14 +1,16 @@
 /**
  * Single source of truth for which credential keys the admin "Payment
- * Gateways" panel can read/write — both the API route and the UI import
- * this so the allow-list can't drift out of sync between them.
+ * Gateways" / "Notifications" panels can read/write — both the API route
+ * and the UI import this so the allow-list can't drift out of sync.
  */
 export const INTEGRATION_GROUPS = [
   {
+    category: "Payment Gateways",
     provider: "Paystack",
     fields: [{ key: "PAYSTACK_SECRET_KEY", label: "Secret key", placeholder: "sk_live_..." }],
   },
   {
+    category: "Payment Gateways",
     provider: "Monnify",
     fields: [
       { key: "MONNIFY_API_KEY", label: "API key", placeholder: "MK_PROD_..." },
@@ -18,10 +20,12 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Payment Gateways",
     provider: "Korapay",
     fields: [{ key: "KORAPAY_SECRET_KEY", label: "Secret key", placeholder: "sk_live_..." }],
   },
   {
+    category: "Payment Gateways",
     provider: "Flutterwave",
     fields: [
       { key: "FLUTTERWAVE_SECRET_KEY", label: "Secret key", placeholder: "FLWSECK-..." },
@@ -29,6 +33,7 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Payment Gateways",
     provider: "PayVessel",
     fields: [
       { key: "PAYVESSEL_API_KEY", label: "API key", placeholder: "" },
@@ -36,6 +41,7 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Payment Gateways",
     provider: "BillStack",
     fields: [
       { key: "BILLSTACK_SECRET_KEY", label: "Secret key", placeholder: "" },
@@ -43,10 +49,37 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Payment Gateways",
     provider: "Binance (USDT withdrawals)",
     fields: [
       { key: "BINANCE_API_KEY", label: "API key", placeholder: "" },
       { key: "BINANCE_SECRET_KEY", label: "Secret key", placeholder: "" },
+    ],
+  },
+  {
+    category: "Notifications",
+    provider: "Email (Resend)",
+    fields: [
+      { key: "RESEND_API_KEY", label: "API key", placeholder: "re_..." },
+      { key: "EMAIL_FROM", label: "From address", placeholder: "SureCash Mining <no-reply@surecash.app>" },
+    ],
+  },
+  {
+    category: "Notifications",
+    provider: "SMS (Termii)",
+    fields: [
+      { key: "TERMII_API_KEY", label: "API key", placeholder: "" },
+      { key: "TERMII_SENDER_ID", label: "Sender ID", placeholder: "SureCash" },
+    ],
+  },
+  {
+    category: "Notifications",
+    provider: "WhatsApp (Meta Cloud API)",
+    fields: [
+      { key: "WHATSAPP_ACCESS_TOKEN", label: "Access token", placeholder: "" },
+      { key: "WHATSAPP_PHONE_NUMBER_ID", label: "Phone number ID", placeholder: "" },
+      { key: "WHATSAPP_TEMPLATE_NAME", label: "Approved template name (optional)", placeholder: "" },
+      { key: "WHATSAPP_TEMPLATE_LANGUAGE", label: "Template language code (optional)", placeholder: "en_US" },
     ],
   },
 ] as const;

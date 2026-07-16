@@ -1,3 +1,6 @@
+import "server-only";
+import { getCredential } from "@/lib/server/credentials";
+
 export interface EmailMessage {
   to: string;
   subject: string;
@@ -14,14 +17,48 @@ class ConsoleEmailProvider implements EmailProvider {
   }
 }
 
-// Add a Resend/SendGrid-backed provider here and switch on
-// process.env.EMAIL_PROVIDER once real credentials are available.
-function getEmailProvider(): EmailProvider {
+/**
+ * Resend's send API — picked over SendGrid/Postmark for being the simplest
+ * single-endpoint JSON API to wire up with no SDK dependency. Auto-selected
+ * whenever RESEND_API_KEY is configured (Admin > Settings > Notifications,
+ * or the env var), same "presence = enabled" convention as WhatsApp/push.
+ */
+class ResendEmailProvider implements EmailProvider {
+  constructor(
+    private apiKey: string,
+    private from: string
+  ) {}
+
+  async send(message: EmailMessage) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: this.from,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+      }),
+    });
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(`Resend send failed: ${data?.message ?? res.statusText}`);
+    }
+  }
+}
+
+async function getEmailProvider(): Promise<EmailProvider> {
+  const apiKey = await getCredential("RESEND_API_KEY");
+  if (apiKey) {
+    const from = (await getCredential("EMAIL_FROM")) || "SureCash Mining <no-reply@surecash.app>";
+    return new ResendEmailProvider(apiKey, from);
+  }
   return new ConsoleEmailProvider();
 }
 
 export async function sendEmail(message: EmailMessage) {
-  const provider = getEmailProvider();
+  const provider = await getEmailProvider();
   await provider.send(message);
 }
 
@@ -58,6 +95,26 @@ export function broadcastEmailHtml(fullName: string, subject: string, message: s
       <p>Hi ${escapeHtml(fullName)},</p>
       ${paragraphs}
       <p style="color:#5c6b68; font-size: 13px; margin-top: 24px;">— The SureCash Mining team</p>
+    </div>
+  `;
+}
+
+export function manualDepositSubmittedEmailHtml(params: {
+  fullName: string;
+  email: string;
+  amount: string;
+  reference: string;
+  reviewUrl: string;
+}) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+      <h2 style="color:#0D8A82;">New manual deposit awaiting review</h2>
+      <p><strong>${escapeHtml(params.fullName)}</strong> (${escapeHtml(params.email)}) submitted a bank transfer receipt for approval.</p>
+      <p style="margin: 16px 0;">
+        <strong>Amount:</strong> ${escapeHtml(params.amount)}<br/>
+        <strong>Reference:</strong> ${escapeHtml(params.reference)}
+      </p>
+      <a href="${params.reviewUrl}" style="display:inline-block;background:#0D8A82;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin:8px 0;">Review in admin panel</a>
     </div>
   `;
 }

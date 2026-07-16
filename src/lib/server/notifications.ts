@@ -7,7 +7,7 @@ import { sendWhatsAppNotification, isWhatsAppConfigured } from "@/lib/notificati
 type Tx = Prisma.TransactionClient;
 
 async function sendWhatsAppIfEnabled(userId: string, title: string, body: string) {
-  if (!isWhatsAppConfigured()) return;
+  if (!(await isWhatsAppConfigured())) return;
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true, phoneVerified: true } });
   if (!user?.phone || !user.phoneVerified) return;
