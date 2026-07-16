@@ -117,6 +117,18 @@ export default async function Home() {
         </div>
 
         <div className="flex flex-col gap-6 px-5 py-8">
+          <div className="card flex flex-col items-center gap-1 overflow-hidden p-0 pb-4 text-center">
+            <img
+              src="/illustrations/celebrate-cashout.svg"
+              alt="People celebrating after a successful cash withdrawal"
+              className="w-full"
+            />
+            <h2 className="mt-1 text-lg font-bold">Cash out. Celebrate. Repeat.</h2>
+            <p className="max-w-xs px-6 text-sm text-foreground/60">
+              Every day, members withdraw real money to their bank or USDT wallet. Yours could be next.
+            </p>
+          </div>
+
           <div>
             <h2 className="text-lg font-bold">Ways to earn</h2>
             <p className="text-sm text-foreground/60">Six earning streams, one wallet.</p>
