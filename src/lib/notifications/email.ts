@@ -36,3 +36,14 @@ export function verificationEmailHtml(fullName: string, verifyUrl: string) {
     </div>
   `;
 }
+
+export function otpEmailHtml(purpose: string, code: string) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+      <h2 style="color:#6A00FF;">Your SureCash Mining verification code</h2>
+      <p>Use this code to ${purpose}:</p>
+      <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color:#17122b; margin: 24px 0;">${code}</p>
+      <p style="color:#6b6480; font-size: 13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
+    </div>
+  `;
+}

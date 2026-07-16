@@ -5,8 +5,7 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { isValidCryptoAddress } from "@/lib/payments/crypto-wallet";
 import { generateOtpCode, hashToken } from "@/lib/server/auth";
-import { sendOtpCode } from "@/lib/notifications/otp";
-import { sendEmail } from "@/lib/notifications/email";
+import { sendEmail, otpEmailHtml } from "@/lib/notifications/email";
 
 const schema = z.object({
   network: z.enum(["TRC20", "ERC20", "BEP20"]),
@@ -56,11 +55,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (user.phone) {
-      await sendOtpCode(user.phone, code);
-    } else {
-      await sendEmail({ to: user.email, subject: "Confirm your new USDT wallet", html: `<p>Your OTP is <b>${code}</b>. It expires in 10 minutes.</p>` });
-    }
+    await sendEmail({
+      to: user.email,
+      subject: "Confirm your new USDT wallet",
+      html: otpEmailHtml("confirm your new USDT wallet", code),
+    });
 
     return NextResponse.json({ wallet, requiresOtp: true });
   } catch (error) {

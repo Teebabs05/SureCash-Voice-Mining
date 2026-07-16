@@ -5,7 +5,7 @@ import { createSession, verifyPassword, generateOtpCode, hashToken } from "@/lib
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { rateLimit } from "@/lib/server/rate-limit";
-import { sendEmail } from "@/lib/notifications/email";
+import { sendEmail, otpEmailHtml } from "@/lib/notifications/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       await sendEmail({
         to: user.email,
         subject: "Your SureCash Mining login code",
-        html: `<p>Your login code is <b>${code}</b>. It expires in 10 minutes.</p>`,
+        html: otpEmailHtml("log in to your account", code),
       });
       await writeAuditLog({ userId: user.id, action: "auth.login_2fa_challenge", ipAddress, userAgent });
       return NextResponse.json({ requires2fa: true, uid: user.id });

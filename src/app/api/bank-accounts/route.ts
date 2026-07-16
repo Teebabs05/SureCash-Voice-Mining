@@ -5,8 +5,7 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { resolveBankAccount, getBankList } from "@/lib/payments/bank-verification";
 import { generateOtpCode, hashToken } from "@/lib/server/auth";
-import { sendOtpCode } from "@/lib/notifications/otp";
-import { sendEmail } from "@/lib/notifications/email";
+import { sendEmail, otpEmailHtml } from "@/lib/notifications/email";
 
 const schema = z.object({
   bankCode: z.string().min(2),
@@ -71,11 +70,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (user.phone) {
-      await sendOtpCode(user.phone, code);
-    } else {
-      await sendEmail({ to: user.email, subject: "Confirm your new bank account", html: `<p>Your OTP is <b>${code}</b>. It expires in 10 minutes.</p>` });
-    }
+    await sendEmail({
+      to: user.email,
+      subject: "Confirm your new bank account",
+      html: otpEmailHtml("confirm your new bank account", code),
+    });
 
     return NextResponse.json({ account, requiresOtp: true });
   } catch (error) {
