@@ -37,6 +37,31 @@ export function verificationEmailHtml(fullName: string, verifyUrl: string) {
   `;
 }
 
+function escapeHtml(text: string) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+export function broadcastEmailHtml(fullName: string, subject: string, message: string) {
+  const paragraphs = escapeHtml(message)
+    .split(/\n{2,}/)
+    .map((p) => `<p>${p.replaceAll("\n", "<br/>")}</p>`)
+    .join("");
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+      <h2 style="color:#0D8A82;">${escapeHtml(subject)}</h2>
+      <p>Hi ${escapeHtml(fullName)},</p>
+      ${paragraphs}
+      <p style="color:#5c6b68; font-size: 13px; margin-top: 24px;">— The SureCash Mining team</p>
+    </div>
+  `;
+}
+
 export function otpEmailHtml(purpose: string, code: string) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">

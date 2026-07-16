@@ -55,3 +55,26 @@ export async function broadcastNotification(params: { title: string; body: strin
 
   return notification;
 }
+
+export type BroadcastSegment = "VIP" | "NEW" | "INACTIVE";
+
+export async function resolveSegmentUsers(segment: BroadcastSegment) {
+  if (segment === "VIP") {
+    return prisma.user.findMany({ where: { tier: "VIP" }, select: { id: true, email: true, fullName: true } });
+  }
+
+  if (segment === "NEW") {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return prisma.user.findMany({
+      where: { createdAt: { gte: sevenDaysAgo } },
+      select: { id: true, email: true, fullName: true },
+    });
+  }
+
+  // INACTIVE: no wallet transaction in the last 14 days (including never active).
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  return prisma.user.findMany({
+    where: { walletTransactions: { none: { createdAt: { gte: fourteenDaysAgo } } } },
+    select: { id: true, email: true, fullName: true },
+  });
+}
