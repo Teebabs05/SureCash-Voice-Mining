@@ -8,6 +8,8 @@ import { generateReference } from "@/lib/utils";
 import { notifyUser } from "@/lib/server/notifications";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { attemptAutomaticPayout } from "@/lib/server/withdrawal-payout";
+import { getSetting } from "@/lib/server/settings";
+import { sendEmail, withdrawalPendingReviewEmailHtml } from "@/lib/notifications/email";
 import {
   getWithdrawalMinAmount,
   getEffectiveFeePercent,
@@ -157,6 +159,27 @@ export async function POST(req: NextRequest) {
     const updated = await attemptAutomaticPayout(withdrawal.id)
       .then(() => prisma.withdrawal.findUnique({ where: { id: withdrawal.id } }))
       .catch(() => null);
+
+    // Still PENDING after the automatic-payout attempt means no gateway
+    // could pay it out instantly, so it needs a human to process it —
+    // best-effort, never blocks the response.
+    if ((updated ?? withdrawal).status === "PENDING") {
+      getSetting("support_notification_email", "").then((supportEmail) => {
+        if (!supportEmail) return;
+        return sendEmail({
+          to: supportEmail,
+          subject: "Withdrawal awaiting manual processing",
+          html: withdrawalPendingReviewEmailHtml({
+            fullName: user.fullName,
+            email: user.email,
+            amount: String(body.amount),
+            method: body.method,
+            reference,
+            reviewUrl: `${process.env.NEXT_PUBLIC_APP_URL}/admin/withdrawals`,
+          }),
+        });
+      }).catch(() => {});
+    }
 
     return NextResponse.json({ withdrawal: updated ?? withdrawal });
   } catch (error) {

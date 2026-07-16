@@ -119,6 +119,27 @@ export function manualDepositSubmittedEmailHtml(params: {
   `;
 }
 
+export function withdrawalPendingReviewEmailHtml(params: {
+  fullName: string;
+  email: string;
+  amount: string;
+  method: string;
+  reference: string;
+  reviewUrl: string;
+}) {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
+      <h2 style="color:#0D8A82;">Withdrawal awaiting manual processing</h2>
+      <p><strong>${escapeHtml(params.fullName)}</strong> (${escapeHtml(params.email)}) requested a ${escapeHtml(params.method)} withdrawal that couldn't be paid out automatically.</p>
+      <p style="margin: 16px 0;">
+        <strong>Amount:</strong> ${escapeHtml(params.amount)}<br/>
+        <strong>Reference:</strong> ${escapeHtml(params.reference)}
+      </p>
+      <a href="${params.reviewUrl}" style="display:inline-block;background:#0D8A82;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin:8px 0;">Review in admin panel</a>
+    </div>
+  `;
+}
+
 export function otpEmailHtml(purpose: string, code: string) {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
