@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Mic, Pickaxe, Target, Gift, Users, Wallet as WalletIcon, Flame, ChevronRight, Smartphone, Wifi, Zap, Tv } from "lucide-react";
+import { Mic, Pickaxe, Target, Gift, Users, Wallet as WalletIcon, Flame, ChevronRight, Smartphone, Wifi, Zap, Tv, Banknote } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { MissionsCard } from "@/components/dashboard/missions-card";
 import { ActivityTicker } from "@/components/dashboard/activity-ticker";
@@ -31,6 +31,7 @@ const BILL_PAYMENTS = [
   { label: "Data", icon: Wifi, iconClass: "bg-brand-green/15 text-brand-green" },
   { label: "Electricity", icon: Zap, iconClass: "bg-brand-amber/15 text-[#a67c00]" },
   { label: "TV", icon: Tv, iconClass: "bg-red-500/15 text-red-500" },
+  { label: "Airtime to Cash", icon: Banknote, iconClass: "bg-blue-500/15 text-blue-500" },
 ];
 
 const QUICK_ACTIONS = [
