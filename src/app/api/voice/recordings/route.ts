@@ -128,6 +128,17 @@ export async function POST(req: NextRequest) {
     const passed =
       !isDuplicate && !isReplayAttack && !noise.flagged && !isSynthesizedVoice && transcription.confidence >= 0.6;
 
+    // A user's active plan re-prices every voice activity at a flat rate for
+    // that activity type (session vs word game), overriding the individual
+    // task's own rewardAmount. Users with no active plan keep today's
+    // per-task reward.
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    const effectiveReward = plan
+      ? voiceTask.category === "word_game"
+        ? plan.wordGameReward
+        : plan.voiceSessionReward
+      : voiceTask.rewardAmount;
+
     const audioUrl = await saveUploadedFile({
       folder: "voice",
       buffer,
@@ -144,7 +155,7 @@ export async function POST(req: NextRequest) {
           durationSec,
           deviceId: device.id,
           status: passed ? "APPROVED" : isDuplicate || isReplayAttack || isSynthesizedVoice ? "FLAGGED" : "REJECTED",
-          rewardAmount: passed ? voiceTask.rewardAmount : null,
+          rewardAmount: passed ? effectiveReward : null,
           reviewedAt: new Date(),
         },
       });
@@ -168,7 +179,7 @@ export async function POST(req: NextRequest) {
         await creditWallet({
           userId: user.id,
           type: "VOICE",
-          amount: Number(voiceTask.rewardAmount),
+          amount: Number(effectiveReward),
           reason: "VOICE_TASK_REWARD",
           description: `Voice task reward: ${voiceTask.title}`,
           client: tx,
@@ -178,7 +189,7 @@ export async function POST(req: NextRequest) {
         await checkAchievements(user.id, "VOICE_TASK_APPROVED", tx);
         await payReferralCommission({
           earnerId: user.id,
-          earnedAmount: Number(voiceTask.rewardAmount),
+          earnedAmount: Number(effectiveReward),
           sourceReason: "VOICE_TASK_REWARD",
           client: tx,
         });
@@ -209,7 +220,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       recording: result,
       passed,
-      reward: passed ? Number(voiceTask.rewardAmount) : 0,
+      reward: passed ? Number(effectiveReward) : 0,
     });
   } catch (error) {
     return handleApiError(error);

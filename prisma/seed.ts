@@ -55,7 +55,7 @@ async function main() {
       { title: "Yoruba sentence", promptText: "SureCash Mining a maa san ẹ ni owo lojoojumọ.", language: "yo", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
       { title: "Hausa sentence", promptText: "SureCash Mining na biyan ku kudi kowace rana.", language: "ha", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
       { title: "Igbo sentence", promptText: "SureCash Mining na-akwụ gị ụgwọ kwa ụbọchị.", language: "ig", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "Word game: pronounce", promptText: "Pronounce the word: opportunity", language: "en", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+      { title: "Word game: pronounce", promptText: "Pronounce the word: opportunity", language: "en", category: "word_game", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
     ],
     skipDuplicates: true,
   });
@@ -75,6 +75,20 @@ async function main() {
       { title: "Daily check-in", description: "Check in once a day for a small bonus", type: "checkin", rewardAmount: 5, isRepeatable: true, requiresProof: false },
       { title: "Financial literacy quiz", description: "Answer a short quiz about saving money", type: "quiz", rewardAmount: 15, requiresProof: false },
       { title: "Platform survey", description: "Tell us how we can improve SureCash Mining", type: "survey", rewardAmount: 15, requiresProof: false },
+    ],
+    skipDuplicates: true,
+  });
+
+  // ---------------------------------------------------------------------
+  // Membership plans (paid, admin-editable pricing and per-activity rewards)
+  // ---------------------------------------------------------------------
+  await prisma.plan.createMany({
+    data: [
+      { name: "Voice Lite", price: 1500, voiceSessionReward: 100, wordGameReward: 60, sponsoredPostReward: 50, taskReward: 50, referralCommission: 800, sortOrder: 1 },
+      { name: "Voice Starter", price: 3000, voiceSessionReward: 180, wordGameReward: 120, sponsoredPostReward: 90, taskReward: 90, referralCommission: 1800, sortOrder: 2 },
+      { name: "Voice Pro", price: 5000, voiceSessionReward: 270, wordGameReward: 150, sponsoredPostReward: 150, taskReward: 150, referralCommission: 3000, sortOrder: 3 },
+      { name: "Audio Elite", price: 9500, voiceSessionReward: 420, wordGameReward: 300, sponsoredPostReward: 200, taskReward: 200, referralCommission: 6000, sortOrder: 4 },
+      { name: "Prime Artiste", price: 15000, voiceSessionReward: 600, wordGameReward: 400, sponsoredPostReward: 250, taskReward: 250, referralCommission: 10000, sortOrder: 5 },
     ],
     skipDuplicates: true,
   });

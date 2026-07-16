@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pickaxe, Mic, ClipboardCheck, Camera, ChevronRight } from "lucide-react";
+import { Pickaxe, Mic, ClipboardCheck, Camera, ChevronRight, Crown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api-client";
 
@@ -87,6 +87,21 @@ export default function EarnPage() {
         <h1 className="text-xl font-bold">Ways to Earn</h1>
         <p className="text-sm text-foreground/60">Choose an activity</p>
       </div>
+
+      <Link href="/plans">
+        <Card className="flex items-center justify-between gap-3 gradient-brand text-white">
+          <div className="flex items-center gap-3">
+            <div className="rounded-full bg-white/15 p-2.5">
+              <Crown className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="font-semibold">Move to a higher plan</p>
+              <p className="text-xs text-white/80">Bigger rewards per session, task & referral</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4" />
+        </Card>
+      </Link>
 
       <div className="flex flex-col gap-3">
         {WAYS.map(({ key, href, title, description, icon: Icon, iconClass }) => (

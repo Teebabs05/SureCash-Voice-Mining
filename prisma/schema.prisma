@@ -47,6 +47,8 @@ enum TxnReason {
   MISSION_REWARD
   LEVEL_UP_BONUS
   WALLET_TRANSFER
+  PLAN_ACTIVATION
+  PLAN_COMMISSION
 }
 
 enum VoiceRecordingStatus {
@@ -173,6 +175,10 @@ model User {
   facebookUrl     String?
   instagramHandle String?
   tiktokHandle    String?
+
+  planId          String?
+  plan            Plan?     @relation(fields: [planId], references: [id])
+  planActivatedAt DateTime?
 
   referralCode String  @unique
   referredById String?
@@ -426,6 +432,7 @@ model VoiceTask {
   title        String
   promptText   String
   language     String   @default("en")
+  category     String   @default("session") // "session" | "word_game" - selects which Plan reward field applies
   rewardAmount Decimal  @db.Decimal(18, 2)
   dailyLimit   Int      @default(5)
   minDuration  Int      @default(3)
@@ -474,6 +481,27 @@ model AiResult {
   passed             Boolean
   rawResponse        Json?
   createdAt          DateTime       @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Plans (paid membership tiers - admin-editable pricing/rewards)
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id                  String   @id @default(cuid())
+  name                String
+  price               Decimal  @db.Decimal(18, 2)
+  voiceSessionReward  Decimal  @db.Decimal(18, 2)
+  wordGameReward      Decimal  @db.Decimal(18, 2)
+  sponsoredPostReward Decimal  @db.Decimal(18, 2)
+  taskReward          Decimal  @db.Decimal(18, 2)
+  referralCommission  Decimal  @db.Decimal(18, 2)
+  sortOrder           Int      @default(0)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users User[]
 }
 
 // ---------------------------------------------------------------------------

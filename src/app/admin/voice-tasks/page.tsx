@@ -13,6 +13,7 @@ interface VoiceTask {
   id: string;
   title: string;
   promptText: string;
+  category: string;
   rewardAmount: string;
   dailyLimit: number;
   isActive: boolean;
@@ -39,7 +40,7 @@ export default function AdminVoiceTasksPage() {
   const [flagged, setFlagged] = useState<FlaggedRecording[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", promptText: "", rewardAmount: "", dailyLimit: "5" });
+  const [form, setForm] = useState({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
 
   const loadTasks = useCallback(() => {
     apiFetch<{ tasks: VoiceTask[] }>("/api/admin/voice-tasks").then((res) => setTasks(res.tasks));
@@ -62,12 +63,13 @@ export default function AdminVoiceTasksPage() {
         body: JSON.stringify({
           title: form.title,
           promptText: form.promptText,
+          category: form.category,
           rewardAmount: Number(form.rewardAmount),
           dailyLimit: Number(form.dailyLimit),
         }),
       });
       toast.success("Voice task created");
-      setForm({ title: "", promptText: "", rewardAmount: "", dailyLimit: "5" });
+      setForm({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
       setShowForm(false);
       loadTasks();
     } catch (err) {
@@ -130,7 +132,9 @@ export default function AdminVoiceTasksPage() {
           {tasks.map((t) => (
             <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
               <div>
-                <p className="text-sm font-semibold">{t.title}</p>
+                <p className="text-sm font-semibold">
+                  {t.title} {t.category === "word_game" && <span className="text-xs text-brand-purple">(Word Game)</span>}
+                </p>
                 <p className="text-xs text-foreground/50">{t.promptText}</p>
                 <p className="text-xs font-medium text-brand-green">
                   {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day
@@ -161,6 +165,14 @@ export default function AdminVoiceTasksPage() {
               value={form.promptText}
               onChange={(e) => setForm({ ...form, promptText: e.target.value })}
             />
+            <select
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+            >
+              <option value="session">Voice Earn session</option>
+              <option value="word_game">Word Game</option>
+            </select>
             <div className="flex gap-2">
               <Input
                 placeholder="Reward amount"

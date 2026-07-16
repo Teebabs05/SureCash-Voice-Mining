@@ -16,6 +16,7 @@ import {
   Gift,
   LogOut,
   BarChart3,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
@@ -28,6 +29,7 @@ const items = [
   { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },
   { href: "/admin/voice-tasks", label: "Voice Tasks", icon: Mic },
   { href: "/admin/tasks", label: "Task Center", icon: ClipboardCheck },
+  { href: "/admin/plans", label: "Plans", icon: Crown },
   { href: "/admin/promo-codes", label: "Promo Codes", icon: Gift },
   { href: "/admin/support", label: "Support Tickets", icon: Ticket },
   { href: "/admin/fraud", label: "Fraud Dashboard", icon: ShieldAlert },

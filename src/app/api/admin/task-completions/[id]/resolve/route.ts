@@ -23,12 +23,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!completion) return jsonError("Completion not found", 404);
     if (completion.status !== "PENDING_REVIEW") return jsonError("Already resolved", 409);
 
+    const completingUser = await prisma.user.findUniqueOrThrow({ where: { id: completion.userId } });
+    const plan = completingUser.planId ? await prisma.plan.findUnique({ where: { id: completingUser.planId } }) : null;
+    const effectiveReward = plan
+      ? completion.task.type === "sponsored_post"
+        ? plan.sponsoredPostReward
+        : plan.taskReward
+      : completion.task.rewardAmount;
+
     await prisma.$transaction(async (tx) => {
       await tx.userTaskCompletion.update({
         where: { id },
         data: {
           status: action === "approve" ? "completed" : "REJECTED",
-          rewardPaid: action === "approve" ? completion.task.rewardAmount : 0,
+          rewardPaid: action === "approve" ? effectiveReward : 0,
         },
       });
 
@@ -36,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         await creditWallet({
           userId: completion.userId,
           type: "TASK",
-          amount: Number(completion.task.rewardAmount),
+          amount: Number(effectiveReward),
           reason: "TASK_REWARD",
           description: `Task reward (verified): ${completion.task.title}`,
           client: tx,
@@ -45,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         await incrementMissionProgress(completion.userId, "TASK_CENTER", 1, tx);
         await payReferralCommission({
           earnerId: completion.userId,
-          earnedAmount: Number(completion.task.rewardAmount),
+          earnedAmount: Number(effectiveReward),
           sourceReason: "TASK_REWARD",
           client: tx,
         });

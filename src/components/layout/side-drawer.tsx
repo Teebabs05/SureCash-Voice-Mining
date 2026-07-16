@@ -16,6 +16,7 @@ import {
   Rss,
   MessageCircle,
   LogOut,
+  Crown,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -23,6 +24,7 @@ import { ThemeToggle } from "@/components/layout/theme-toggle";
 const links = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/earn", label: "Earn", icon: Gem },
+  { href: "/plans", label: "Plans & Upgrade", icon: Crown },
   { href: "/wallet", label: "Transactions", icon: Receipt },
   { href: "/wallet/deposit", label: "Fund Wallet", icon: ArrowDownToLine },
   { href: "/wallet/withdraw", label: "Withdraw", icon: ArrowUpFromLine },

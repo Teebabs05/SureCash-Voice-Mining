@@ -41,6 +41,17 @@ export async function POST(req: NextRequest) {
       if (existing) return jsonError("You've already completed this task", 409);
     }
 
+    // A user's active plan re-prices task rewards at a flat rate for the
+    // task's type (sponsored post vs general task), overriding the
+    // individual task's own rewardAmount. Users with no active plan keep
+    // today's per-task reward.
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    const effectiveReward = plan
+      ? task.type === "sponsored_post"
+        ? plan.sponsoredPostReward
+        : plan.taskReward
+      : task.rewardAmount;
+
     if (task.requiresProof) {
       if (!proofUrl && !proofText) {
         return jsonError("Please provide proof (a link or short description) for this task", 422);
@@ -60,13 +71,13 @@ export async function POST(req: NextRequest) {
 
     const result = await prisma.$transaction(async (tx) => {
       const completion = await tx.userTaskCompletion.create({
-        data: { userId: user.id, taskId, rewardPaid: task.rewardAmount },
+        data: { userId: user.id, taskId, rewardPaid: effectiveReward },
       });
 
       await creditWallet({
         userId: user.id,
         type: "TASK",
-        amount: Number(task.rewardAmount),
+        amount: Number(effectiveReward),
         reason: "TASK_REWARD",
         description: `Task reward: ${task.title}`,
         client: tx,
@@ -76,7 +87,7 @@ export async function POST(req: NextRequest) {
       await incrementMissionProgress(user.id, "TASK_CENTER", 1, tx);
       await payReferralCommission({
         earnerId: user.id,
-        earnedAmount: Number(task.rewardAmount),
+        earnedAmount: Number(effectiveReward),
         sourceReason: "TASK_REWARD",
         client: tx,
       });
@@ -84,7 +95,7 @@ export async function POST(req: NextRequest) {
       return completion;
     });
 
-    return NextResponse.json({ completion: result, reward: Number(task.rewardAmount), pending: false });
+    return NextResponse.json({ completion: result, reward: Number(effectiveReward), pending: false });
   } catch (error) {
     return handleApiError(error);
   }
