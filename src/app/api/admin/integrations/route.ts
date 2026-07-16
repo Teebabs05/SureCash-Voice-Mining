@@ -6,6 +6,7 @@ import { handleApiError } from "@/lib/server/api-response";
 import { setCredential, clearCredential } from "@/lib/server/credentials";
 import { decrypt } from "@/lib/server/crypto";
 import { INTEGRATION_KEYS } from "@/lib/integration-fields";
+import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 
 function mask(value: string): string {
   if (value.length <= 4) return "••••";
@@ -43,8 +44,13 @@ export async function PUT(req: NextRequest) {
   try {
     const admin = await requireSuperAdmin();
     const { key, value } = putSchema.parse(await req.json());
+    const { ipAddress, userAgent } = getRequestMeta(req);
 
     await setCredential(key, value, admin.id);
+    // Never log the secret itself — just who touched which key and when,
+    // so a compromised/rogue SUPERADMIN account leaves a trace.
+    await writeAuditLog({ userId: admin.id, action: "integration.credential_set", ipAddress, userAgent, metadata: { key } });
+
     return NextResponse.json({ key, configured: true });
   } catch (error) {
     return handleApiError(error);
@@ -55,9 +61,13 @@ const deleteSchema = z.object({ key: z.enum(INTEGRATION_KEYS as [string, ...stri
 
 export async function DELETE(req: NextRequest) {
   try {
-    await requireSuperAdmin();
+    const admin = await requireSuperAdmin();
     const { key } = deleteSchema.parse(await req.json());
+    const { ipAddress, userAgent } = getRequestMeta(req);
+
     await clearCredential(key);
+    await writeAuditLog({ userId: admin.id, action: "integration.credential_cleared", ipAddress, userAgent, metadata: { key } });
+
     return NextResponse.json({ key, cleared: true });
   } catch (error) {
     return handleApiError(error);
