@@ -64,6 +64,7 @@ enum DepositMethod {
   KORAPAY
   PAYVESSEL
   FLUTTERWAVE
+  BILLSTACK
 }
 
 enum UserTier {
@@ -85,6 +86,7 @@ enum PayoutProvider {
   MONNIFY
   KORAPAY
   PAYVESSEL
+  BILLSTACK
 }
 
 enum WithdrawalMethod {
@@ -190,6 +192,7 @@ model User {
   withdrawals               Withdrawal[]
   bankAccounts              BankAccount[]
   cryptoWallets             CryptoWallet[]
+  virtualAccount            VirtualAccount?
   achievements              UserAchievement[]
   notifications             Notification[]
   devices                   Device[]
@@ -344,6 +347,21 @@ model BankAccount {
   withdrawals Withdrawal[]
 
   @@unique([userId, accountNumber, bankCode])
+}
+
+/** A permanent dedicated bank account number (NUBAN) tied to one user for
+ * wallet funding — any bank transfer into it is credited automatically via
+ * the provider's webhook, no checkout redirect involved. */
+model VirtualAccount {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider      String   @default("BILLSTACK")
+  accountNumber String
+  accountName   String
+  bankName      String
+  externalRef   String?
+  createdAt     DateTime @default(now())
 }
 
 model CryptoWallet {

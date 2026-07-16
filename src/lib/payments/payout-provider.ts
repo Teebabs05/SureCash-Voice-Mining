@@ -1,3 +1,5 @@
+import { initiateTransfer as billstackInitiateTransfer } from "@/lib/payments/billstack";
+
 export interface PayoutRecipient {
   recipientCode: string;
 }
@@ -73,6 +75,37 @@ class PaystackPayoutProvider implements PayoutProviderAdapter {
   }
 }
 
+/**
+ * BillStack doesn't need a separate "create recipient" call (best-effort
+ * assumption — see src/lib/payments/billstack.ts), so resolveRecipient just
+ * packs the bank details into an opaque code for initiateTransfer to unpack.
+ */
+class BillstackPayoutProvider implements PayoutProviderAdapter {
+  name = "BILLSTACK";
+
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient> {
+    return { recipientCode: JSON.stringify(params) };
+  }
+
+  async initiateTransfer(params: {
+    amount: number;
+    recipientCode: string;
+    reference: string;
+    reason: string;
+  }): Promise<PayoutResult> {
+    const recipient = JSON.parse(params.recipientCode) as { bankCode: string; accountNumber: string; accountName: string };
+    const result = await billstackInitiateTransfer({
+      bankCode: recipient.bankCode,
+      accountNumber: recipient.accountNumber,
+      accountName: recipient.accountName,
+      amount: params.amount,
+      reference: params.reference,
+      narration: params.reason,
+    });
+    return { status: result.status, transferCode: result.reference, message: result.message };
+  }
+}
+
 /** Placeholder adapters — implement the same interface once API credentials are available. */
 class UnconfiguredPayoutProvider implements PayoutProviderAdapter {
   constructor(public name: string) {}
@@ -84,7 +117,9 @@ class UnconfiguredPayoutProvider implements PayoutProviderAdapter {
   }
 }
 
-export function getPayoutProvider(provider: "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL"): PayoutProviderAdapter {
+export function getPayoutProvider(
+  provider: "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK"
+): PayoutProviderAdapter {
   switch (provider) {
     case "PAYSTACK":
       return new PaystackPayoutProvider();
@@ -94,13 +129,21 @@ export function getPayoutProvider(provider: "PAYSTACK" | "MONNIFY" | "KORAPAY" |
       return new UnconfiguredPayoutProvider("Korapay");
     case "PAYVESSEL":
       return new UnconfiguredPayoutProvider("PayVessel");
+    case "BILLSTACK":
+      return new BillstackPayoutProvider();
   }
 }
 
 /** Which gateway to attempt automatic disbursement through by default. */
-export function getDefaultPayoutProvider(): "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" {
+export function getDefaultPayoutProvider(): "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK" {
   const configured = process.env.DEFAULT_PAYOUT_PROVIDER;
-  if (configured === "MONNIFY" || configured === "KORAPAY" || configured === "PAYVESSEL" || configured === "PAYSTACK") {
+  if (
+    configured === "MONNIFY" ||
+    configured === "KORAPAY" ||
+    configured === "PAYVESSEL" ||
+    configured === "PAYSTACK" ||
+    configured === "BILLSTACK"
+  ) {
     return configured;
   }
   return "PAYSTACK";
