@@ -150,16 +150,13 @@ export async function POST(req: NextRequest) {
       metadata: { reference, amount: body.amount, method: body.method },
     });
 
-    // Best-effort instant payout — bank withdrawals only (no crypto
-    // disbursement gateway is wired up). Never blocks or fails the request
-    // itself; on any error the withdrawal just stays PENDING for manual
-    // admin review.
-    const updated =
-      body.method === "BANK"
-        ? await attemptAutomaticPayout(withdrawal.id)
-            .then(() => prisma.withdrawal.findUnique({ where: { id: withdrawal.id } }))
-            .catch(() => null)
-        : null;
+    // Best-effort instant payout — bank withdrawals via the configured
+    // gateway, USDT via Binance (if BINANCE_API_KEY/SECRET are set). Never
+    // blocks or fails the request itself; on any error the withdrawal just
+    // stays PENDING for manual admin review.
+    const updated = await attemptAutomaticPayout(withdrawal.id)
+      .then(() => prisma.withdrawal.findUnique({ where: { id: withdrawal.id } }))
+      .catch(() => null);
 
     return NextResponse.json({ withdrawal: updated ?? withdrawal });
   } catch (error) {

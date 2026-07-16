@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Check, X, PlayCircle, Zap, AlertTriangle } from "lucide-react";
+import { Check, X, PlayCircle, Zap, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -39,10 +39,13 @@ export default function AdminWithdrawalsPage() {
     load(filter);
   }, [filter, load]);
 
-  async function act(id: string, action: "approve" | "reject" | "process" | "retry-payout") {
+  async function act(id: string, action: "approve" | "reject" | "process" | "retry-payout" | "check-crypto-status") {
     setBusyId(id);
     try {
-      await apiFetch(`/api/admin/withdrawals/${id}/${action}`, { method: "POST", body: JSON.stringify({}) });
+      const res = await apiFetch<{ note?: string }>(`/api/admin/withdrawals/${id}/${action}`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
       toast.success(
         action === "approve"
           ? "Withdrawal paid"
@@ -50,7 +53,9 @@ export default function AdminWithdrawalsPage() {
             ? "Withdrawal rejected"
             : action === "retry-payout"
               ? "Automatic payout retried"
-              : "Withdrawal is now processing"
+              : action === "check-crypto-status"
+                ? (res.note ?? "Status updated")
+                : "Withdrawal is now processing"
       );
       load(filter);
     } catch (err) {
@@ -116,9 +121,14 @@ export default function AdminWithdrawalsPage() {
               </div>
               {(w.status === "PENDING" || w.status === "PROCESSING") && (
                 <div className="flex flex-wrap gap-2">
-                  {w.method === "BANK" && w.status === "PENDING" && w.autoPayoutAttempted && (
+                  {w.status === "PENDING" && w.autoPayoutAttempted && (
                     <Button size="sm" variant="outline" loading={busyId === w.id} onClick={() => act(w.id, "retry-payout")}>
                       <Zap className="h-3.5 w-3.5" /> Retry auto-payout
+                    </Button>
+                  )}
+                  {w.status === "PROCESSING" && w.payoutProvider === "BINANCE" && (
+                    <Button size="sm" variant="outline" loading={busyId === w.id} onClick={() => act(w.id, "check-crypto-status")}>
+                      <RefreshCw className="h-3.5 w-3.5" /> Check Binance status
                     </Button>
                   )}
                   {w.status === "PENDING" && (

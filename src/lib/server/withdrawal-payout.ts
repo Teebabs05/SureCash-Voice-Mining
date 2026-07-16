@@ -1,24 +1,30 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { getDefaultPayoutProvider, getPayoutProvider } from "@/lib/payments/payout-provider";
+import { withdrawUsdt, isBinanceConfigured } from "@/lib/payments/binance";
 import { notifyUser } from "@/lib/server/notifications";
 import { writeAuditLog } from "@/lib/server/audit";
 
 /**
- * Attempts instant automatic disbursement through the configured gateway
- * (Paystack live; Monnify/Korapay/PayVessel stubbed until credentials are
- * added). Runs after the withdrawal row + wallet debit are already
- * committed, since it involves an external network call that shouldn't sit
- * inside a DB transaction. Never throws — on any failure the withdrawal
- * simply stays PENDING for manual admin processing, which is the existing
- * fallback path.
+ * Attempts instant automatic disbursement — bank transfer through the
+ * configured gateway, or USDT through Binance if configured. Runs after the
+ * withdrawal row + wallet debit are already committed, since it involves an
+ * external network call that shouldn't sit inside a DB transaction. Never
+ * throws — on any failure the withdrawal simply stays PENDING for manual
+ * admin processing, which is the existing fallback path.
  */
 export async function attemptAutomaticPayout(withdrawalId: string) {
   const withdrawal = await prisma.withdrawal.findUnique({
     where: { id: withdrawalId },
-    include: { bankAccount: true, user: true },
+    include: { bankAccount: true, cryptoWallet: true, user: true },
   });
   if (!withdrawal || withdrawal.status !== "PENDING") return;
+
+  if (withdrawal.method === "USDT" && withdrawal.cryptoWallet) {
+    await attemptCryptoPayout(withdrawal.id, withdrawal.cryptoWallet, Number(withdrawal.usdtAmount), withdrawal.reference, withdrawal.userId);
+    return;
+  }
+
   if (withdrawal.method !== "BANK" || !withdrawal.bankAccount) return;
 
   const bankAccount = withdrawal.bankAccount;
@@ -90,6 +96,76 @@ export async function attemptAutomaticPayout(withdrawalId: string) {
     });
   } catch (error) {
     // Provider not configured, network error, etc — silent fallback to manual.
+    await prisma.withdrawal.update({
+      where: { id: withdrawalId },
+      data: {
+        autoPayoutAttempted: true,
+        autoPayoutError: error instanceof Error ? error.message : "Automatic payout unavailable",
+      },
+    });
+  }
+}
+
+/**
+ * USDT disbursement via Binance. Unlike the bank-transfer gateways, Binance
+ * doesn't push a webhook on completion — final confirmation happens when an
+ * admin uses the "check status" action (POST
+ * /api/admin/withdrawals/[id]/check-crypto-status), which polls
+ * getWithdrawStatus(). A no-op (stays PENDING for manual sending) if
+ * BINANCE_API_KEY/SECRET aren't configured, same as before this was wired up.
+ */
+async function attemptCryptoPayout(
+  withdrawalId: string,
+  cryptoWallet: { address: string; network: string },
+  usdtAmount: number,
+  reference: string,
+  userId: string
+) {
+  if (!isBinanceConfigured()) return;
+
+  try {
+    const result = await withdrawUsdt({
+      network: cryptoWallet.network as "TRC20" | "ERC20" | "BEP20",
+      address: cryptoWallet.address,
+      amount: usdtAmount,
+      withdrawOrderId: reference,
+    });
+
+    if (result.status === "failed") {
+      await prisma.withdrawal.update({
+        where: { id: withdrawalId },
+        data: { autoPayoutAttempted: true, autoPayoutError: result.message ?? "Withdrawal request failed", payoutProvider: "BINANCE" },
+      });
+      await writeAuditLog({
+        userId,
+        action: "withdrawal.auto_payout_failed",
+        metadata: { withdrawalId, provider: "BINANCE", message: result.message },
+      });
+      return;
+    }
+
+    await prisma.withdrawal.update({
+      where: { id: withdrawalId },
+      data: {
+        status: "PROCESSING",
+        payoutProvider: "BINANCE",
+        payoutReference: result.withdrawId,
+        autoPayoutAttempted: true,
+      },
+    });
+
+    await notifyUser({
+      userId,
+      title: "USDT withdrawal processing",
+      body: `Your withdrawal of ${usdtAmount} USDT is being sent to your wallet.`,
+      type: "WALLET",
+    });
+    await writeAuditLog({
+      userId,
+      action: "withdrawal.auto_payout_initiated",
+      metadata: { withdrawalId, provider: "BINANCE" },
+    });
+  } catch (error) {
     await prisma.withdrawal.update({
       where: { id: withdrawalId },
       data: {
