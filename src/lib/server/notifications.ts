@@ -2,8 +2,18 @@ import "server-only";
 import { Prisma, NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendPushToUser, sendPushToAllUsers } from "@/lib/server/push";
+import { sendWhatsAppNotification, isWhatsAppConfigured } from "@/lib/notifications/whatsapp";
 
 type Tx = Prisma.TransactionClient;
+
+async function sendWhatsAppIfEnabled(userId: string, title: string, body: string) {
+  if (!isWhatsAppConfigured()) return;
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true, phoneVerified: true } });
+  if (!user?.phone || !user.phoneVerified) return;
+
+  await sendWhatsAppNotification(user.phone, title, body);
+}
 
 export async function notifyUser(params: {
   userId: string;
@@ -22,9 +32,11 @@ export async function notifyUser(params: {
     },
   });
 
-  // Fire-and-forget: a push failure (no subscription, VAPID not configured,
-  // endpoint gone) should never fail the in-app notification write itself.
+  // Fire-and-forget: a push/WhatsApp failure (no subscription, not
+  // configured, no verified phone) should never fail the in-app
+  // notification write itself.
   sendPushToUser(params.userId, { title: params.title, body: params.body }).catch(() => {});
+  sendWhatsAppIfEnabled(params.userId, params.title, params.body).catch(() => {});
 
   return notification;
 }
