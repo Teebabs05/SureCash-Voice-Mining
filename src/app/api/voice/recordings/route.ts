@@ -11,6 +11,7 @@ import {
   analyzeAudioEnergy,
   detectBackgroundNoiseHeuristic,
   isProbableReplay,
+  analyzePitchContour,
   estimateSynthesizedVoiceLikelihood,
 } from "@/lib/voice-ai/detectors";
 import { saveUploadedFile } from "@/lib/server/storage";
@@ -112,10 +113,17 @@ export async function POST(req: NextRequest) {
 
     const provider = getVoiceAiProvider();
     const transcription = await provider.transcribe(buffer, file.type || "audio/webm");
-    const isSynthesizedVoice = estimateSynthesizedVoiceLikelihood({
-      confidence: transcription.confidence,
-      byteLength: buffer.byteLength,
-    });
+
+    // Prefer real pitch-contour analysis on decoded PCM; fall back to the
+    // weaker confidence+filesize heuristic only when the clip can't be
+    // decoded or has too little voiced signal to read a pitch contour from.
+    const pitchAnalysis = await analyzePitchContour(buffer, file.type || "audio/webm");
+    const isSynthesizedVoice =
+      pitchAnalysis?.flagged ??
+      estimateSynthesizedVoiceLikelihood({
+        confidence: transcription.confidence,
+        byteLength: buffer.byteLength,
+      });
 
     const passed =
       !isDuplicate && !isReplayAttack && !noise.flagged && !isSynthesizedVoice && transcription.confidence >= 0.6;
