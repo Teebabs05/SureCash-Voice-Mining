@@ -588,7 +588,7 @@ model SpinReward {
   amount   Decimal    @db.Decimal(18, 2)
   wallet   WalletType @default(ENGAGEMENT)
   weight   Int        @default(1)
-  colorHex String     @default("#6A00FF")
+  colorHex String     @default("#0D8A82")
   isActive Boolean    @default(true)
 
   history SpinHistory[]

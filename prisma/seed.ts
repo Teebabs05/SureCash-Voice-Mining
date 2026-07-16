@@ -45,80 +45,92 @@ async function main() {
 
   // ---------------------------------------------------------------------
   // Voice tasks — multi-language, matching the 6s-20s spec.
+  //
+  // These models have no DB-level unique constraint on their natural key
+  // (title/label), so `createMany({ skipDuplicates: true })` can't actually
+  // dedupe anything — it silently re-inserts every row each time the seed
+  // runs. Find-or-create per row instead, keyed on title (+ language for
+  // voice tasks, since two prompts can share a title in different tongues).
   // ---------------------------------------------------------------------
-  await prisma.voiceTask.createMany({
-    data: [
-      { title: "English sentence", promptText: "SureCash Mining rewards hardworking users every day.", language: "en", rewardAmount: 20, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "English greeting", promptText: "Welcome to SureCash Mining, where your voice earns you money.", language: "en", rewardAmount: 20, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "Nigerian Pidgin sentence", promptText: "SureCash Mining go pay you well well if you work hard.", language: "pcm", rewardAmount: 22, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "French sentence", promptText: "SureCash Mining récompense les utilisateurs assidus chaque jour.", language: "fr", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "Yoruba sentence", promptText: "SureCash Mining a maa san ẹ ni owo lojoojumọ.", language: "yo", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "Hausa sentence", promptText: "SureCash Mining na biyan ku kudi kowace rana.", language: "ha", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "Igbo sentence", promptText: "SureCash Mining na-akwụ gị ụgwọ kwa ụbọchị.", language: "ig", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-      { title: "Word game: pronounce", promptText: "Pronounce the word: opportunity", language: "en", category: "word_game", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
-    ],
-    skipDuplicates: true,
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- generic over Prisma's per-model delegate types
+  async function findOrCreate(model: any, where: Record<string, unknown>, data: Record<string, unknown>) {
+    const existing = await model.findFirst({ where });
+    if (!existing) await model.create({ data });
+  }
+
+  const voiceTasks = [
+    { title: "English sentence", promptText: "SureCash Mining rewards hardworking users every day.", language: "en", rewardAmount: 20, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "English greeting", promptText: "Welcome to SureCash Mining, where your voice earns you money.", language: "en", rewardAmount: 20, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "Nigerian Pidgin sentence", promptText: "SureCash Mining go pay you well well if you work hard.", language: "pcm", rewardAmount: 22, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "French sentence", promptText: "SureCash Mining récompense les utilisateurs assidus chaque jour.", language: "fr", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "Yoruba sentence", promptText: "SureCash Mining a maa san ẹ ni owo lojoojumọ.", language: "yo", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "Hausa sentence", promptText: "SureCash Mining na biyan ku kudi kowace rana.", language: "ha", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "Igbo sentence", promptText: "SureCash Mining na-akwụ gị ụgwọ kwa ụbọchị.", language: "ig", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: opportunity", language: "en", category: "word_game", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+  ];
+  for (const task of voiceTasks) {
+    await findOrCreate(prisma.voiceTask, { title: task.title, language: task.language }, task);
+  }
 
   // ---------------------------------------------------------------------
   // Task center
   // ---------------------------------------------------------------------
-  await prisma.taskCenterTask.createMany({
-    data: [
-      { title: "Follow us on TikTok", description: "Follow @surecashmining on TikTok", type: "social", actionUrl: "https://tiktok.com", rewardAmount: 30, requiresProof: true },
-      { title: "Like our Facebook Page", description: "Like SureCash Mining on Facebook", type: "social", actionUrl: "https://facebook.com", rewardAmount: 20, requiresProof: true },
-      { title: "Watch our YouTube video", description: "Watch the intro video to the end", type: "social", actionUrl: "https://youtube.com", rewardAmount: 25, requiresProof: false },
-      { title: "Join our Telegram group", description: "Join the SureCash Mining Telegram community", type: "social", actionUrl: "https://t.me", rewardAmount: 30, requiresProof: true },
-      { title: "Join our WhatsApp group", description: "Join the SureCash Mining WhatsApp community", type: "social", actionUrl: "https://wa.me", rewardAmount: 30, requiresProof: true },
-      { title: "Download our app", description: "Install the SureCash Mining PWA to your home screen", type: "app", rewardAmount: 40, requiresProof: false },
-      { title: "Visit our website", description: "Visit surecashmining.app and explore", type: "website", actionUrl: "https://example.com", rewardAmount: 10, requiresProof: false },
-      { title: "Daily check-in", description: "Check in once a day for a small bonus", type: "checkin", rewardAmount: 5, isRepeatable: true, requiresProof: false },
-      { title: "Financial literacy quiz", description: "Answer a short quiz about saving money", type: "quiz", rewardAmount: 15, requiresProof: false },
-      { title: "Platform survey", description: "Tell us how we can improve SureCash Mining", type: "survey", rewardAmount: 15, requiresProof: false },
-    ],
-    skipDuplicates: true,
-  });
+  const taskCenterTasks = [
+    { title: "Follow us on TikTok", description: "Follow @surecashmining on TikTok", type: "social", actionUrl: "https://tiktok.com", rewardAmount: 30, requiresProof: true },
+    { title: "Like our Facebook Page", description: "Like SureCash Mining on Facebook", type: "social", actionUrl: "https://facebook.com", rewardAmount: 20, requiresProof: true },
+    { title: "Watch our YouTube video", description: "Watch the intro video to the end", type: "social", actionUrl: "https://youtube.com", rewardAmount: 25, requiresProof: false },
+    { title: "Join our Telegram group", description: "Join the SureCash Mining Telegram community", type: "social", actionUrl: "https://t.me", rewardAmount: 30, requiresProof: true },
+    { title: "Join our WhatsApp group", description: "Join the SureCash Mining WhatsApp community", type: "social", actionUrl: "https://wa.me", rewardAmount: 30, requiresProof: true },
+    { title: "Download our app", description: "Install the SureCash Mining PWA to your home screen", type: "app", rewardAmount: 40, requiresProof: false },
+    { title: "Visit our website", description: "Visit surecashmining.app and explore", type: "website", actionUrl: "https://example.com", rewardAmount: 10, requiresProof: false },
+    { title: "Daily check-in", description: "Check in once a day for a small bonus", type: "checkin", rewardAmount: 5, isRepeatable: true, requiresProof: false },
+    { title: "Financial literacy quiz", description: "Answer a short quiz about saving money", type: "quiz", rewardAmount: 15, requiresProof: false },
+    { title: "Platform survey", description: "Tell us how we can improve SureCash Mining", type: "survey", rewardAmount: 15, requiresProof: false },
+  ];
+  for (const task of taskCenterTasks) {
+    await findOrCreate(prisma.taskCenterTask, { title: task.title }, task);
+  }
 
   // ---------------------------------------------------------------------
   // Membership plans (paid, admin-editable pricing and per-activity rewards)
   // ---------------------------------------------------------------------
-  await prisma.plan.createMany({
-    data: [
-      { name: "Voice Lite", price: 1500, voiceSessionReward: 100, wordGameReward: 60, sponsoredPostReward: 50, taskReward: 50, referralCommission: 800, sortOrder: 1 },
-      { name: "Voice Starter", price: 3000, voiceSessionReward: 180, wordGameReward: 120, sponsoredPostReward: 90, taskReward: 90, referralCommission: 1800, sortOrder: 2 },
-      { name: "Voice Pro", price: 5000, voiceSessionReward: 270, wordGameReward: 150, sponsoredPostReward: 150, taskReward: 150, referralCommission: 3000, sortOrder: 3 },
-      { name: "Audio Elite", price: 9500, voiceSessionReward: 420, wordGameReward: 300, sponsoredPostReward: 200, taskReward: 200, referralCommission: 6000, sortOrder: 4 },
-      { name: "Prime Artiste", price: 15000, voiceSessionReward: 600, wordGameReward: 400, sponsoredPostReward: 250, taskReward: 250, referralCommission: 10000, sortOrder: 5 },
-    ],
-    skipDuplicates: true,
-  });
+  const plans = [
+    { name: "Voice Lite", price: 1500, voiceSessionReward: 100, wordGameReward: 60, sponsoredPostReward: 50, taskReward: 50, referralCommission: 800, sortOrder: 1 },
+    { name: "Voice Starter", price: 3000, voiceSessionReward: 180, wordGameReward: 120, sponsoredPostReward: 90, taskReward: 90, referralCommission: 1800, sortOrder: 2 },
+    { name: "Voice Pro", price: 5000, voiceSessionReward: 270, wordGameReward: 150, sponsoredPostReward: 150, taskReward: 150, referralCommission: 3000, sortOrder: 3 },
+    { name: "Audio Elite", price: 9500, voiceSessionReward: 420, wordGameReward: 300, sponsoredPostReward: 200, taskReward: 200, referralCommission: 6000, sortOrder: 4 },
+    { name: "Prime Artiste", price: 15000, voiceSessionReward: 600, wordGameReward: 400, sponsoredPostReward: 250, taskReward: 250, referralCommission: 10000, sortOrder: 5 },
+  ];
+  for (const plan of plans) {
+    await findOrCreate(prisma.plan, { name: plan.name }, plan);
+  }
 
   // ---------------------------------------------------------------------
   // Daily missions (only for mission types the app actually tracks)
   // ---------------------------------------------------------------------
-  await prisma.dailyMission.createMany({
-    data: [
-      { title: "Mine once today", description: "Claim your daily mining reward", type: "MINING", target: 1, rewardXp: 10, rewardAmount: 20, rewardWallet: "ENGAGEMENT" },
-      { title: "Complete 3 voice tasks", description: "Submit 3 approved voice recordings", type: "VOICE_TASK", target: 3, rewardXp: 20, rewardAmount: 30, rewardWallet: "ENGAGEMENT" },
-      { title: "Complete 1 task", description: "Finish any task from the Task Center", type: "TASK_CENTER", target: 1, rewardXp: 10, rewardAmount: 15, rewardWallet: "ENGAGEMENT" },
-    ],
-    skipDuplicates: true,
-  });
+  const dailyMissions = [
+    { title: "Mine once today", description: "Claim your daily mining reward", type: "MINING", target: 1, rewardXp: 10, rewardAmount: 20, rewardWallet: "ENGAGEMENT" as const },
+    { title: "Complete 3 voice tasks", description: "Submit 3 approved voice recordings", type: "VOICE_TASK", target: 3, rewardXp: 20, rewardAmount: 30, rewardWallet: "ENGAGEMENT" as const },
+    { title: "Complete 1 task", description: "Finish any task from the Task Center", type: "TASK_CENTER", target: 1, rewardXp: 10, rewardAmount: 15, rewardWallet: "ENGAGEMENT" as const },
+  ];
+  for (const mission of dailyMissions) {
+    await findOrCreate(prisma.dailyMission, { title: mission.title }, mission);
+  }
 
   // ---------------------------------------------------------------------
   // Lucky spin rewards
   // ---------------------------------------------------------------------
-  await prisma.spinReward.createMany({
-    data: [
-      { label: "₦50 Bonus", amount: 50, wallet: "ENGAGEMENT", weight: 30, colorHex: "#6A00FF" },
-      { label: "₦100 Bonus", amount: 100, wallet: "ENGAGEMENT", weight: 20, colorHex: "#FFD700" },
-      { label: "₦200 Bonus", amount: 200, wallet: "ENGAGEMENT", weight: 10, colorHex: "#00C853" },
-      { label: "₦500 Jackpot", amount: 500, wallet: "ENGAGEMENT", weight: 3, colorHex: "#FF2FB0" },
-      { label: "Try Again", amount: 0, wallet: "ENGAGEMENT", weight: 25, colorHex: "#94A3B8" },
-      { label: "₦20 Bonus", amount: 20, wallet: "ENGAGEMENT", weight: 12, colorHex: "#00C2FF" },
-    ],
-    skipDuplicates: true,
-  });
+  const spinRewards = [
+    { label: "₦50 Bonus", amount: 50, wallet: "ENGAGEMENT" as const, weight: 30, colorHex: "#0D8A82" },
+    { label: "₦100 Bonus", amount: 100, wallet: "ENGAGEMENT" as const, weight: 20, colorHex: "#F5A623" },
+    { label: "₦200 Bonus", amount: 200, wallet: "ENGAGEMENT" as const, weight: 10, colorHex: "#12B76A" },
+    { label: "₦500 Jackpot", amount: 500, wallet: "ENGAGEMENT" as const, weight: 3, colorHex: "#E2497A" },
+    { label: "Try Again", amount: 0, wallet: "ENGAGEMENT" as const, weight: 25, colorHex: "#94A3B8" },
+    { label: "₦20 Bonus", amount: 20, wallet: "ENGAGEMENT" as const, weight: 12, colorHex: "#2563EB" },
+  ];
+  for (const reward of spinRewards) {
+    await findOrCreate(prisma.spinReward, { label: reward.label }, reward);
+  }
 
   // ---------------------------------------------------------------------
   // Promo code

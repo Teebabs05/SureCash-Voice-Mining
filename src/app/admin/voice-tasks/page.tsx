@@ -219,7 +219,7 @@ export default function AdminVoiceTasksPage() {
                   {r.aiResult?.isSynthesizedVoice && <Badge label="Synthetic" />}
                 </div>
               </div>
-              <audio controls src={r.audioUrl} className="mt-2 w-full" />
+              <RecordingAudio src={r.audioUrl} />
               <div className="mt-2 flex gap-2">
                 <Button size="sm" loading={busyId === r.id} onClick={() => resolveRecording(r.id, "approve")}>
                   <Check className="h-3.5 w-3.5" /> Approve & pay
@@ -238,4 +238,14 @@ export default function AdminVoiceTasksPage() {
 
 function Badge({ label }: { label: string }) {
   return <span className={cn("rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-500")}>{label}</span>;
+}
+
+function RecordingAudio({ src }: { src: string }) {
+  const [unavailable, setUnavailable] = useState(false);
+
+  if (unavailable) {
+    return <p className="mt-2 rounded-lg bg-surface px-3 py-2 text-xs text-foreground/50">Recording unavailable</p>;
+  }
+
+  return <audio controls src={src} className="mt-2 w-full" onError={() => setUnavailable(true)} />;
 }
