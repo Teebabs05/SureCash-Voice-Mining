@@ -8,6 +8,7 @@ import { payReferralCommission } from "@/lib/server/referral-commission";
 import { getVoiceAiProvider } from "@/lib/voice-ai/provider";
 import {
   hashAudioBuffer,
+  analyzeAudioEnergy,
   detectBackgroundNoiseHeuristic,
   isProbableReplay,
   estimateSynthesizedVoiceLikelihood,
@@ -104,7 +105,10 @@ export async function POST(req: NextRequest) {
         })
       : false;
 
-    const noise = detectBackgroundNoiseHeuristic(buffer);
+    // Prefer real decoded-audio RMS analysis; fall back to the weaker
+    // byte-level heuristic only when the clip can't be decoded (e.g.
+    // Safari's audio/mp4 output isn't a WebM container).
+    const noise = (await analyzeAudioEnergy(buffer, file.type || "audio/webm")) ?? detectBackgroundNoiseHeuristic(buffer);
 
     const provider = getVoiceAiProvider();
     const transcription = await provider.transcribe(buffer, file.type || "audio/webm");

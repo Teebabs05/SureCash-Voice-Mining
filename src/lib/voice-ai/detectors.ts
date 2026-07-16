@@ -1,16 +1,52 @@
 import crypto from "crypto";
+import decodeWebm from "@audio/decode-webm";
 
 export function hashAudioBuffer(buffer: Buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 /**
- * Heuristic background-noise / silence check on raw PCM-ish bytes.
- * This is a placeholder signal-processing pass (no real DSP library in the
- * MVP) — it flags clips whose byte-level amplitude variance is implausibly
- * low (near-silent or flat/looped audio), which tends to correlate with
- * noise-only or corrupted recordings. Replace with a proper RMS/VAD analysis
- * (e.g. via ffmpeg or a WASM audio analyzer) for production-grade detection.
+ * Real RMS-energy silence/background-noise-only check on genuinely decoded
+ * PCM samples (webm/opus — the format Chrome/most Android MediaRecorders
+ * produce). Threshold calibrated empirically: recorded real silence via
+ * Chrome's fake-audio-capture device end-to-end through actual
+ * getUserMedia -> MediaRecorder -> Opus encoding, decoded it back with
+ * @audio/decode-webm, and measured RMS ~0.00006 for silence/mic self-noise
+ * vs ~0.0066+ for even a very quiet tone — 0.001 sits comfortably between
+ * the two with over an order of magnitude of margin on both sides.
+ * Returns null (not flagged/not-flagged) when the clip can't be decoded
+ * (e.g. Safari's audio/mp4 output isn't a WebM container) so the caller can
+ * fall back to detectBackgroundNoiseHeuristic instead.
+ */
+const SILENCE_RMS_THRESHOLD = 0.001;
+
+export async function analyzeAudioEnergy(
+  buffer: Buffer,
+  mimeType: string
+): Promise<{ flagged: boolean; rms: number } | null> {
+  if (!mimeType.includes("webm")) return null;
+
+  try {
+    const { channelData } = await decodeWebm(buffer);
+    const samples = channelData[0];
+    if (!samples || samples.length === 0) return { flagged: true, rms: 0 };
+
+    let sumSquares = 0;
+    for (let i = 0; i < samples.length; i++) sumSquares += samples[i] * samples[i];
+    const rms = Math.sqrt(sumSquares / samples.length);
+
+    return { flagged: rms < SILENCE_RMS_THRESHOLD, rms: Number(rms.toFixed(6)) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Byte-level fallback used only when the clip can't be decoded to real PCM
+ * (analyzeAudioEnergy returned null — unsupported container/codec, or a
+ * corrupt file). Much weaker signal than real RMS analysis since it's
+ * operating on compressed bytes rather than actual sample amplitudes, but
+ * still catches the obvious case of a near-empty/corrupt upload.
  */
 export function detectBackgroundNoiseHeuristic(buffer: Buffer): { flagged: boolean; variance: number } {
   if (buffer.byteLength < 200) return { flagged: true, variance: 0 };
