@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/server/current-user";
 import { getWalletSummary } from "@/lib/server/wallet";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
@@ -9,6 +10,9 @@ export async function GET() {
     if (!user) return jsonError("Not authenticated", 401);
 
     const { wallets, total } = await getWalletSummary(user.id);
+    const plan = user.planId
+      ? await prisma.plan.findUnique({ where: { id: user.planId }, select: { name: true } })
+      : null;
 
     return NextResponse.json({
       user: {
@@ -21,6 +25,8 @@ export async function GET() {
         phoneVerified: user.phoneVerified,
         twoFactorEnabled: user.twoFactorEnabled,
         tier: user.tier,
+        avatarUrl: user.avatarUrl,
+        planName: plan?.name ?? null,
         referralCode: user.referralCode,
         xp: user.xp,
         level: user.level,

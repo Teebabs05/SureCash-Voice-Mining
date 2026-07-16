@@ -165,6 +165,7 @@ model User {
   isBanned      Boolean  @default(false)
   banReason     String?
   tier          UserTier @default(FREE)
+  avatarUrl     String?
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?

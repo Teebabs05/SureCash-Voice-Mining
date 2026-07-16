@@ -88,6 +88,18 @@ body {
     background-image: linear-gradient(135deg, #16d17e 0%, #0a8c53 100%);
   }
 
+  .profile-banner {
+    background-image:
+      repeating-linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.07) 0px,
+        rgba(255, 255, 255, 0.07) 2px,
+        transparent 2px,
+        transparent 14px
+      ),
+      linear-gradient(135deg, #0d8a82 0%, #062723 100%);
+  }
+
   .gradient-wallet-main {
     background-image: linear-gradient(135deg, #0d8a82 0%, #075c56 100%);
   }
