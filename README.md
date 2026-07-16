@@ -9,7 +9,7 @@ A mobile-first earning platform: daily mining, AI-validated voice tasks, a task 
 - **Auth:** JWT in an httpOnly cookie, bcrypt password hashing, optional email-OTP 2FA
 - **Voice AI:** pluggable provider interface — stub by default, or Whisper / Gemini / Azure Speech with API keys
 - **Payments:** pluggable gateway interface — Paystack fully wired, Monnify/Korapay/PayVessel/Flutterwave as stubs to fill in with real credentials
-- **PWA:** installable manifest + service worker (offline fallback, push-notification listener)
+- **PWA:** installable manifest + service worker (offline fallback, real Web Push send/receive via VAPID)
 
 ## Getting started
 
@@ -42,6 +42,7 @@ Copy `.env.example` to `.env` and fill in what you have. Everything not configur
 - `PAYSTACK_SECRET_KEY` — the only payment gateway with a real integration (both deposits and instant withdrawal payouts); others (`MONNIFY_*`, `KORAPAY_*`, `PAYVESSEL_*`, `FLUTTERWAVE_*`) are stub adapters ready for real credentials
 - `DEFAULT_PAYOUT_PROVIDER` — which gateway attempts instant withdrawal disbursement (`PAYSTACK` default | `MONNIFY` | `KORAPAY` | `PAYVESSEL`)
 - `EMAIL_PROVIDER` / `OTP_PROVIDER` — default to console logging; swap in Resend/Termii/Twilio adapters in `src/lib/notifications/`
+- `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` — generate with `npx web-push generate-vapid-keys`; push send is a no-op until both keys are set
 - `RECAPTCHA_SECRET_KEY` — reCAPTCHA verification on registration is a no-op until this is set
 
 ## Wallets
@@ -68,6 +69,7 @@ Every user has six wallets: **Main, Mining, Voice, Referral, Task, Bonus**. All 
 - **Community feed** — a real-activity feed (withdrawals paid, voice approvals, achievements, referral bonuses) — never fabricated data.
 - **Withdrawal tracking** — a visual Submitted → Processing → Paid stepper on both the user and admin side; admins can move a withdrawal into "processing" before marking it paid.
 - **Security Center** — active session list with per-device and "sign out all other sessions" revocation (backed by a real DB-tracked `Session` model, not just the JWT), plus login history and device tracking.
+- **Push notifications** — an installable-PWA service worker that displays real Web Push messages, backed by a real server-side send flow: users opt in from Profile → Notifications (browser permission + `PushSubscription` row), and every `notifyUser`/`broadcastNotification` call (withdrawals paid, voice approvals, admin broadcasts, etc.) also fires a push via `web-push` when `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` are configured — a no-op otherwise.
 - **Admin panel** — overview stats, a dedicated Analytics page (7-day retention, verification/deposit conversion, most active users, voice AI success rate), users (ban/tier), deposits, withdrawals, voice task management (create/activate/delete + flagged-recording review), Task Center management + proof review, fraud dashboard (report queue + flagged-users/VPN-devices/multi-device aggregate views), promo codes, support tickets, segmented broadcast notifications (All/VIP/New/Inactive), settings.
 
 ## Security
@@ -86,7 +88,6 @@ Built as a solid, fully-working MVP — these are the pieces intentionally left 
 
 - **Voice AI heuristics** (background-noise, replay, synthesized-voice detection) are labeled placeholder heuristics in `src/lib/voice-ai/detectors.ts` — solid enough to exercise the full pipeline, but a production deployment should replace them with a real audio-analysis/classifier pass.
 - **Payment gateways**: only Paystack is a real integration (deposits via `src/lib/payments/provider.ts`, instant withdrawal payouts via `src/lib/payments/payout-provider.ts`); Monnify/Korapay/PayVessel/Flutterwave throw a clear "not configured" error until real API credentials are wired in, and automatic withdrawals simply fall back to the manual admin flow in that case.
-- **Push notifications**: the service worker listens for and displays pushes, but there's no server-side VAPID subscription/send flow yet — add `web-push` + a `PushSubscription` table to complete it.
 - **USDT withdrawals are manual-only** — there's no real crypto disbursement/custody integration, so an admin always sends the USDT and marks it paid by hand (unlike bank withdrawals, which can auto-pay via Paystack).
 - **SMS/WhatsApp notifications** are stub-only (console log) — swap in a real provider in `src/lib/notifications/otp.ts`.
 - **Multi-level referral tree**: the referral dashboard shows direct referrals only, not a downstream tree.

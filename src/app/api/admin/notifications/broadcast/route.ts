@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { broadcastNotification } from "@/lib/server/notifications";
+import { sendPushToUsers } from "@/lib/server/push";
 
 const schema = z.object({
   title: z.string().min(2),
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
     await prisma.notification.createMany({
       data: userIds.map((userId) => ({ userId, title, body, type: "ADMIN" as const })),
     });
+    sendPushToUsers(userIds, { title, body }).catch(() => {});
 
     return NextResponse.json({ notification: null, recipientCount: userIds.length });
   } catch (error) {
