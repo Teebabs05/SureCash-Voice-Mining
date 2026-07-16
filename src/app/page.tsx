@@ -13,6 +13,10 @@ import {
   ArrowUpRight,
   Star,
   Quote,
+  Smartphone,
+  Wifi,
+  Zap,
+  Tv,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/server/current-user";
 import { formatCurrency } from "@/lib/utils";
@@ -30,6 +34,14 @@ const STEPS = [
   { icon: UserPlus, title: "Create a free account", description: "Sign up in under a minute — no card required." },
   { icon: ListChecks, title: "Mine, talk, and complete tasks", description: "Earn daily from mining, voice tasks, and the Task Center." },
   { icon: Banknote, title: "Withdraw to bank or USDT", description: "Cash out instantly once your wallet is withdrawable." },
+];
+
+const VTU_SERVICES = [
+  { icon: Smartphone, label: "Airtime" },
+  { icon: Wifi, label: "Data" },
+  { icon: Zap, label: "Electricity" },
+  { icon: Tv, label: "Cable TV" },
+  { icon: Banknote, label: "Airtime to Cash" },
 ];
 
 const STATS = [
@@ -148,6 +160,26 @@ export default async function Home() {
                   </div>
                   <p className="text-sm font-semibold">{label}</p>
                   <p className="text-xs text-foreground/50">{description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">Bills & VTU services</h2>
+              <span className="rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
+                Coming soon
+              </span>
+            </div>
+            <p className="text-sm text-foreground/60">Pay for everyday essentials without leaving your wallet.</p>
+            <div className="no-scrollbar mt-4 flex gap-4 overflow-x-auto pb-1">
+              {VTU_SERVICES.map(({ icon: Icon, label }) => (
+                <div key={label} className="flex flex-none flex-col items-center gap-1.5">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground/70">{label}</span>
                 </div>
               ))}
             </div>
