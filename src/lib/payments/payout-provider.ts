@@ -1,6 +1,7 @@
 import { initiateTransfer as billstackInitiateTransfer } from "@/lib/payments/billstack";
 import { initiateTransfer as monnifyInitiateTransfer } from "@/lib/payments/monnify";
 import { initiateTransfer as korapayInitiateTransfer } from "@/lib/payments/korapay";
+import { initiateTransfer as payvesselInitiateTransfer } from "@/lib/payments/payvessel";
 
 export interface PayoutRecipient {
   recipientCode: string;
@@ -185,14 +186,35 @@ class KorapayPayoutProvider implements PayoutProviderAdapter {
   }
 }
 
-/** Placeholder adapters — implement the same interface once API credentials are available. */
-class UnconfiguredPayoutProvider implements PayoutProviderAdapter {
-  constructor(public name: string) {}
-  async resolveRecipient(): Promise<PayoutRecipient> {
-    throw new Error(`${this.name} payouts are not configured yet`);
+/**
+ * PayVessel's disbursement API is also a single call, no separate
+ * "create recipient" step (same pattern as BillStack/Monnify/Korapay) —
+ * though unlike those, the endpoint path itself is a best-effort guess, not
+ * confirmed. See the confidence note in src/lib/payments/payvessel.ts.
+ */
+class PayvesselPayoutProvider implements PayoutProviderAdapter {
+  name = "PAYVESSEL";
+
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient> {
+    return { recipientCode: JSON.stringify(params) };
   }
-  async initiateTransfer(): Promise<PayoutResult> {
-    throw new Error(`${this.name} payouts are not configured yet`);
+
+  async initiateTransfer(params: {
+    amount: number;
+    recipientCode: string;
+    reference: string;
+    reason: string;
+  }): Promise<PayoutResult> {
+    const recipient = JSON.parse(params.recipientCode) as { bankCode: string; accountNumber: string; accountName: string };
+    const result = await payvesselInitiateTransfer({
+      bankCode: recipient.bankCode,
+      accountNumber: recipient.accountNumber,
+      accountName: recipient.accountName,
+      amount: params.amount,
+      reference: params.reference,
+      narration: params.reason,
+    });
+    return { status: result.status, transferCode: result.reference, message: result.message };
   }
 }
 
@@ -207,7 +229,7 @@ export function getPayoutProvider(
     case "KORAPAY":
       return new KorapayPayoutProvider();
     case "PAYVESSEL":
-      return new UnconfiguredPayoutProvider("PayVessel");
+      return new PayvesselPayoutProvider();
     case "BILLSTACK":
       return new BillstackPayoutProvider();
   }

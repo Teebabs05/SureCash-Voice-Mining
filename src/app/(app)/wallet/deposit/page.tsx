@@ -20,7 +20,6 @@ const GATEWAYS = [
   { method: "PAYSTACK", label: "Paystack" },
   { method: "MONNIFY", label: "Monnify" },
   { method: "KORAPAY", label: "Korapay" },
-  { method: "PAYVESSEL", label: "PayVessel" },
   { method: "FLUTTERWAVE", label: "Flutterwave" },
 ] as const;
 

@@ -8,7 +8,7 @@ import { generateReference } from "@/lib/utils";
 
 const schema = z.object({
   amount: z.number().positive(),
-  method: z.enum(["PAYSTACK", "MONNIFY", "KORAPAY", "PAYVESSEL", "FLUTTERWAVE"]),
+  method: z.enum(["PAYSTACK", "MONNIFY", "KORAPAY", "FLUTTERWAVE"]),
 });
 
 export async function POST(req: NextRequest) {
