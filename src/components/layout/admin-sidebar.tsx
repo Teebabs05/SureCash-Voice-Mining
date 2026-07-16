@@ -50,7 +50,7 @@ export function AdminSidebar() {
   return (
     <>
       <aside className="hidden w-64 flex-none flex-col border-r border-border bg-surface p-4 md:flex">
-        <p className="mb-6 px-2 text-lg font-bold text-brand-purple">SureCash Admin</p>
+        <p className="mb-6 px-2 text-lg font-bold text-brand-primary">SureCash Admin</p>
         <nav className="flex flex-1 flex-col gap-1">
           {items.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
@@ -60,7 +60,7 @@ export function AdminSidebar() {
                 href={href}
                 className={cn(
                   "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                  active ? "bg-brand-purple/10 text-brand-purple" : "text-foreground/60 hover:bg-surface-muted"
+                  active ? "bg-brand-primary/10 text-brand-primary" : "text-foreground/60 hover:bg-surface-muted"
                 )}
               >
                 <Icon className="h-4 w-4" /> {label}
@@ -85,7 +85,7 @@ export function AdminSidebar() {
               href={href}
               className={cn(
                 "flex flex-none items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium",
-                active ? "bg-brand-purple/10 text-brand-purple" : "text-foreground/60"
+                active ? "bg-brand-primary/10 text-brand-primary" : "text-foreground/60"
               )}
             >
               <Icon className="h-3.5 w-3.5" /> {label}

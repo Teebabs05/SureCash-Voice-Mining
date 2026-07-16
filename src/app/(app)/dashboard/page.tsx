@@ -27,9 +27,9 @@ interface DashboardData {
 }
 
 const BILL_PAYMENTS = [
-  { label: "Airtime", icon: Smartphone, iconClass: "bg-brand-purple/15 text-brand-purple" },
+  { label: "Airtime", icon: Smartphone, iconClass: "bg-brand-primary/15 text-brand-primary" },
   { label: "Data", icon: Wifi, iconClass: "bg-brand-green/15 text-brand-green" },
-  { label: "Electricity", icon: Zap, iconClass: "bg-brand-gold/15 text-[#a67c00]" },
+  { label: "Electricity", icon: Zap, iconClass: "bg-brand-amber/15 text-[#a67c00]" },
   { label: "TV", icon: Tv, iconClass: "bg-red-500/15 text-red-500" },
 ];
 
@@ -65,7 +65,7 @@ export default function DashboardPage() {
           {greeting()}, {data.user.fullName.split(" ")[0]}
         </p>
         {!data.user.emailVerified && (
-          <p className="mt-1 rounded-lg bg-brand-gold/15 px-3 py-1.5 text-xs font-medium text-[#a67c00]">
+          <p className="mt-1 rounded-lg bg-brand-amber/15 px-3 py-1.5 text-xs font-medium text-[#a67c00]">
             Verify your email to unlock mining, voice tasks & withdrawals.
           </p>
         )}
@@ -143,7 +143,7 @@ export default function DashboardPage() {
           <span className="text-xs text-white/70">{data.user.levelTitle}</span>
         </div>
         <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/20">
-          <div className="h-full bg-brand-gold" style={{ width: `${data.levelProgress.percent}%` }} />
+          <div className="h-full bg-brand-amber" style={{ width: `${data.levelProgress.percent}%` }} />
         </div>
         {data.levelProgress.nextLevelTitle && (
           <p className="mt-2 text-xs text-white/80">
@@ -163,7 +163,7 @@ export default function DashboardPage() {
             <p className="text-xs text-foreground/50">Mine daily to keep it going</p>
           </div>
         </div>
-        <Link href="/mine" className="text-brand-purple">
+        <Link href="/mine" className="text-brand-primary">
           <ChevronRight className="h-5 w-5" />
         </Link>
       </Card>

@@ -76,7 +76,7 @@ function RegisterForm() {
       </Button>
       <p className="text-center text-sm text-foreground/60">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-brand-purple">
+        <Link href="/login" className="font-medium text-brand-primary">
           Log in
         </Link>
       </p>

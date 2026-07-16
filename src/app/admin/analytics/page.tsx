@@ -66,7 +66,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-xs text-foreground/50">Rejected</p>
           </div>
           <div>
-            <p className="text-lg font-bold text-brand-gold">{data.voice.today.flagged}</p>
+            <p className="text-lg font-bold text-brand-amber">{data.voice.today.flagged}</p>
             <p className="text-xs text-foreground/50">Flagged</p>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function AdminAnalyticsPage() {
                 <p className="text-sm font-medium">{u.fullName}</p>
                 <span className="text-xs text-foreground/40">Level {u.level}</span>
               </div>
-              <span className="text-sm font-semibold text-brand-purple">{u.transactionCount} txns</span>
+              <span className="text-sm font-semibold text-brand-primary">{u.transactionCount} txns</span>
             </div>
           ))}
         </div>

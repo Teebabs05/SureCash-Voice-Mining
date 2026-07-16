@@ -95,7 +95,7 @@ export default function PlansPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-lg font-bold">{plan.name}</p>
-                  <p className="text-2xl font-bold text-brand-purple">{formatCurrency(plan.price)}</p>
+                  <p className="text-2xl font-bold text-brand-primary">{formatCurrency(plan.price)}</p>
                   <p className="text-xs text-foreground/50">Lifetime access</p>
                 </div>
                 {isCurrent && (

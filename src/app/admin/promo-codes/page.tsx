@@ -108,7 +108,7 @@ export default function AdminPromoCodesPage() {
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className={cn("mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple")}
+            className={cn("mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary")}
           >
             <Plus className="h-4 w-4" /> New promo code
           </button>

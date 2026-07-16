@@ -129,7 +129,7 @@ export default function SponsoredPostsPage() {
             </div>
 
             {task.isPending ? (
-              <span className="flex items-center gap-1 text-xs font-medium text-brand-gold">
+              <span className="flex items-center gap-1 text-xs font-medium text-brand-amber">
                 <Clock className="h-4 w-4" /> Review
               </span>
             ) : task.isCompleted ? (

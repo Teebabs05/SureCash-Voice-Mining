@@ -66,7 +66,7 @@ export default function SpinPage() {
         <div className="absolute left-1/2 top-0 z-10 h-4 w-4 -translate-x-1/2 rotate-45 gradient-gold" />
         <div
           ref={wheelRef}
-          className="h-full w-full rounded-full border-4 border-brand-gold shadow-xl transition-transform"
+          className="h-full w-full rounded-full border-4 border-brand-amber shadow-xl transition-transform"
           style={{
             transform: `rotate(${rotation}deg)`,
             transitionDuration: spinning ? "3.2s" : "0s",

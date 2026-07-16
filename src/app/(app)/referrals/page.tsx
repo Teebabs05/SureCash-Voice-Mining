@@ -55,7 +55,7 @@ export default function ReferralsPage() {
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="text-center">
-          <Users className="mx-auto h-5 w-5 text-brand-purple" />
+          <Users className="mx-auto h-5 w-5 text-brand-primary" />
           <p className="mt-1 text-lg font-bold">{data.totalReferrals}</p>
           <p className="text-xs text-foreground/50">Total invites</p>
         </Card>

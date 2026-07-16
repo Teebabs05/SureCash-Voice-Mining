@@ -116,8 +116,8 @@ export default function AdminTasksPage() {
             <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
               <div>
                 <p className="text-sm font-semibold">
-                  {t.title} {t.type === "sponsored_post" && <span className="text-xs text-brand-purple">(Sponsored Post)</span>}
-                  {t.requiresProof && <span className="text-xs text-brand-purple"> (needs proof)</span>}
+                  {t.title} {t.type === "sponsored_post" && <span className="text-xs text-brand-primary">(Sponsored Post)</span>}
+                  {t.requiresProof && <span className="text-xs text-brand-primary"> (needs proof)</span>}
                 </p>
                 <p className="text-xs text-foreground/50">{t.description}</p>
                 <p className="text-xs font-medium text-brand-green">{formatCurrency(t.rewardAmount)}</p>
@@ -140,7 +140,7 @@ export default function AdminTasksPage() {
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+              className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
             >
               <option value="social">General task</option>
               <option value="sponsored_post">Sponsored Post (share on social media)</option>
@@ -169,7 +169,7 @@ export default function AdminTasksPage() {
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+            className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
           >
             <Plus className="h-4 w-4" /> New task
           </button>
@@ -187,7 +187,7 @@ export default function AdminTasksPage() {
               <p className="text-sm font-semibold">{c.user.fullName}</p>
               <p className="text-xs text-foreground/50">{c.task.title} · {formatCurrency(c.task.rewardAmount)}</p>
               {c.proofUrl && (
-                <a href={c.proofUrl} target="_blank" className="text-xs text-brand-purple underline">
+                <a href={c.proofUrl} target="_blank" className="text-xs text-brand-primary underline">
                   {c.proofUrl}
                 </a>
               )}

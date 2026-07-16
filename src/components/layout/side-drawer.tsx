@@ -55,7 +55,7 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative flex h-full w-72 max-w-[80vw] flex-col gap-1 bg-surface p-4 shadow-xl">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-lg font-bold text-brand-purple">SureCash Mining</span>
+          <span className="text-lg font-bold text-brand-primary">SureCash Mining</span>
           <button onClick={onClose} className="rounded-full p-1.5 hover:bg-surface-muted">
             <X className="h-5 w-5" />
           </button>

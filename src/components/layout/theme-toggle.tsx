@@ -35,7 +35,7 @@ export function ThemeToggle() {
           onClick={() => apply(t)}
           className={cn(
             "flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium capitalize transition-colors",
-            theme === t ? "bg-surface shadow text-brand-purple" : "text-foreground/50"
+            theme === t ? "bg-surface shadow text-brand-primary" : "text-foreground/50"
           )}
         >
           {t === "light" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}

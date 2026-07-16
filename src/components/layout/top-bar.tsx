@@ -23,12 +23,12 @@ export function TopBar({ title }: { title: string }) {
           <button onClick={() => setDrawerOpen(true)} className="rounded-full p-1.5 hover:bg-surface-muted">
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-lg font-bold text-brand-purple">{title}</span>
+          <span className="text-lg font-bold text-brand-primary">{title}</span>
         </div>
         <Link href="/profile/notifications" className="relative rounded-full p-2 hover:bg-surface-muted">
           <Bell className="h-5 w-5" />
           {unread > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-gold text-[10px] font-bold text-[#3a2c00]">
+            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-amber text-[10px] font-bold text-[#3a2c00]">
               {unread > 9 ? "9+" : unread}
             </span>
           )}

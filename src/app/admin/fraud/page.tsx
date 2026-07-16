@@ -84,7 +84,7 @@ export default function AdminFraudPage() {
                 onClick={() => setFilter(s)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium",
-                  filter === s ? "bg-brand-purple text-white" : "bg-surface-muted text-foreground/60"
+                  filter === s ? "bg-brand-primary text-white" : "bg-surface-muted text-foreground/60"
                 )}
               >
                 {s}
@@ -103,7 +103,7 @@ export default function AdminFraudPage() {
                         "rounded-full px-2 py-0.5 text-[10px] font-semibold",
                         r.severity === "HIGH" || r.severity === "CRITICAL"
                           ? "bg-red-500/15 text-red-500"
-                          : "bg-brand-gold/15 text-[#a67c00]"
+                          : "bg-brand-amber/15 text-[#a67c00]"
                       )}
                     >
                       {r.severity}
@@ -183,7 +183,7 @@ export default function AdminFraudPage() {
                 <CardHeader>
                   <CardTitle>
                     <span className="flex items-center gap-2">
-                      <Smartphone className="h-4 w-4 text-brand-purple" /> Multiple devices per user
+                      <Smartphone className="h-4 w-4 text-brand-primary" /> Multiple devices per user
                     </span>
                   </CardTitle>
                 </CardHeader>
@@ -195,7 +195,7 @@ export default function AdminFraudPage() {
                         <p className="text-sm font-medium">{u.fullName}</p>
                         <p className="text-xs text-foreground/50">{u.email}</p>
                       </div>
-                      <span className="text-sm font-bold text-brand-purple">{u.deviceCount} devices</span>
+                      <span className="text-sm font-bold text-brand-primary">{u.deviceCount} devices</span>
                     </div>
                   ))}
                 </div>

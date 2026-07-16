@@ -55,7 +55,7 @@ export default function AdminDepositsPage() {
             onClick={() => setFilter(s)}
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-medium",
-              filter === s ? "bg-brand-purple text-white" : "bg-surface-muted text-foreground/60"
+              filter === s ? "bg-brand-primary text-white" : "bg-surface-muted text-foreground/60"
             )}
           >
             {s}
@@ -74,7 +74,7 @@ export default function AdminDepositsPage() {
                 {formatCurrency(d.amount)} · {d.method}
               </p>
               {d.receiptUrl && (
-                <Link href={d.receiptUrl} target="_blank" className="text-xs text-brand-purple underline">
+                <Link href={d.receiptUrl} target="_blank" className="text-xs text-brand-primary underline">
                   View receipt
                 </Link>
               )}

@@ -59,7 +59,7 @@ export default function NotificationsPage() {
       {pushState !== "unsupported" && (
         <div className="card flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
               <BellRing className="h-4 w-4" />
             </div>
             <div>
@@ -84,8 +84,8 @@ export default function NotificationsPage() {
 
       <div className="flex flex-col gap-2">
         {notifications.map((n) => (
-          <div key={n.id} className={cn("card flex gap-3 p-4", !n.isRead && "border border-brand-purple/30")}>
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+          <div key={n.id} className={cn("card flex gap-3 p-4", !n.isRead && "border border-brand-primary/30")}>
+            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
               <Bell className="h-4 w-4" />
             </div>
             <div>

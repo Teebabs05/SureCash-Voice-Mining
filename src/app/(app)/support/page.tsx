@@ -55,7 +55,7 @@ export default function SupportPage() {
       </div>
 
       <Link href="/faq" className="card flex items-center gap-3 p-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
           <HelpCircle className="h-5 w-5" />
         </div>
         <div>
@@ -77,7 +77,7 @@ export default function SupportPage() {
       ) : (
         <button
           onClick={() => setShowForm(true)}
-          className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+          className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
         >
           <Plus className="h-4 w-4" /> New support ticket
         </button>
@@ -96,7 +96,7 @@ export default function SupportPage() {
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                t.status === "OPEN" && "bg-brand-gold/15 text-[#a67c00]",
+                t.status === "OPEN" && "bg-brand-amber/15 text-[#a67c00]",
                 t.status === "ANSWERED" && "bg-brand-green/15 text-brand-green",
                 t.status === "CLOSED" && "bg-surface-muted text-foreground/50"
               )}

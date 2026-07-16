@@ -95,15 +95,15 @@ export default function WalletPage() {
       <WalletCarousel wallets={wallets} />
 
       <div className="grid grid-cols-3 gap-3">
-        <Link href="/wallet/deposit" className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-purple">
+        <Link href="/wallet/deposit" className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-primary">
           <ArrowDownLeft className="h-4 w-4" /> Deposit
         </Link>
-        <Link href="/wallet/withdraw" className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-purple">
+        <Link href="/wallet/withdraw" className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-primary">
           <ArrowUpRight className="h-4 w-4" /> Withdraw
         </Link>
         <button
           onClick={() => setShowTransfer((v) => !v)}
-          className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-purple"
+          className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-primary"
         >
           <Repeat className="h-4 w-4" /> Transfer
         </button>

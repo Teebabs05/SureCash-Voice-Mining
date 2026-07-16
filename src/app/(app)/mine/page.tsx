@@ -119,7 +119,7 @@ export default function MinePage() {
         ) : (
           <>
             <p className="text-lg font-semibold">Next mine in</p>
-            <p className="text-2xl font-mono font-bold text-brand-purple">{formatDuration(remaining)}</p>
+            <p className="text-2xl font-mono font-bold text-brand-primary">{formatDuration(remaining)}</p>
           </>
         )}
       </div>

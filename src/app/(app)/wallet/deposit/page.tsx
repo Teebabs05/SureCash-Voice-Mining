@@ -286,7 +286,7 @@ export default function DepositPage() {
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-semibold",
                     d.status === "APPROVED" && "bg-brand-green/15 text-brand-green",
-                    d.status === "PENDING" && "bg-brand-gold/15 text-[#a67c00]",
+                    d.status === "PENDING" && "bg-brand-amber/15 text-[#a67c00]",
                     d.status === "REJECTED" && "bg-red-500/15 text-red-500"
                   )}
                 >

@@ -38,7 +38,7 @@ export default function AdminSupportPage() {
               <span
                 className={cn(
                   "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                  t.status === "OPEN" && "bg-brand-gold/15 text-[#a67c00]",
+                  t.status === "OPEN" && "bg-brand-amber/15 text-[#a67c00]",
                   t.status === "ANSWERED" && "bg-brand-green/15 text-brand-green",
                   t.status === "CLOSED" && "bg-surface-muted text-foreground/50"
                 )}

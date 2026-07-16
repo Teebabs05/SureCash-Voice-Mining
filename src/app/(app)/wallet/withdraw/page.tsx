@@ -165,7 +165,7 @@ export default function WithdrawPage() {
       </div>
 
       {pendingOtp && (
-        <Card className="border border-brand-gold/40">
+        <Card className="border border-brand-amber/40">
           <p className="text-sm font-medium">
             Enter the OTP sent to confirm your {pendingOtp.kind === "bank" ? "bank account" : "USDT wallet"}
           </p>
@@ -189,7 +189,7 @@ export default function WithdrawPage() {
                 onClick={() => setSelectedAccount(acc.id)}
                 className={cn(
                   "flex items-center justify-between rounded-xl border p-3 text-left text-sm",
-                  selectedAccount === acc.id ? "border-brand-purple bg-brand-purple/5" : "border-border"
+                  selectedAccount === acc.id ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
                 <div>
@@ -199,7 +199,7 @@ export default function WithdrawPage() {
                 <div className="flex items-center gap-1.5">
                   {acc.autoVerified && (
                     <span title="Automatically verified">
-                      <BadgeCheck className="h-4 w-4 text-brand-purple" />
+                      <BadgeCheck className="h-4 w-4 text-brand-primary" />
                     </span>
                   )}
                   {acc.isVerified && (
@@ -219,7 +219,7 @@ export default function WithdrawPage() {
           ) : (
             <button
               onClick={() => setShowAddAccount(true)}
-              className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+              className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
             >
               <Plus className="h-4 w-4" /> Add bank account
             </button>
@@ -238,7 +238,7 @@ export default function WithdrawPage() {
                 onClick={() => setSelectedCryptoWallet(w.id)}
                 className={cn(
                   "flex items-center justify-between rounded-xl border p-3 text-left text-sm",
-                  selectedCryptoWallet === w.id ? "border-brand-purple bg-brand-purple/5" : "border-border"
+                  selectedCryptoWallet === w.id ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
                 <div>
@@ -261,7 +261,7 @@ export default function WithdrawPage() {
           ) : (
             <button
               onClick={() => setShowAddAccount(true)}
-              className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+              className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
             >
               <Plus className="h-4 w-4" /> Add USDT wallet
             </button>
@@ -297,7 +297,7 @@ export default function WithdrawPage() {
                   <p className="text-xs text-foreground/50">{new Date(w.createdAt).toLocaleDateString()}</p>
                 </div>
                 {w.status === "PROCESSING" && w.payoutProvider !== "MANUAL" && (
-                  <p className="text-xs text-brand-purple">⚡ Processing instantly via {w.payoutProvider}</p>
+                  <p className="text-xs text-brand-primary">⚡ Processing instantly via {w.payoutProvider}</p>
                 )}
                 <WithdrawalStepper status={w.status} />
               </Card>

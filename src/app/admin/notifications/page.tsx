@@ -53,7 +53,7 @@ export default function AdminNotificationsPage() {
                 onClick={() => setSegment(s.value)}
                 className={cn(
                   "rounded-xl border p-3 text-left text-xs",
-                  segment === s.value ? "border-brand-purple bg-brand-purple/5" : "border-border"
+                  segment === s.value ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
                 <p className="font-semibold">{s.label}</p>

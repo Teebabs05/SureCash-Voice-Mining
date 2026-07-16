@@ -249,7 +249,7 @@ export default function SecurityPage() {
         </CardHeader>
         <p className="text-sm text-foreground/60">
           Manage payout destinations from the{" "}
-          <button className="font-medium text-brand-purple" onClick={() => router.push("/wallet/withdraw")}>
+          <button className="font-medium text-brand-primary" onClick={() => router.push("/wallet/withdraw")}>
             withdraw page
           </button>
           .

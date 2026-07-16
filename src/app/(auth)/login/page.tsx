@@ -93,7 +93,7 @@ export default function LoginPage() {
       </Button>
       <p className="text-center text-sm text-foreground/60">
         New to SureCash Mining?{" "}
-        <Link href="/register" className="font-medium text-brand-purple">
+        <Link href="/register" className="font-medium text-brand-primary">
           Create an account
         </Link>
       </p>

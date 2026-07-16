@@ -67,10 +67,10 @@ export default function ProfilePage() {
         <div>
           <p className="font-semibold">{me.fullName}</p>
           <p className="text-xs text-foreground/50">{me.email}</p>
-          <span className="mt-1 mr-1 inline-block rounded-full bg-brand-purple/10 px-2 py-0.5 text-[10px] font-semibold text-brand-purple">
+          <span className="mt-1 mr-1 inline-block rounded-full bg-brand-primary/10 px-2 py-0.5 text-[10px] font-semibold text-brand-primary">
             Level {me.level}
           </span>
-          <span className="mt-1 inline-block rounded-full bg-brand-gold/15 px-2 py-0.5 text-[10px] font-semibold text-[#a67c00]">
+          <span className="mt-1 inline-block rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-semibold text-[#a67c00]">
             {me.tier} tier
           </span>
         </div>
@@ -79,7 +79,7 @@ export default function ProfilePage() {
       {!me.emailVerified && (
         <Card className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            <Mail className="h-4 w-4 text-brand-gold" /> Email not verified
+            <Mail className="h-4 w-4 text-brand-amber" /> Email not verified
           </div>
           <Button size="sm" variant="outline" onClick={resendVerification}>
             Resend
@@ -95,7 +95,7 @@ export default function ProfilePage() {
           <Card>
             <div className="flex items-center justify-between text-sm font-semibold">
               <span>Finish setting up</span>
-              <span className="text-brand-purple">
+              <span className="text-brand-primary">
                 {done}/{steps.length}
               </span>
             </div>
@@ -132,7 +132,7 @@ export default function ProfilePage() {
               className={
                 linkedSocialCount > 0
                   ? "rounded-full bg-brand-green/15 px-2 py-0.5 text-[10px] font-semibold text-brand-green"
-                  : "rounded-full bg-brand-gold/15 px-2 py-0.5 text-[10px] font-semibold text-[#a67c00]"
+                  : "rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-semibold text-[#a67c00]"
               }
             >
               {linkedSocialCount > 0 ? `${linkedSocialCount} linked` : "Add"}

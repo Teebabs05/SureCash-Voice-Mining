@@ -133,7 +133,7 @@ export default function AdminVoiceTasksPage() {
             <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
               <div>
                 <p className="text-sm font-semibold">
-                  {t.title} {t.category === "word_game" && <span className="text-xs text-brand-purple">(Word Game)</span>}
+                  {t.title} {t.category === "word_game" && <span className="text-xs text-brand-primary">(Word Game)</span>}
                 </p>
                 <p className="text-xs text-foreground/50">{t.promptText}</p>
                 <p className="text-xs font-medium text-brand-green">
@@ -168,7 +168,7 @@ export default function AdminVoiceTasksPage() {
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+              className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
             >
               <option value="session">Voice Earn session</option>
               <option value="word_game">Word Game</option>
@@ -192,7 +192,7 @@ export default function AdminVoiceTasksPage() {
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+            className="mt-3 flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
           >
             <Plus className="h-4 w-4" /> New voice task
           </button>

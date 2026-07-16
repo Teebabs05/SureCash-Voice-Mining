@@ -150,7 +150,7 @@ export function WalletCarousel({ wallets }: { wallets: WalletCardData[] }) {
             onClick={() => jumpTo(i)}
             className={cn(
               "h-1.5 rounded-full transition-all",
-              i === active ? "w-5 bg-brand-purple" : "w-1.5 bg-border"
+              i === active ? "w-5 bg-brand-primary" : "w-1.5 bg-border"
             )}
           />
         ))}

@@ -42,7 +42,7 @@ export default function AdminOverviewPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {cards.map(({ label, value, icon: Icon, sub }) => (
           <Card key={label}>
-            <Icon className="h-5 w-5 text-brand-purple" />
+            <Icon className="h-5 w-5 text-brand-primary" />
             <p className="mt-2 text-2xl font-bold">{value}</p>
             <p className="text-xs text-foreground/50">{label}</p>
             <p className="text-[10px] text-foreground/40">{sub}</p>
@@ -57,7 +57,7 @@ export default function AdminOverviewPage() {
         </Card>
         <Card>
           <p className="mb-1 text-sm font-semibold">Total withdrawals paid</p>
-          <p className="text-2xl font-bold text-brand-purple">{formatCurrency(stats.totalWithdrawalsPaid)}</p>
+          <p className="text-2xl font-bold text-brand-primary">{formatCurrency(stats.totalWithdrawalsPaid)}</p>
         </Card>
       </div>
 
@@ -70,7 +70,7 @@ export default function AdminOverviewPage() {
               <XAxis dataKey="day" tickFormatter={(d) => new Date(d).toLocaleDateString(undefined, { weekday: "short" })} fontSize={12} />
               <YAxis allowDecimals={false} fontSize={12} />
               <Tooltip labelFormatter={(d) => new Date(d).toLocaleDateString()} />
-              <Line type="monotone" dataKey="count" stroke="#6A00FF" strokeWidth={2} />
+              <Line type="monotone" dataKey="count" stroke="#0D8A82" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </div>

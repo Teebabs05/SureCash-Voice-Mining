@@ -26,7 +26,7 @@ const WAYS = [
     title: "Daily Mining",
     description: "Claim your free daily reward and build a streak",
     icon: Pickaxe,
-    iconClass: "bg-brand-purple/15 text-brand-purple",
+    iconClass: "bg-brand-primary/15 text-brand-primary",
   },
   {
     key: "voice",
@@ -34,7 +34,7 @@ const WAYS = [
     title: "Voice Earn",
     description: "Read sentences aloud, word by word",
     icon: Mic,
-    iconClass: "bg-brand-purple/15 text-brand-purple",
+    iconClass: "bg-brand-primary/15 text-brand-primary",
   },
   {
     key: "tasks",
@@ -42,7 +42,7 @@ const WAYS = [
     title: "Tasks",
     description: "Complete simple tasks to earn",
     icon: ClipboardCheck,
-    iconClass: "bg-brand-gold/15 text-[#a67c00]",
+    iconClass: "bg-brand-amber/15 text-[#a67c00]",
   },
   {
     key: "sponsored",

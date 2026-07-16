@@ -84,7 +84,7 @@ export default function AdminTicketPage() {
         {ticket.replies.map((r) => (
           <div
             key={r.id}
-            className={cn("max-w-[85%] rounded-2xl p-3 text-sm", r.isAdmin ? "self-end gradient-brand text-white" : "self-start bg-brand-purple/10")}
+            className={cn("max-w-[85%] rounded-2xl p-3 text-sm", r.isAdmin ? "self-end gradient-brand text-white" : "self-start bg-brand-primary/10")}
           >
             <p className="mb-1 text-[10px] font-semibold opacity-70">{r.isAdmin ? "Support" : ticket.user.fullName}</p>
             {r.message}

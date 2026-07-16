@@ -47,7 +47,7 @@ export default function FeedPage() {
           const Icon = ICONS[e.icon];
           return (
             <div key={e.id} className="card flex items-center gap-3 p-3">
-              <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-purple/10 text-brand-purple">
+              <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
                 <Icon className="h-4 w-4" />
               </div>
               <div>

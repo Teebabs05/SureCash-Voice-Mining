@@ -67,7 +67,7 @@ export default function LeaderboardPage() {
               <p className="text-sm font-semibold">{row.fullName}</p>
               <p className="text-xs text-foreground/50">Level {row.level}</p>
             </div>
-            <span className="text-sm font-bold text-brand-purple">
+            <span className="text-sm font-bold text-brand-primary">
               {"xp" in row && `${row.xp} XP`}
               {"streakCount" in row && `${row.streakCount}🔥`}
               {"referralCount" in row && `${row.referralCount} invites`}

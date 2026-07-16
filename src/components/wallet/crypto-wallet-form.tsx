@@ -50,7 +50,7 @@ export function CryptoWalletForm({ onAdded }: { onAdded: (wallet: CryptoWallet) 
             onClick={() => setNetwork(n.id)}
             className={cn(
               "rounded-xl border px-2 py-2 text-xs font-medium",
-              network === n.id ? "border-brand-purple bg-brand-purple/5 text-brand-purple" : "border-border text-foreground/60"
+              network === n.id ? "border-brand-primary bg-brand-primary/5 text-brand-primary" : "border-border text-foreground/60"
             )}
           >
             {n.id}

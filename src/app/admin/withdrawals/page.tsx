@@ -76,7 +76,7 @@ export default function AdminWithdrawalsPage() {
             onClick={() => setFilter(s)}
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-medium",
-              filter === s ? "bg-brand-purple text-white" : "bg-surface-muted text-foreground/60"
+              filter === s ? "bg-brand-primary text-white" : "bg-surface-muted text-foreground/60"
             )}
           >
             {s}
@@ -109,7 +109,7 @@ export default function AdminWithdrawalsPage() {
                   </p>
                 )}
                 {w.status === "PROCESSING" && w.payoutProvider !== "MANUAL" && (
-                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-brand-purple">
+                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-brand-primary">
                     <Zap className="h-3 w-3" /> Auto-payout via {w.payoutProvider}
                   </p>
                 )}

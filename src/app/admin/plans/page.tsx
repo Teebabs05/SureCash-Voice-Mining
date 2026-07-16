@@ -226,7 +226,7 @@ export default function AdminPlansPage() {
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-purple"
+            className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
           >
             <Plus className="h-4 w-4" /> New plan
           </button>
