@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "crypto";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * Monnify (by Moniepoint) client.
@@ -23,16 +24,16 @@ import crypto from "crypto";
 
 const BASE_URL = process.env.MONNIFY_BASE_URL || "https://api.monnify.com";
 
-function getCredentials(): { apiKey: string; secretKey: string } | null {
-  const apiKey = process.env.MONNIFY_API_KEY;
-  const secretKey = process.env.MONNIFY_SECRET_KEY;
+async function getCredentials(): Promise<{ apiKey: string; secretKey: string } | null> {
+  const apiKey = await getCredential("MONNIFY_API_KEY");
+  const secretKey = await getCredential("MONNIFY_SECRET_KEY");
   return apiKey && secretKey ? { apiKey, secretKey } : null;
 }
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
-  const creds = getCredentials();
+  const creds = await getCredentials();
   if (!creds) throw new Error("Monnify is not configured");
 
   if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken.token;
@@ -75,7 +76,7 @@ export async function initializeTransaction(params: {
   name: string;
   reference: string;
 }): Promise<MonnifyInitResult> {
-  const contractCode = process.env.MONNIFY_CONTRACT_CODE;
+  const contractCode = await getCredential("MONNIFY_CONTRACT_CODE");
   if (!contractCode) throw new Error("Monnify is not configured (missing contract code)");
 
   const res = await authedFetch("/api/v1/merchant/transactions/init-transaction", {
@@ -129,7 +130,7 @@ export async function initiateTransfer(params: {
   reference: string;
   narration: string;
 }): Promise<MonnifyTransferResult> {
-  const sourceAccountNumber = process.env.MONNIFY_WALLET_ACCOUNT_NUMBER;
+  const sourceAccountNumber = await getCredential("MONNIFY_WALLET_ACCOUNT_NUMBER");
   if (!sourceAccountNumber) throw new Error("Monnify is not configured (missing wallet account number)");
 
   const res = await authedFetch("/api/v1/disbursements/single", {
@@ -155,12 +156,12 @@ export async function initiateTransfer(params: {
   return { status, reference: data.responseBody.reference ?? params.reference };
 }
 
-export function isMonnifyConfigured(): boolean {
-  return Boolean(getCredentials());
+export async function isMonnifyConfigured(): Promise<boolean> {
+  return Boolean(await getCredentials());
 }
 
-export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-  const creds = getCredentials();
+export async function verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {
+  const creds = await getCredentials();
   if (!creds || !signature) return false;
 
   const expected = crypto.createHmac("sha512", creds.secretKey).update(rawBody).digest("hex");

@@ -1,6 +1,7 @@
 import { initializeTransaction, verifyTransaction } from "@/lib/payments/monnify";
 import { initializeCharge, verifyCharge } from "@/lib/payments/korapay";
 import { initializePayment, verifyPayment } from "@/lib/payments/flutterwave";
+import { getCredential } from "@/lib/server/credentials";
 
 export interface PaymentInitResult {
   authorizationUrl: string;
@@ -20,14 +21,14 @@ export interface PaymentProvider {
 
 class PaystackProvider implements PaymentProvider {
   name = "PAYSTACK";
-  private key = process.env.PAYSTACK_SECRET_KEY;
 
   async initialize(params: { amount: number; email: string; reference: string; name?: string }): Promise<PaymentInitResult> {
-    if (!this.key) throw new Error("Paystack is not configured");
+    const key = await getCredential("PAYSTACK_SECRET_KEY");
+    if (!key) throw new Error("Paystack is not configured");
 
     const res = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
-      headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email: params.email,
         amount: Math.round(params.amount * 100),
@@ -42,9 +43,10 @@ class PaystackProvider implements PaymentProvider {
   }
 
   async verify(reference: string): Promise<PaymentVerifyResult> {
-    if (!this.key) throw new Error("Paystack is not configured");
+    const key = await getCredential("PAYSTACK_SECRET_KEY");
+    if (!key) throw new Error("Paystack is not configured");
     const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-      headers: { Authorization: `Bearer ${this.key}` },
+      headers: { Authorization: `Bearer ${key}` },
     });
     if (!res.ok) throw new Error(`Paystack verify failed: ${await res.text()}`);
     const data = await res.json();

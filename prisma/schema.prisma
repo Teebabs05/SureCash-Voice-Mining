@@ -727,6 +727,16 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+// Admin-entered payment/notification gateway keys (encrypted at rest via
+// src/lib/server/crypto.ts). Values here take precedence over the matching
+// .env var — see src/lib/server/credentials.ts.
+model IntegrationCredential {
+  key            String   @id
+  encryptedValue String
+  updatedAt      DateTime @updatedAt
+  updatedById    String?
+}
+
 // ---------------------------------------------------------------------------
 // Promo codes & support
 // ---------------------------------------------------------------------------

@@ -28,7 +28,7 @@ export async function attemptAutomaticPayout(withdrawalId: string) {
   if (withdrawal.method !== "BANK" || !withdrawal.bankAccount) return;
 
   const bankAccount = withdrawal.bankAccount;
-  const provider = getDefaultPayoutProvider();
+  const provider = await getDefaultPayoutProvider();
   const adapter = getPayoutProvider(provider);
 
   try {
@@ -121,7 +121,7 @@ async function attemptCryptoPayout(
   reference: string,
   userId: string
 ) {
-  if (!isBinanceConfigured()) return;
+  if (!(await isBinanceConfigured())) return;
 
   try {
     const result = await withdrawUsdt({

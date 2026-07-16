@@ -3,6 +3,8 @@ import { initiateTransfer as monnifyInitiateTransfer } from "@/lib/payments/monn
 import { initiateTransfer as korapayInitiateTransfer } from "@/lib/payments/korapay";
 import { initiateTransfer as payvesselInitiateTransfer } from "@/lib/payments/payvessel";
 import { initiateTransfer as flutterwaveInitiateTransfer } from "@/lib/payments/flutterwave";
+import { getCredential } from "@/lib/server/credentials";
+import { getSetting } from "@/lib/server/settings";
 
 export interface PayoutRecipient {
   recipientCode: string;
@@ -32,14 +34,14 @@ export interface PayoutProviderAdapter {
 
 class PaystackPayoutProvider implements PayoutProviderAdapter {
   name = "PAYSTACK";
-  private key = process.env.PAYSTACK_SECRET_KEY;
 
   async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string; email?: string }): Promise<PayoutRecipient> {
-    if (!this.key) throw new Error("Paystack is not configured");
+    const key = await getCredential("PAYSTACK_SECRET_KEY");
+    if (!key) throw new Error("Paystack is not configured");
 
     const res = await fetch("https://api.paystack.co/transferrecipient", {
       method: "POST",
-      headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         type: "nuban",
         name: params.accountName,
@@ -60,11 +62,12 @@ class PaystackPayoutProvider implements PayoutProviderAdapter {
     reference: string;
     reason: string;
   }): Promise<PayoutResult> {
-    if (!this.key) throw new Error("Paystack is not configured");
+    const key = await getCredential("PAYSTACK_SECRET_KEY");
+    if (!key) throw new Error("Paystack is not configured");
 
     const res = await fetch("https://api.paystack.co/transfer", {
       method: "POST",
-      headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         source: "balance",
         amount: Math.round(params.amount * 100),
@@ -268,8 +271,10 @@ export function getPayoutProvider(
 }
 
 /** Which gateway to attempt automatic disbursement through by default. */
-export function getDefaultPayoutProvider(): "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK" | "FLUTTERWAVE" {
-  const configured = process.env.DEFAULT_PAYOUT_PROVIDER;
+export async function getDefaultPayoutProvider(): Promise<
+  "PAYSTACK" | "MONNIFY" | "KORAPAY" | "PAYVESSEL" | "BILLSTACK" | "FLUTTERWAVE"
+> {
+  const configured = await getSetting("default_payout_provider", process.env.DEFAULT_PAYOUT_PROVIDER ?? "");
   if (
     configured === "MONNIFY" ||
     configured === "KORAPAY" ||

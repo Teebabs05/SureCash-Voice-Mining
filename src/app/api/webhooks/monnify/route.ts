@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("monnify-signature");
 
-  if (!verifyWebhookSignature(rawBody, signature)) {
+  if (!(await verifyWebhookSignature(rawBody, signature))) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

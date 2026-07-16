@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "crypto";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * PayVessel client — instant withdrawal payouts only (deposits are skipped;
@@ -30,9 +31,9 @@ import crypto from "crypto";
 
 const BASE_URL = "https://api.payvessel.com";
 
-function getCredentials(): { apiKey: string; secretKey: string } | null {
-  const apiKey = process.env.PAYVESSEL_API_KEY;
-  const secretKey = process.env.PAYVESSEL_SECRET_KEY;
+async function getCredentials(): Promise<{ apiKey: string; secretKey: string } | null> {
+  const apiKey = await getCredential("PAYVESSEL_API_KEY");
+  const secretKey = await getCredential("PAYVESSEL_SECRET_KEY");
   return apiKey && secretKey ? { apiKey, secretKey } : null;
 }
 
@@ -58,7 +59,7 @@ export async function initiateTransfer(params: {
   reference: string;
   narration: string;
 }): Promise<PayvesselTransferResult> {
-  const creds = getCredentials();
+  const creds = await getCredentials();
   if (!creds) throw new Error("PayVessel is not configured");
 
   const res = await fetch(`${BASE_URL}/pms/api/external/transfer/singleTransfer/`, {
@@ -84,12 +85,12 @@ export async function initiateTransfer(params: {
   return { status, reference: data.reference ?? data.data?.reference ?? params.reference };
 }
 
-export function isPayvesselConfigured(): boolean {
-  return Boolean(getCredentials());
+export async function isPayvesselConfigured(): Promise<boolean> {
+  return Boolean(await getCredentials());
 }
 
-export function verifyWebhookSignature(rawBody: string, signature: string | null): boolean {
-  const creds = getCredentials();
+export async function verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {
+  const creds = await getCredentials();
   if (!creds || !signature) return false;
 
   const expected = crypto.createHmac("sha512", creds.secretKey).update(rawBody).digest("hex");

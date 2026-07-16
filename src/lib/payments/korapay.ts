@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "crypto";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * Korapay client.
@@ -22,8 +23,8 @@ import crypto from "crypto";
 
 const BASE_URL = "https://api.korapay.com";
 
-function getSecretKey(): string | null {
-  return process.env.KORAPAY_SECRET_KEY || null;
+function getSecretKey(): Promise<string | null> {
+  return getCredential("KORAPAY_SECRET_KEY");
 }
 
 function headers(key: string) {
@@ -41,7 +42,7 @@ export async function initializeCharge(params: {
   name: string;
   reference: string;
 }): Promise<KorapayInitResult> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("Korapay is not configured");
 
   const res = await fetch(`${BASE_URL}/merchant/api/v1/charges/initialize`, {
@@ -66,7 +67,7 @@ export async function initializeCharge(params: {
 }
 
 export async function verifyCharge(reference: string): Promise<{ status: "success" | "failed" | "pending"; amount: number }> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("Korapay is not configured");
 
   const res = await fetch(`${BASE_URL}/merchant/api/v1/charges/${encodeURIComponent(reference)}`, {
@@ -98,7 +99,7 @@ export async function initiateTransfer(params: {
   reference: string;
   narration: string;
 }): Promise<KorapayTransferResult> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("Korapay is not configured");
 
   const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/disburse`, {
@@ -127,8 +128,8 @@ export async function initiateTransfer(params: {
   return { status, reference: data.data.reference ?? params.reference };
 }
 
-export function isKorapayConfigured(): boolean {
-  return Boolean(getSecretKey());
+export async function isKorapayConfigured(): Promise<boolean> {
+  return Boolean(await getSecretKey());
 }
 
 /**
@@ -137,8 +138,8 @@ export function isKorapayConfigured(): boolean {
  * request body — different from Paystack/Monnify, which sign the whole
  * body. Verify this against a real webhook delivery before relying on it.
  */
-export function verifyWebhookSignature(payload: { data?: unknown }, signature: string | null): boolean {
-  const key = getSecretKey();
+export async function verifyWebhookSignature(payload: { data?: unknown }, signature: string | null): Promise<boolean> {
+  const key = await getSecretKey();
   if (!key || !signature || !payload?.data) return false;
 
   const expected = crypto.createHmac("sha256", key).update(JSON.stringify(payload.data)).digest("hex");

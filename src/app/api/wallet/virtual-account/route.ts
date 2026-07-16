@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const user = await requireUser();
 
-    if (!isBillstackConfigured()) {
+    if (!(await isBillstackConfigured())) {
       return jsonError("Bank transfer funding isn't configured yet", 503);
     }
 

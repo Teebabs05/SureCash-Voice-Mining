@@ -4,6 +4,7 @@ import { creditWallet } from "@/lib/server/wallet";
 import { notifyUser } from "@/lib/server/notifications";
 import { checkAchievements } from "@/lib/server/gamification";
 import { writeAuditLog } from "@/lib/server/audit";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * BillStack webhook receiver.
@@ -24,7 +25,7 @@ import { writeAuditLog } from "@/lib/server/audit";
  */
 export async function POST(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
-  const expected = process.env.BILLSTACK_WEBHOOK_SECRET;
+  const expected = await getCredential("BILLSTACK_WEBHOOK_SECRET");
   if (!expected || token !== expected) {
     return NextResponse.json({ error: "Invalid webhook token" }, { status: 401 });
   }

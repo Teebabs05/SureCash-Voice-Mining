@@ -5,10 +5,11 @@ import { creditWallet } from "@/lib/server/wallet";
 import { notifyUser } from "@/lib/server/notifications";
 import { checkAchievements } from "@/lib/server/gamification";
 import { writeAuditLog } from "@/lib/server/audit";
+import { getCredential } from "@/lib/server/credentials";
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
-  const secret = process.env.PAYSTACK_SECRET_KEY;
+  const secret = await getCredential("PAYSTACK_SECRET_KEY");
   const signature = req.headers.get("x-paystack-signature");
 
   if (!secret || !signature) {

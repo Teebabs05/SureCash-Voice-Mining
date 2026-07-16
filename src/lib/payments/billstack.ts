@@ -1,4 +1,5 @@
 import "server-only";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * BillStack (billstack.co) client.
@@ -23,8 +24,8 @@ import "server-only";
 
 const BASE_URL = "https://api.billstack.co/v2/thirdparty";
 
-function getSecretKey(): string | null {
-  return process.env.BILLSTACK_SECRET_KEY || null;
+function getSecretKey(): Promise<string | null> {
+  return getCredential("BILLSTACK_SECRET_KEY");
 }
 
 function headers(key: string) {
@@ -47,7 +48,7 @@ export async function createVirtualAccount(params: {
   fullName: string;
   phone?: string | null;
 }): Promise<BillstackVirtualAccount> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("BillStack is not configured");
 
   const res = await fetch(`${BASE_URL}/generateVirtualAccount/`, {
@@ -101,7 +102,7 @@ export async function initiateTransfer(params: {
   reference: string;
   narration: string;
 }): Promise<BillstackTransferResult> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("BillStack is not configured");
 
   const res = await fetch(`${BASE_URL}/initiateTransfer/`, {
@@ -127,6 +128,6 @@ export async function initiateTransfer(params: {
   return { status, reference: data.reference ?? data.data?.reference ?? params.reference, message: data.message };
 }
 
-export function isBillstackConfigured(): boolean {
-  return Boolean(getSecretKey());
+export async function isBillstackConfigured(): Promise<boolean> {
+  return Boolean(await getSecretKey());
 }

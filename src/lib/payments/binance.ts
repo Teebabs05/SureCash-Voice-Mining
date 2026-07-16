@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "crypto";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * Binance Withdraw API client — used for automatic USDT disbursement on
@@ -34,9 +35,9 @@ const NETWORK_MAP: Record<string, string> = {
   BEP20: "BSC",
 };
 
-function getCredentials(): { apiKey: string; secretKey: string } | null {
-  const apiKey = process.env.BINANCE_API_KEY;
-  const secretKey = process.env.BINANCE_SECRET_KEY;
+async function getCredentials(): Promise<{ apiKey: string; secretKey: string } | null> {
+  const apiKey = await getCredential("BINANCE_API_KEY");
+  const secretKey = await getCredential("BINANCE_SECRET_KEY");
   return apiKey && secretKey ? { apiKey, secretKey } : null;
 }
 
@@ -45,7 +46,7 @@ function sign(query: string, secretKey: string): string {
 }
 
 async function signedRequest(path: string, method: "GET" | "POST", params: Record<string, string>) {
-  const creds = getCredentials();
+  const creds = await getCredentials();
   if (!creds) throw new Error("Binance is not configured");
 
   const query = new URLSearchParams({ ...params, timestamp: String(Date.now()) }).toString();
@@ -112,6 +113,6 @@ export async function getWithdrawStatus(withdrawOrderId: string): Promise<Binanc
   return { status: "processing" };
 }
 
-export function isBinanceConfigured(): boolean {
-  return Boolean(getCredentials());
+export async function isBinanceConfigured(): Promise<boolean> {
+  return Boolean(await getCredentials());
 }

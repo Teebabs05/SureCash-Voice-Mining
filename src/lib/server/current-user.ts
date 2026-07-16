@@ -25,6 +25,16 @@ export async function requireAdmin() {
   return user;
 }
 
+// Payment gateway credentials are the most sensitive data in the app, so
+// they're gated tighter than the rest of the admin panel: SUPERADMIN only.
+export async function requireSuperAdmin() {
+  const user = await requireUser();
+  if (user.role !== "SUPERADMIN") {
+    throw new AuthError("Forbidden", 403);
+  }
+  return user;
+}
+
 export class AuthError extends Error {
   status: number;
   constructor(message: string, status = 401) {

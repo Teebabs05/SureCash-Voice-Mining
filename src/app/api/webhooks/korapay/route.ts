@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const signature = req.headers.get("x-korapay-signature");
 
-  if (!body || !verifyWebhookSignature(body, signature)) {
+  if (!body || !(await verifyWebhookSignature(body, signature))) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { PaymentGatewaysCard } from "@/components/admin/payment-gateways-card";
 
 interface Setting {
   key: string;
@@ -27,6 +28,7 @@ const GAMIFICATION_SETTING_FIELDS = [
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ settings: Setting[] }>("/api/admin/settings").then((res) => {
@@ -34,6 +36,7 @@ export default function AdminSettingsPage() {
       for (const s of res.settings) map[s.key] = String(s.value);
       setSettings(map);
     });
+    apiFetch<{ user: { role: string } }>("/api/auth/me").then((res) => setRole(res.user.role));
   }, []);
 
   async function save(key: string) {
@@ -112,6 +115,8 @@ export default function AdminSettingsPage() {
           ))}
         </div>
       </Card>
+
+      {role === "SUPERADMIN" && <PaymentGatewaysCard />}
     </div>
   );
 }

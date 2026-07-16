@@ -1,3 +1,5 @@
+import { getCredential } from "@/lib/server/credentials";
+
 export interface BankListEntry {
   code: string;
   name: string;
@@ -26,7 +28,7 @@ export async function resolveBankAccount(params: {
   bankCode: string;
   accountNumber: string;
 }): Promise<BankVerificationResult> {
-  const key = process.env.PAYSTACK_SECRET_KEY;
+  const key = await getCredential("PAYSTACK_SECRET_KEY");
   if (!key) {
     return { accountName: "", verified: false, configured: false };
   }
@@ -81,7 +83,7 @@ const BANK_LIST_TTL_MS = 60 * 60 * 1000;
  * key.
  */
 export async function getBankList(): Promise<BankListEntry[]> {
-  const key = process.env.PAYSTACK_SECRET_KEY;
+  const key = await getCredential("PAYSTACK_SECRET_KEY");
   if (!key) return FALLBACK_BANKS;
 
   if (cachedBanks && Date.now() - cachedBanks.fetchedAt < BANK_LIST_TTL_MS) {

@@ -1,4 +1,5 @@
 import "server-only";
+import { getCredential } from "@/lib/server/credentials";
 
 /**
  * Flutterwave (v3 API) client.
@@ -19,8 +20,8 @@ import "server-only";
 
 const BASE_URL = "https://api.flutterwave.com/v3";
 
-function getSecretKey(): string | null {
-  return process.env.FLUTTERWAVE_SECRET_KEY || null;
+function getSecretKey(): Promise<string | null> {
+  return getCredential("FLUTTERWAVE_SECRET_KEY");
 }
 
 function headers(key: string) {
@@ -38,7 +39,7 @@ export async function initializePayment(params: {
   name: string;
   reference: string;
 }): Promise<FlutterwaveInitResult> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("Flutterwave is not configured");
 
   const res = await fetch(`${BASE_URL}/payments`, {
@@ -63,7 +64,7 @@ export async function initializePayment(params: {
 }
 
 export async function verifyPayment(reference: string): Promise<{ status: "success" | "failed" | "pending"; amount: number }> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("Flutterwave is not configured");
 
   const res = await fetch(`${BASE_URL}/transactions/verify_by_reference?tx_ref=${encodeURIComponent(reference)}`, {
@@ -93,7 +94,7 @@ export async function initiateTransfer(params: {
   reference: string;
   narration: string;
 }): Promise<FlutterwaveTransferResult> {
-  const key = getSecretKey();
+  const key = await getSecretKey();
   if (!key) throw new Error("Flutterwave is not configured");
 
   const res = await fetch(`${BASE_URL}/transfers`, {
@@ -119,8 +120,8 @@ export async function initiateTransfer(params: {
   return { status, reference: data.data.reference ?? params.reference };
 }
 
-export function isFlutterwaveConfigured(): boolean {
-  return Boolean(getSecretKey());
+export async function isFlutterwaveConfigured(): Promise<boolean> {
+  return Boolean(await getSecretKey());
 }
 
 /**
@@ -128,8 +129,8 @@ export function isFlutterwaveConfigured(): boolean {
  * secret hash you configured in your dashboard (FLUTTERWAVE_WEBHOOK_HASH),
  * in the `verif-hash` header, for a plain string comparison.
  */
-export function verifyWebhookSignature(signature: string | null): boolean {
-  const expected = process.env.FLUTTERWAVE_WEBHOOK_HASH;
+export async function verifyWebhookSignature(signature: string | null): Promise<boolean> {
+  const expected = await getCredential("FLUTTERWAVE_WEBHOOK_HASH");
   if (!expected || !signature) return false;
   return signature === expected;
 }
