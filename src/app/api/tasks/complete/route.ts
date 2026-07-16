@@ -81,7 +81,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!task.isRepeatable) {
-      const existing = await prisma.userTaskCompletion.findFirst({ where: { userId: user.id, taskId } });
+      // Exclude REJECTED so a user whose submission was auto- or
+      // admin-rejected can still retry with fresh, original proof.
+      const existing = await prisma.userTaskCompletion.findFirst({
+        where: { userId: user.id, taskId, status: { not: "REJECTED" } },
+      });
       if (existing) return jsonError("You've already completed this task", 409);
     }
 
@@ -101,20 +105,42 @@ export async function POST(req: NextRequest) {
 
       // A proof screenshot can be verified automatically: hash it and check
       // for reuse. A link/description alone can't be automatically verified,
-      // so it still goes to manual admin review same as before.
+      // so it still goes to manual admin review same as before. The system
+      // takes the lead on this decision, but a rejected duplicate is still
+      // persisted (with the proof) rather than silently discarded, so
+      // admin can review and override an auto-reject that turns out to be
+      // a false positive.
       if (proofImage instanceof Blob) {
         const buffer = Buffer.from(await proofImage.arrayBuffer());
         const proofImageHash = hashBuffer(buffer);
+        const extension = (proofImage.type.split("/")[1] || "jpg").split(";")[0];
+        const proofImageUrl = await saveUploadedFile({ folder: "task-proofs", buffer, extension });
 
         const duplicate = await prisma.userTaskCompletion.findFirst({
           where: { proofImageHash, status: { not: "REJECTED" } },
         });
         if (duplicate) {
-          return jsonError("This screenshot has already been submitted for a task. Please submit an original screenshot.", 409);
+          const completion = await prisma.userTaskCompletion.create({
+            data: {
+              userId: user.id,
+              taskId,
+              status: "REJECTED",
+              proofUrl,
+              proofText,
+              proofImageUrl,
+              proofImageHash,
+              rewardPaid: 0,
+            },
+          });
+          return NextResponse.json(
+            {
+              error: "This screenshot has already been submitted for a task - flagged for admin review.",
+              completion,
+              autoRejected: true,
+            },
+            { status: 409 }
+          );
         }
-
-        const extension = (proofImage.type.split("/")[1] || "jpg").split(";")[0];
-        const proofImageUrl = await saveUploadedFile({ folder: "task-proofs", buffer, extension });
 
         const completion = await prisma.$transaction((tx) =>
           approveAndPay(tx, {

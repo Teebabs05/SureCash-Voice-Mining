@@ -23,6 +23,7 @@ interface PendingCompletion {
   id: string;
   proofUrl: string | null;
   proofText: string | null;
+  proofImageUrl: string | null;
   createdAt: string;
   user: { fullName: string; email: string };
   task: { title: string; rewardAmount: string };
@@ -31,6 +32,7 @@ interface PendingCompletion {
 export default function AdminTasksPage() {
   const [tasks, setTasks] = useState<TaskCenterTask[]>([]);
   const [pending, setPending] = useState<PendingCompletion[]>([]);
+  const [autoRejected, setAutoRejected] = useState<PendingCompletion[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -48,11 +50,17 @@ export default function AdminTasksPage() {
   const loadPending = useCallback(() => {
     apiFetch<{ completions: PendingCompletion[] }>("/api/admin/task-completions").then((res) => setPending(res.completions));
   }, []);
+  const loadAutoRejected = useCallback(() => {
+    apiFetch<{ completions: PendingCompletion[] }>("/api/admin/task-completions?status=auto_rejected").then((res) =>
+      setAutoRejected(res.completions)
+    );
+  }, []);
 
   useEffect(() => {
     loadTasks();
     loadPending();
-  }, [loadTasks, loadPending]);
+    loadAutoRejected();
+  }, [loadTasks, loadPending, loadAutoRejected]);
 
   async function createTask() {
     try {
@@ -87,6 +95,7 @@ export default function AdminTasksPage() {
       await apiFetch(`/api/admin/task-completions/${id}/resolve`, { method: "POST", body: JSON.stringify({ action }) });
       toast.success(`Submission ${action}d`);
       loadPending();
+      loadAutoRejected();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Action failed");
     } finally {
@@ -189,6 +198,34 @@ export default function AdminTasksPage() {
                 </Button>
                 <Button size="sm" variant="danger" loading={busyId === c.id} onClick={() => resolveCompletion(c.id, "reject")}>
                   <X className="h-3.5 w-3.5" /> Reject
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Auto-rejected duplicates ({autoRejected.length})</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          The system auto-rejects a screenshot that matches a prior submission - this is the override path if one
+          turns out to be a false positive (e.g. two people genuinely submitted similar stock screenshots).
+        </p>
+        <div className="flex flex-col gap-3">
+          {autoRejected.length === 0 && <p className="text-sm text-foreground/50">Nothing auto-rejected right now</p>}
+          {autoRejected.map((c) => (
+            <div key={c.id} className="rounded-xl bg-surface-muted p-3">
+              <p className="text-sm font-semibold">{c.user.fullName}</p>
+              <p className="text-xs text-foreground/50">{c.task.title} · {formatCurrency(c.task.rewardAmount)}</p>
+              {c.proofImageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.proofImageUrl} alt="Submitted proof" className="mt-2 max-h-48 rounded-lg object-contain" />
+              )}
+              <div className="mt-2">
+                <Button size="sm" loading={busyId === c.id} onClick={() => resolveCompletion(c.id, "approve")}>
+                  <Check className="h-3.5 w-3.5" /> Approve anyway
                 </Button>
               </div>
             </div>

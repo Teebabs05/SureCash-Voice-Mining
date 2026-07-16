@@ -21,7 +21,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const completion = await prisma.userTaskCompletion.findUnique({ where: { id }, include: { task: true } });
     if (!completion) return jsonError("Completion not found", 404);
-    if (completion.status !== "PENDING_REVIEW") return jsonError("Already resolved", 409);
+    // The system takes the lead on auto-resolving proof screenshots, but
+    // admin can still override a REJECTED (including auto-rejected
+    // duplicate) completion by approving it - e.g. a false-positive
+    // duplicate match. Re-rejecting an already-REJECTED item is a no-op,
+    // not allowed.
+    if (completion.status !== "PENDING_REVIEW" && completion.status !== "REJECTED") {
+      return jsonError("Already resolved", 409);
+    }
+    if (completion.status === "REJECTED" && action === "reject") {
+      return jsonError("Already rejected", 409);
+    }
 
     const completingUser = await prisma.user.findUniqueOrThrow({ where: { id: completion.userId } });
     const plan = completingUser.planId ? await prisma.plan.findUnique({ where: { id: completingUser.planId } }) : null;

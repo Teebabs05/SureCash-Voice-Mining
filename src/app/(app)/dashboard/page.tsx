@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Mic, Pickaxe, Target, Gift, Users, Wallet as WalletIcon, Flame, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import { Mic, Pickaxe, Target, Gift, Users, Wallet as WalletIcon, Flame, ChevronRight, Smartphone, Wifi, Zap, Tv } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { MissionsCard } from "@/components/dashboard/missions-card";
 import { ActivityTicker } from "@/components/dashboard/activity-ticker";
@@ -24,6 +25,13 @@ interface DashboardData {
   earnings: { today: number; week: number; month: number; lifetime: number; pending: number };
   levelProgress: { percent: number; nextLevelTitle: string | null; nextLevelBonus: number | null };
 }
+
+const BILL_PAYMENTS = [
+  { label: "Airtime", icon: Smartphone, iconClass: "bg-brand-purple/15 text-brand-purple" },
+  { label: "Data", icon: Wifi, iconClass: "bg-brand-green/15 text-brand-green" },
+  { label: "Electricity", icon: Zap, iconClass: "bg-brand-gold/15 text-[#a67c00]" },
+  { label: "TV", icon: Tv, iconClass: "bg-red-500/15 text-red-500" },
+];
 
 const QUICK_ACTIONS = [
   { href: "/voice", label: "Voice Tasks", icon: Mic, gradient: "gradient-wallet-voice" },
@@ -66,6 +74,21 @@ export default function DashboardPage() {
       <ActivityTicker />
 
       <WalletCarousel wallets={data.wallets} />
+
+      <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
+        {BILL_PAYMENTS.map(({ label, icon: Icon, iconClass }) => (
+          <button
+            key={label}
+            onClick={() => toast("Coming soon", { description: `${label} payments aren't available yet.` })}
+            className="flex flex-none flex-col items-center gap-1.5"
+          >
+            <div className={`flex h-14 w-14 items-center justify-center rounded-full ${iconClass}`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-medium text-foreground/70">{label}</span>
+          </button>
+        ))}
+      </div>
 
       <div>
         <h2 className="mb-2 text-sm font-semibold text-foreground/70">Quick actions</h2>
