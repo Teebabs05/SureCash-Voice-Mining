@@ -16,7 +16,7 @@ import { writeAuditLog } from "@/lib/server/audit";
 export async function attemptAutomaticPayout(withdrawalId: string) {
   const withdrawal = await prisma.withdrawal.findUnique({
     where: { id: withdrawalId },
-    include: { bankAccount: true },
+    include: { bankAccount: true, user: true },
   });
   if (!withdrawal || withdrawal.status !== "PENDING") return;
   if (withdrawal.method !== "BANK" || !withdrawal.bankAccount) return;
@@ -33,6 +33,7 @@ export async function attemptAutomaticPayout(withdrawalId: string) {
         bankCode: bankAccount.bankCode,
         accountNumber: bankAccount.accountNumber,
         accountName: bankAccount.accountName,
+        email: withdrawal.user.email,
       });
       recipientCode = recipient.recipientCode;
 

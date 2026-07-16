@@ -1,5 +1,6 @@
 import { initiateTransfer as billstackInitiateTransfer } from "@/lib/payments/billstack";
 import { initiateTransfer as monnifyInitiateTransfer } from "@/lib/payments/monnify";
+import { initiateTransfer as korapayInitiateTransfer } from "@/lib/payments/korapay";
 
 export interface PayoutRecipient {
   recipientCode: string;
@@ -13,7 +14,12 @@ export interface PayoutResult {
 
 export interface PayoutProviderAdapter {
   name: string;
-  resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient>;
+  resolveRecipient(params: {
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    email?: string;
+  }): Promise<PayoutRecipient>;
   initiateTransfer(params: {
     amount: number;
     recipientCode: string;
@@ -26,7 +32,7 @@ class PaystackPayoutProvider implements PayoutProviderAdapter {
   name = "PAYSTACK";
   private key = process.env.PAYSTACK_SECRET_KEY;
 
-  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient> {
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string; email?: string }): Promise<PayoutRecipient> {
     if (!this.key) throw new Error("Paystack is not configured");
 
     const res = await fetch("https://api.paystack.co/transferrecipient", {
@@ -84,7 +90,7 @@ class PaystackPayoutProvider implements PayoutProviderAdapter {
 class BillstackPayoutProvider implements PayoutProviderAdapter {
   name = "BILLSTACK";
 
-  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient> {
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string; email?: string }): Promise<PayoutRecipient> {
     return { recipientCode: JSON.stringify(params) };
   }
 
@@ -114,7 +120,7 @@ class BillstackPayoutProvider implements PayoutProviderAdapter {
 class MonnifyPayoutProvider implements PayoutProviderAdapter {
   name = "MONNIFY";
 
-  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string }): Promise<PayoutRecipient> {
+  async resolveRecipient(params: { bankCode: string; accountNumber: string; accountName: string; email?: string }): Promise<PayoutRecipient> {
     return { recipientCode: JSON.stringify(params) };
   }
 
@@ -128,6 +134,49 @@ class MonnifyPayoutProvider implements PayoutProviderAdapter {
     const result = await monnifyInitiateTransfer({
       bankCode: recipient.bankCode,
       accountNumber: recipient.accountNumber,
+      amount: params.amount,
+      reference: params.reference,
+      narration: params.reason,
+    });
+    return { status: result.status, transferCode: result.reference, message: result.message };
+  }
+}
+
+/**
+ * Korapay's disbursement API is also a single call, but unlike BillStack/
+ * Monnify its customer object wants an email — packed into the opaque
+ * recipient code alongside the bank details since resolveRecipient/
+ * initiateTransfer don't share request context otherwise.
+ */
+class KorapayPayoutProvider implements PayoutProviderAdapter {
+  name = "KORAPAY";
+
+  async resolveRecipient(params: {
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    email?: string;
+  }): Promise<PayoutRecipient> {
+    return { recipientCode: JSON.stringify(params) };
+  }
+
+  async initiateTransfer(params: {
+    amount: number;
+    recipientCode: string;
+    reference: string;
+    reason: string;
+  }): Promise<PayoutResult> {
+    const recipient = JSON.parse(params.recipientCode) as {
+      bankCode: string;
+      accountNumber: string;
+      accountName: string;
+      email?: string;
+    };
+    const result = await korapayInitiateTransfer({
+      bankCode: recipient.bankCode,
+      accountNumber: recipient.accountNumber,
+      accountName: recipient.accountName,
+      email: recipient.email || "payouts@surecashmining.com",
       amount: params.amount,
       reference: params.reference,
       narration: params.reason,
@@ -156,7 +205,7 @@ export function getPayoutProvider(
     case "MONNIFY":
       return new MonnifyPayoutProvider();
     case "KORAPAY":
-      return new UnconfiguredPayoutProvider("Korapay");
+      return new KorapayPayoutProvider();
     case "PAYVESSEL":
       return new UnconfiguredPayoutProvider("PayVessel");
     case "BILLSTACK":
