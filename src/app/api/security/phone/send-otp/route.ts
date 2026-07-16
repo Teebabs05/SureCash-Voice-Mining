@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     const { phone } = schema.parse(await req.json());
 
-    const limited = rateLimit(`phone-otp:${user.id}`, 3, 15 * 60 * 1000);
+    const limited = await rateLimit(`phone-otp:${user.id}`, 3, 15 * 60 * 1000);
     if (!limited.success) {
       return jsonError("Please wait before requesting another code", 429);
     }

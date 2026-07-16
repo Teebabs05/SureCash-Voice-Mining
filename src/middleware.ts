@@ -1,31 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/server/rate-limit";
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const CSRF_EXEMPT_PREFIXES = ["/api/webhooks/"];
 
-const buckets = new Map<string, { count: number; resetAt: number }>();
-
-function globalRateLimit(key: string) {
-  const now = Date.now();
-  const bucket = buckets.get(key);
-  const limit = 120;
-  const windowMs = 60_000;
-
-  if (!bucket || bucket.resetAt < now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (bucket.count >= limit) return false;
-  bucket.count += 1;
-  return true;
-}
-
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (pathname.startsWith("/api/")) {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    if (!globalRateLimit(ip)) {
+    const limited = await rateLimit(`global:${ip}`, 120, 60_000);
+    if (!limited.success) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 

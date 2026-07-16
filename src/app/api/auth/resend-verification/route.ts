@@ -13,7 +13,7 @@ export async function POST() {
       return jsonError("Email is already verified", 400);
     }
 
-    const limited = rateLimit(`resend-verification:${user.id}`, 3, 15 * 60 * 1000);
+    const limited = await rateLimit(`resend-verification:${user.id}`, 3, 15 * 60 * 1000);
     if (!limited.success) {
       return jsonError("Please wait before requesting another email", 429);
     }

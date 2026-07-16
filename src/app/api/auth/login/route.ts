@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const { ipAddress, userAgent } = getRequestMeta(req);
 
-    const limited = rateLimit(`login:${ipAddress}`, 10, 15 * 60 * 1000);
+    const limited = await rateLimit(`login:${ipAddress}`, 10, 15 * 60 * 1000);
     if (!limited.success) {
       return jsonError("Too many login attempts. Please try again later.", 429);
     }

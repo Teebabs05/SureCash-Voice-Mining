@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
 
-    const limited = rateLimit(`resolve-bank:${user.id}`, 20, 5 * 60 * 1000);
+    const limited = await rateLimit(`resolve-bank:${user.id}`, 20, 5 * 60 * 1000);
     if (!limited.success) {
       return jsonError("Too many lookups. Please wait a moment and try again.", 429);
     }

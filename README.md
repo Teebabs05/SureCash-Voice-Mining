@@ -77,7 +77,7 @@ Every user has six wallets: **Main, Mining, Voice, Referral, Task, Bonus**. All 
 
 - httpOnly JWT session cookie, SameSite=Lax, backed by a DB `Session` record checked on every request — sessions can be individually revoked or bulk-revoked ("log out other devices"), which a stateless JWT alone can't do
 - `src/middleware.ts`: security headers, cross-origin POST/PUT/PATCH/DELETE blocking (CSRF), a global per-IP rate limit, with the Paystack webhook exempted
-- Per-route rate limiting on register/login/voice-submit/OTP endpoints (in-memory — swap for Redis/Upstash before scaling to multiple instances)
+- Per-route rate limiting on register/login/voice-submit/OTP endpoints — Upstash Redis-backed when `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` are set (required for correctness across multiple instances), in-memory fallback otherwise, and fails open to in-memory if Redis errors at runtime
 - Device fingerprinting (client-side hash) + a heuristic VPN-suspicion signal, stored per device
 - Full audit log (`AuditLog`) for auth events, admin actions, and withdrawals
 - Fraud reports auto-created for duplicate/replay/synthesized-voice detections, reviewable from the admin Fraud Dashboard's report queue and aggregate views (most-flagged users, VPN-suspected devices, multi-device accounts)
@@ -92,7 +92,6 @@ Built as a solid, fully-working MVP — these are the pieces intentionally left 
 - **BillStack integration is best-effort, not confirmed**: BillStack's docs (billstack.gitbook.io/api) were unreachable from the environment this was built in, so the virtual-account creation and transfer endpoint paths/field names in `src/lib/payments/billstack.ts` are inferred from public search fragments and standard Nigerian NUBAN-provider conventions, not verified against real API responses. The webhook (`src/app/api/webhooks/billstack/route.ts`) is authenticated via a shared-secret token in the URL rather than a confirmed signature scheme. Architecturally it's safe either way — a wrong endpoint just fails and falls back to manual processing, same as the other unconfigured gateways — but test it against BillStack's sandbox (or watch the first few real webhook payloads via the `[billstack:webhook]` console log) before trusting it with production traffic, and adjust the field-name guesses in that file if requests come back with an unexpected shape.
 - **USDT withdrawals are manual-only** — there's no real crypto disbursement/custody integration, so an admin always sends the USDT and marks it paid by hand (unlike bank withdrawals, which can auto-pay via Paystack).
 - **SMS/WhatsApp notifications** are stub-only (console log) — swap in a real provider in `src/lib/notifications/otp.ts`.
-- **Rate limiting** is in-memory (per-process) — fine for a single instance, needs a shared store (Redis) before horizontal scaling.
 
 ## Project structure
 

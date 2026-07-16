@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { ipAddress, userAgent } = getRequestMeta(req);
-    const limited = rateLimit(`voice-submit:${user.id}`, 15, 60 * 60 * 1000);
+    const limited = await rateLimit(`voice-submit:${user.id}`, 15, 60 * 60 * 1000);
     if (!limited.success) {
       return jsonError("Too many submissions. Please slow down.", 429);
     }

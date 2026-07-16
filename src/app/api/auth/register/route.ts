@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const { ipAddress, userAgent } = getRequestMeta(req);
 
-    const limited = rateLimit(`register:${ipAddress}`, 5, 15 * 60 * 1000);
+    const limited = await rateLimit(`register:${ipAddress}`, 5, 15 * 60 * 1000);
     if (!limited.success) {
       return jsonError("Too many registration attempts. Please try again later.", 429);
     }
