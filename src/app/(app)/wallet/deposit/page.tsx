@@ -41,20 +41,22 @@ export default function DepositPage() {
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
   const [virtualAccountError, setVirtualAccountError] = useState<string | null>(null);
   const [virtualAccountLoading, setVirtualAccountLoading] = useState(false);
+  const [virtualAccountAttempted, setVirtualAccountAttempted] = useState(false);
 
   useEffect(() => {
     apiFetch<{ deposits: Deposit[] }>("/api/deposits").then((res) => setDeposits(res.deposits));
   }, []);
 
   useEffect(() => {
-    if (tab !== "transfer" || virtualAccount || virtualAccountLoading) return;
+    if (tab !== "transfer" || virtualAccountAttempted) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVirtualAccountAttempted(true);
     setVirtualAccountLoading(true);
     apiFetch<{ account: VirtualAccount }>("/api/wallet/virtual-account")
       .then((res) => setVirtualAccount(res.account))
       .catch((err) => setVirtualAccountError(err instanceof ApiError ? err.message : "Could not load your account"))
       .finally(() => setVirtualAccountLoading(false));
-  }, [tab, virtualAccount, virtualAccountLoading]);
+  }, [tab, virtualAccountAttempted]);
 
   function copyAccountNumber() {
     if (!virtualAccount) return;
