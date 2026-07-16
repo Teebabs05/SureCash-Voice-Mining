@@ -13,6 +13,7 @@ interface TaskCenterTask {
   id: string;
   title: string;
   description: string;
+  type: string;
   rewardAmount: string;
   isActive: boolean;
   requiresProof: boolean;
@@ -106,7 +107,8 @@ export default function AdminTasksPage() {
             <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
               <div>
                 <p className="text-sm font-semibold">
-                  {t.title} {t.requiresProof && <span className="text-xs text-brand-purple">(needs proof)</span>}
+                  {t.title} {t.type === "sponsored_post" && <span className="text-xs text-brand-purple">(Sponsored Post)</span>}
+                  {t.requiresProof && <span className="text-xs text-brand-purple"> (needs proof)</span>}
                 </p>
                 <p className="text-xs text-foreground/50">{t.description}</p>
                 <p className="text-xs font-medium text-brand-green">{formatCurrency(t.rewardAmount)}</p>
@@ -126,6 +128,14 @@ export default function AdminTasksPage() {
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20"
+            >
+              <option value="social">General task</option>
+              <option value="sponsored_post">Sponsored Post (share on social media)</option>
+            </select>
             <Input
               placeholder="Action URL (optional)"
               value={form.actionUrl}

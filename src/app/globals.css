@@ -37,6 +37,24 @@
   }
 }
 
+/* Manual theme override (set via the Appearance toggle) takes precedence
+   over the OS-level prefers-color-scheme media query above. */
+:root[data-theme="light"] {
+  --background: #f8f9fc;
+  --foreground: #17122b;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f0fa;
+  --color-border: #e7e5f5;
+}
+
+:root[data-theme="dark"] {
+  --background: #0f0b1f;
+  --foreground: #f2f0fb;
+  --color-surface: #1b1530;
+  --color-surface-muted: #241c3d;
+  --color-border: #322a4d;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

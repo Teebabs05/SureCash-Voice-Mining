@@ -1,0 +1,124 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Pickaxe, Mic, ClipboardCheck, Camera, ChevronRight } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { apiFetch } from "@/lib/api-client";
+
+interface MiningStatus {
+  canMine: boolean;
+}
+
+interface VoiceTask {
+  completedToday: number;
+  dailyLimit: number;
+}
+
+interface TaskCenterTask {
+  isCompleted: boolean;
+}
+
+const WAYS = [
+  {
+    key: "mine",
+    href: "/mine",
+    title: "Daily Mining",
+    description: "Claim your free daily reward and build a streak",
+    icon: Pickaxe,
+    iconClass: "bg-brand-purple/15 text-brand-purple",
+  },
+  {
+    key: "voice",
+    href: "/voice",
+    title: "Voice Earn",
+    description: "Read sentences aloud, word by word",
+    icon: Mic,
+    iconClass: "bg-brand-purple/15 text-brand-purple",
+  },
+  {
+    key: "tasks",
+    href: "/tasks",
+    title: "Tasks",
+    description: "Complete simple tasks to earn",
+    icon: ClipboardCheck,
+    iconClass: "bg-brand-gold/15 text-[#a67c00]",
+  },
+  {
+    key: "sponsored",
+    href: "/tasks/sponsored",
+    title: "Sponsored Posts",
+    description: "Share posts on social media",
+    icon: Camera,
+    iconClass: "bg-red-500/15 text-red-500",
+  },
+] as const;
+
+export default function EarnPage() {
+  const [status, setStatus] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    apiFetch<MiningStatus>("/api/mining/status")
+      .then((res) => setStatus((s) => ({ ...s, mine: res.canMine ? "Ready" : "Claimed" })))
+      .catch(() => {});
+    apiFetch<{ tasks: VoiceTask[] }>("/api/voice/tasks")
+      .then((res) => {
+        const remaining = res.tasks.reduce((sum, t) => sum + Math.max(t.dailyLimit - t.completedToday, 0), 0);
+        setStatus((s) => ({ ...s, voice: remaining > 0 ? "Ready" : "All done" }));
+      })
+      .catch(() => {});
+    apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks")
+      .then((res) => {
+        const available = res.tasks.filter((t) => !t.isCompleted).length;
+        setStatus((s) => ({ ...s, tasks: available > 0 ? `${available} available` : "All done" }));
+      })
+      .catch(() => {});
+    apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks?category=sponsored")
+      .then((res) => {
+        const available = res.tasks.filter((t) => !t.isCompleted).length;
+        setStatus((s) => ({ ...s, sponsored: available > 0 ? `${available} available` : "All done" }));
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="text-xl font-bold">Ways to Earn</h1>
+        <p className="text-sm text-foreground/60">Choose an activity</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {WAYS.map(({ key, href, title, description, icon: Icon, iconClass }) => (
+          <Link key={key} href={href}>
+            <Card className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`rounded-full p-2.5 ${iconClass}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-semibold">{title}</p>
+                  <p className="text-xs text-foreground/50">{description}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {status[key] && (
+                  <span
+                    className={
+                      status[key] === "Ready" || status[key].includes("available")
+                        ? "whitespace-nowrap rounded-full bg-brand-green/15 px-2 py-0.5 text-xs font-semibold text-brand-green"
+                        : "whitespace-nowrap rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-foreground/50"
+                    }
+                  >
+                    {status[key]}
+                  </span>
+                )}
+                <ChevronRight className="h-4 w-4 text-foreground/30" />
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

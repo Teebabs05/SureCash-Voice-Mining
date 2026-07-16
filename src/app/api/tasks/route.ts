@@ -1,12 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireUser();
-    const tasks = await prisma.taskCenterTask.findMany({ where: { isActive: true }, orderBy: { createdAt: "desc" } });
+    const category = req.nextUrl.searchParams.get("category");
+    const typeFilter =
+      category === "sponsored" ? { type: "sponsored_post" } : { type: { not: "sponsored_post" } };
+    const tasks = await prisma.taskCenterTask.findMany({
+      where: { isActive: true, ...typeFilter },
+      orderBy: { createdAt: "desc" },
+    });
     const completions = await prisma.userTaskCompletion.findMany({ where: { userId: user.id } });
     const statusByTask = new Map(completions.map((c) => [c.taskId, c.status]));
 

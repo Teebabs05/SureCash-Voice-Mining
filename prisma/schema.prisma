@@ -170,6 +170,10 @@ model User {
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
 
+  facebookUrl     String?
+  instagramHandle String?
+  tiktokHandle    String?
+
   referralCode String  @unique
   referredById String?
   referredBy   User?   @relation("Referrals", fields: [referredById], references: [id])

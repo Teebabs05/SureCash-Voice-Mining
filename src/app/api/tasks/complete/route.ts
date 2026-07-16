@@ -25,6 +25,17 @@ export async function POST(req: NextRequest) {
     const task = await prisma.taskCenterTask.findUnique({ where: { id: taskId } });
     if (!task || !task.isActive) return jsonError("Task not found", 404);
 
+    if (task.type === "sponsored_post") {
+      const socials = await prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { facebookUrl: true, instagramHandle: true, tiktokHandle: true },
+      });
+      const linkedCount = [socials.facebookUrl, socials.instagramHandle, socials.tiktokHandle].filter(Boolean).length;
+      if (linkedCount < 2) {
+        return jsonError("Link at least 2 social accounts before submitting sponsored posts", 403);
+      }
+    }
+
     if (!task.isRepeatable) {
       const existing = await prisma.userTaskCompletion.findFirst({ where: { userId: user.id, taskId } });
       if (existing) return jsonError("You've already completed this task", 409);

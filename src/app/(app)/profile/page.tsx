@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, ShieldCheck, Bell, ChevronRight, Mail, BadgeCheck, MessageCircle, Rss } from "lucide-react";
+import { LogOut, ShieldCheck, Bell, ChevronRight, Mail, BadgeCheck, MessageCircle, Rss, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,12 +20,25 @@ interface Me {
   };
 }
 
+interface SocialAccounts {
+  facebookUrl: string | null;
+  instagramHandle: string | null;
+  tiktokHandle: string | null;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [me, setMe] = useState<Me["user"] | null>(null);
+  const [hasBankAccount, setHasBankAccount] = useState(false);
+  const [linkedSocialCount, setLinkedSocialCount] = useState(0);
 
   useEffect(() => {
     apiFetch<Me>("/api/auth/me").then((res) => setMe(res.user));
+    apiFetch<{ accounts: unknown[] }>("/api/bank-accounts").then((res) => setHasBankAccount(res.accounts.length > 0));
+    apiFetch<{ socialAccounts: SocialAccounts }>("/api/profile/social-accounts").then((res) => {
+      const { facebookUrl, instagramHandle, tiktokHandle } = res.socialAccounts;
+      setLinkedSocialCount([facebookUrl, instagramHandle, tiktokHandle].filter(Boolean).length);
+    });
   }, []);
 
   async function resendVerification() {
@@ -74,12 +87,58 @@ export default function ProfilePage() {
         </Card>
       )}
 
+      {(() => {
+        const steps = [me.emailVerified, hasBankAccount, linkedSocialCount >= 2];
+        const done = steps.filter(Boolean).length;
+        if (done === steps.length) return null;
+        return (
+          <Card>
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>Finish setting up</span>
+              <span className="text-brand-purple">
+                {done}/{steps.length}
+              </span>
+            </div>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className="h-full rounded-full gradient-brand transition-all"
+                style={{ width: `${(done / steps.length) * 100}%` }}
+              />
+            </div>
+          </Card>
+        );
+      })()}
+
       <div className="flex flex-col divide-y divide-border card p-0">
         <Link href="/profile/security" className="flex items-center justify-between p-4">
           <span className="flex items-center gap-2 text-sm font-medium">
             <ShieldCheck className="h-4 w-4 text-foreground/50" /> Security & bank accounts
           </span>
-          <ChevronRight className="h-4 w-4 text-foreground/30" />
+          <span className="flex items-center gap-2">
+            {hasBankAccount && (
+              <span className="rounded-full bg-brand-green/15 px-2 py-0.5 text-[10px] font-semibold text-brand-green">
+                Added
+              </span>
+            )}
+            <ChevronRight className="h-4 w-4 text-foreground/30" />
+          </span>
+        </Link>
+        <Link href="/profile/social-accounts" className="flex items-center justify-between p-4">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Share2 className="h-4 w-4 text-foreground/50" /> Social Accounts
+          </span>
+          <span className="flex items-center gap-2">
+            <span
+              className={
+                linkedSocialCount > 0
+                  ? "rounded-full bg-brand-green/15 px-2 py-0.5 text-[10px] font-semibold text-brand-green"
+                  : "rounded-full bg-brand-gold/15 px-2 py-0.5 text-[10px] font-semibold text-[#a67c00]"
+              }
+            >
+              {linkedSocialCount > 0 ? `${linkedSocialCount} linked` : "Add"}
+            </span>
+            <ChevronRight className="h-4 w-4 text-foreground/30" />
+          </span>
         </Link>
         <Link href="/profile/notifications" className="flex items-center justify-between p-4">
           <span className="flex items-center gap-2 text-sm font-medium">

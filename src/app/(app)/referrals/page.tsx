@@ -41,7 +41,7 @@ export default function ReferralsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-bold">Invite Friends</h1>
+        <h1 className="text-xl font-bold">Affiliate Program</h1>
         <p className="text-sm text-foreground/60">Earn a bonus for every friend who joins and verifies their email.</p>
       </div>
 
