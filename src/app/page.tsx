@@ -149,22 +149,6 @@ export default async function Home() {
             </p>
           </div>
 
-          <div>
-            <h2 className="text-lg font-bold">Ways to earn</h2>
-            <p className="text-sm text-foreground/60">Six earning streams, one wallet.</p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {FEATURES.map(({ icon: Icon, label, description }) => (
-                <div key={label} className="card flex flex-col gap-2 p-4">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
-                    <Icon className="h-4.5 w-4.5" />
-                  </div>
-                  <p className="text-sm font-semibold">{label}</p>
-                  <p className="text-xs text-foreground/50">{description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="card p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold">Bills & VTU services</h2>
@@ -180,6 +164,22 @@ export default async function Home() {
                     <Icon className="h-5 w-5" />
                   </div>
                   <span className="text-xs font-medium text-foreground/70">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold">Ways to earn</h2>
+            <p className="text-sm text-foreground/60">Six earning streams, one wallet.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {FEATURES.map(({ icon: Icon, label, description }) => (
+                <div key={label} className="card flex flex-col gap-2 p-4">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="text-xs text-foreground/50">{description}</p>
                 </div>
               ))}
             </div>
