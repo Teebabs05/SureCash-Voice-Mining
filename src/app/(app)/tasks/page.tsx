@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ClipboardCheck, CheckCircle2, ExternalLink, Clock } from "lucide-react";
+import { ClipboardCheck, CheckCircle2, ExternalLink, Clock, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ export default function TasksPage() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [proofTaskId, setProofTaskId] = useState<string | null>(null);
   const [proof, setProof] = useState({ proofUrl: "", proofText: "" });
+  const [proofImage, setProofImage] = useState<File | null>(null);
 
   const load = useCallback(() => {
     apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks")
@@ -65,17 +66,23 @@ export default function TasksPage() {
   async function submitProof(task: TaskCenterTask) {
     setCompletingId(task.id);
     try {
-      await apiFetch("/api/tasks/complete", {
+      const form = new FormData();
+      form.append("taskId", task.id);
+      if (proof.proofUrl) form.append("proofUrl", proof.proofUrl);
+      if (proof.proofText) form.append("proofText", proof.proofText);
+      if (proofImage) form.append("proofImage", proofImage);
+
+      const res = await apiFetch<{ pending: boolean; reward?: number }>("/api/tasks/complete", {
         method: "POST",
-        body: JSON.stringify({
-          taskId: task.id,
-          proofUrl: proof.proofUrl || undefined,
-          proofText: proof.proofText || undefined,
-        }),
+        body: form,
+        headers: {},
       });
-      toast.success("Submitted for admin review");
+      toast.success(
+        res.pending ? "Submitted for admin review" : `Approved! +${formatCurrency(res.reward ?? 0)} added to your Task wallet`
+      );
       setProofTaskId(null);
       setProof({ proofUrl: "", proofText: "" });
+      setProofImage(null);
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not submit proof");
@@ -130,8 +137,18 @@ export default function TasksPage() {
           {proofTaskId === task.id && (
             <div className="mt-3 flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
               <p className="text-xs text-foreground/60">
-                Paste a link or describe what you did so an admin can verify it.
+                Upload a screenshot for instant approval, or paste a link/description for admin review.
               </p>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-4 text-sm text-foreground/60">
+                <Upload className="h-4 w-4" />
+                {proofImage ? proofImage.name : "Upload screenshot"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setProofImage(e.target.files?.[0] ?? null)}
+                />
+              </label>
               <Input
                 placeholder="Proof link (optional)"
                 value={proof.proofUrl}
@@ -143,7 +160,7 @@ export default function TasksPage() {
                 onChange={(e) => setProof({ ...proof, proofText: e.target.value })}
               />
               <Button size="sm" loading={completingId === task.id} onClick={() => submitProof(task)}>
-                Submit for review
+                Submit
               </Button>
             </div>
           )}

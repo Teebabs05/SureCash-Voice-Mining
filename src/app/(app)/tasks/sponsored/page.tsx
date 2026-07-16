@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Camera, CheckCircle2, ExternalLink, Clock, Share2 } from "lucide-react";
+import { Camera, CheckCircle2, ExternalLink, Clock, Share2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export default function SponsoredPostsPage() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [proofTaskId, setProofTaskId] = useState<string | null>(null);
   const [proof, setProof] = useState({ proofUrl: "", proofText: "" });
+  const [proofImage, setProofImage] = useState<File | null>(null);
 
   const load = useCallback(() => {
     apiFetch<{ tasks: SponsoredTask[] }>("/api/tasks?category=sponsored").then((res) => setTasks(res.tasks));
@@ -55,17 +56,23 @@ export default function SponsoredPostsPage() {
   async function submitProof(task: SponsoredTask) {
     setCompletingId(task.id);
     try {
-      await apiFetch("/api/tasks/complete", {
+      const form = new FormData();
+      form.append("taskId", task.id);
+      if (proof.proofUrl) form.append("proofUrl", proof.proofUrl);
+      if (proof.proofText) form.append("proofText", proof.proofText);
+      if (proofImage) form.append("proofImage", proofImage);
+
+      const res = await apiFetch<{ pending: boolean; reward?: number }>("/api/tasks/complete", {
         method: "POST",
-        body: JSON.stringify({
-          taskId: task.id,
-          proofUrl: proof.proofUrl || undefined,
-          proofText: proof.proofText || undefined,
-        }),
+        body: form,
+        headers: {},
       });
-      toast.success("Submitted for admin review");
+      toast.success(
+        res.pending ? "Submitted for admin review" : `Approved! +${formatCurrency(res.reward ?? 0)} added to your Task wallet`
+      );
       setProofTaskId(null);
       setProof({ proofUrl: "", proofText: "" });
+      setProofImage(null);
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not submit proof");
@@ -139,7 +146,19 @@ export default function SponsoredPostsPage() {
 
           {proofTaskId === task.id && (
             <div className="mt-3 flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
-              <p className="text-xs text-foreground/60">Paste a link to your post so an admin can verify it.</p>
+              <p className="text-xs text-foreground/60">
+                Upload a screenshot of your post for instant approval, or paste a link/description for admin review.
+              </p>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-4 text-sm text-foreground/60">
+                <Upload className="h-4 w-4" />
+                {proofImage ? proofImage.name : "Upload screenshot"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => setProofImage(e.target.files?.[0] ?? null)}
+                />
+              </label>
               <Input
                 placeholder="Post link (optional)"
                 value={proof.proofUrl}
@@ -151,7 +170,7 @@ export default function SponsoredPostsPage() {
                 onChange={(e) => setProof({ ...proof, proofText: e.target.value })}
               />
               <Button size="sm" loading={completingId === task.id} onClick={() => submitProof(task)}>
-                Submit for review
+                Submit
               </Button>
             </div>
           )}

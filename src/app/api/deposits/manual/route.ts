@@ -5,6 +5,7 @@ import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { saveUploadedFile } from "@/lib/server/storage";
 import { generateReference } from "@/lib/utils";
 import { notifyUser } from "@/lib/server/notifications";
+import { hashBuffer } from "@/lib/server/file-hash";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,20 @@ export async function POST(req: NextRequest) {
     if (!(receipt instanceof Blob)) return jsonError("Please attach your deposit receipt", 422);
 
     const buffer = Buffer.from(await receipt.arrayBuffer());
+    const receiptHash = hashBuffer(buffer);
+
+    // A receipt image already in use by another pending/approved deposit is
+    // a clear reuse/fraud signal - refuse the submission outright rather
+    // than queuing it for manual review. Resubmission is still allowed if
+    // every prior match was REJECTED (e.g. the user just mistyped the
+    // amount and is correcting it with the same real receipt).
+    const duplicate = await prisma.deposit.findFirst({
+      where: { receiptHash, status: { in: ["PENDING", "APPROVED"] } },
+    });
+    if (duplicate) {
+      return jsonError("This receipt has already been submitted. Please upload a fresh receipt for this transfer.", 409);
+    }
+
     const extension = (receipt.type.split("/")[1] || "jpg").split(";")[0];
     const receiptUrl = await saveUploadedFile({ folder: "receipts", buffer, extension });
 
@@ -29,6 +44,7 @@ export async function POST(req: NextRequest) {
         method: "MANUAL_BANK",
         reference: generateReference("DEP"),
         receiptUrl,
+        receiptHash,
         status: "PENDING",
       },
     });

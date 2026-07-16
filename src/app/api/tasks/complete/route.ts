@@ -1,18 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { creditWallet } from "@/lib/server/wallet";
 import { addXp, incrementMissionProgress } from "@/lib/server/gamification";
 import { payReferralCommission } from "@/lib/server/referral-commission";
+import { saveUploadedFile } from "@/lib/server/storage";
+import { hashBuffer } from "@/lib/server/file-hash";
 import { XP_CONFIG } from "@/lib/config";
 
-const schema = z.object({
-  taskId: z.string().min(1),
-  proofUrl: z.string().url().optional(),
-  proofText: z.string().max(500).optional(),
-});
+type Tx = Prisma.TransactionClient;
+
+async function approveAndPay(
+  tx: Tx,
+  params: { userId: string; taskId: string; title: string; reward: number; proofUrl?: string; proofText?: string; proofImageUrl?: string; proofImageHash?: string }
+) {
+  const completion = await tx.userTaskCompletion.create({
+    data: {
+      userId: params.userId,
+      taskId: params.taskId,
+      status: "completed",
+      proofUrl: params.proofUrl,
+      proofText: params.proofText,
+      proofImageUrl: params.proofImageUrl,
+      proofImageHash: params.proofImageHash,
+      rewardPaid: params.reward,
+    },
+  });
+
+  await creditWallet({
+    userId: params.userId,
+    type: "TASK",
+    amount: params.reward,
+    reason: "TASK_REWARD",
+    description: `Task reward: ${params.title}`,
+    client: tx,
+  });
+
+  await addXp(params.userId, XP_CONFIG.perTaskCenter, tx);
+  await incrementMissionProgress(params.userId, "TASK_CENTER", 1, tx);
+  await payReferralCommission({
+    earnerId: params.userId,
+    earnedAmount: params.reward,
+    sourceReason: "TASK_REWARD",
+    client: tx,
+  });
+
+  return completion;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +57,15 @@ export async function POST(req: NextRequest) {
       return jsonError("Please verify your email before completing tasks", 403);
     }
 
-    const { taskId, proofUrl, proofText } = schema.parse(await req.json());
+    const form = await req.formData();
+    const taskId = String(form.get("taskId") ?? "");
+    const proofUrl = form.get("proofUrl") ? String(form.get("proofUrl")) : undefined;
+    const proofText = form.get("proofText") ? String(form.get("proofText")) : undefined;
+    const proofImage = form.get("proofImage");
+
+    if (!taskId) return jsonError("Missing task", 422);
+    if (proofUrl && !/^https?:\/\//.test(proofUrl)) return jsonError("Proof link must be a valid URL", 422);
+
     const task = await prisma.taskCenterTask.findUnique({ where: { id: taskId } });
     if (!task || !task.isActive) return jsonError("Task not found", 404);
 
@@ -46,16 +90,48 @@ export async function POST(req: NextRequest) {
     // individual task's own rewardAmount. Users with no active plan keep
     // today's per-task reward.
     const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
-    const effectiveReward = plan
-      ? task.type === "sponsored_post"
-        ? plan.sponsoredPostReward
-        : plan.taskReward
-      : task.rewardAmount;
+    const effectiveReward = Number(
+      plan ? (task.type === "sponsored_post" ? plan.sponsoredPostReward : plan.taskReward) : task.rewardAmount
+    );
 
     if (task.requiresProof) {
-      if (!proofUrl && !proofText) {
-        return jsonError("Please provide proof (a link or short description) for this task", 422);
+      if (!(proofImage instanceof Blob) && !proofUrl && !proofText) {
+        return jsonError("Please provide proof (a screenshot, link, or short description) for this task", 422);
       }
+
+      // A proof screenshot can be verified automatically: hash it and check
+      // for reuse. A link/description alone can't be automatically verified,
+      // so it still goes to manual admin review same as before.
+      if (proofImage instanceof Blob) {
+        const buffer = Buffer.from(await proofImage.arrayBuffer());
+        const proofImageHash = hashBuffer(buffer);
+
+        const duplicate = await prisma.userTaskCompletion.findFirst({
+          where: { proofImageHash, status: { not: "REJECTED" } },
+        });
+        if (duplicate) {
+          return jsonError("This screenshot has already been submitted for a task. Please submit an original screenshot.", 409);
+        }
+
+        const extension = (proofImage.type.split("/")[1] || "jpg").split(";")[0];
+        const proofImageUrl = await saveUploadedFile({ folder: "task-proofs", buffer, extension });
+
+        const completion = await prisma.$transaction((tx) =>
+          approveAndPay(tx, {
+            userId: user.id,
+            taskId,
+            title: task.title,
+            reward: effectiveReward,
+            proofUrl,
+            proofText,
+            proofImageUrl,
+            proofImageHash,
+          })
+        );
+
+        return NextResponse.json({ completion, reward: effectiveReward, pending: false });
+      }
+
       const completion = await prisma.userTaskCompletion.create({
         data: {
           userId: user.id,
@@ -69,33 +145,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ completion, pending: true });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      const completion = await tx.userTaskCompletion.create({
-        data: { userId: user.id, taskId, rewardPaid: effectiveReward },
-      });
+    const result = await prisma.$transaction((tx) =>
+      approveAndPay(tx, { userId: user.id, taskId, title: task.title, reward: effectiveReward })
+    );
 
-      await creditWallet({
-        userId: user.id,
-        type: "TASK",
-        amount: Number(effectiveReward),
-        reason: "TASK_REWARD",
-        description: `Task reward: ${task.title}`,
-        client: tx,
-      });
-
-      await addXp(user.id, XP_CONFIG.perTaskCenter, tx);
-      await incrementMissionProgress(user.id, "TASK_CENTER", 1, tx);
-      await payReferralCommission({
-        earnerId: user.id,
-        earnedAmount: Number(effectiveReward),
-        sourceReason: "TASK_REWARD",
-        client: tx,
-      });
-
-      return completion;
-    });
-
-    return NextResponse.json({ completion: result, reward: Number(effectiveReward), pending: false });
+    return NextResponse.json({ completion: result, reward: effectiveReward, pending: false });
   } catch (error) {
     return handleApiError(error);
   }

@@ -326,6 +326,7 @@ model Deposit {
   method       DepositMethod
   reference    String        @unique
   receiptUrl   String?
+  receiptHash  String?
   status       DepositStatus @default(PENDING)
   gatewayData  Json?
   verifiedById String?
@@ -335,6 +336,7 @@ model Deposit {
 
   @@index([userId])
   @@index([status])
+  @@index([receiptHash])
 }
 
 model BankAccount {
@@ -625,18 +627,21 @@ model TaskCenterTask {
 }
 
 model UserTaskCompletion {
-  id         String         @id @default(cuid())
-  userId     String
-  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  taskId     String
-  task       TaskCenterTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  status     String         @default("completed")
-  proofUrl   String?
-  proofText  String?
-  rewardPaid Decimal        @db.Decimal(18, 2)
-  createdAt  DateTime       @default(now())
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId         String
+  task           TaskCenterTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status         String         @default("completed")
+  proofUrl       String?
+  proofText      String?
+  proofImageUrl  String?
+  proofImageHash String?
+  rewardPaid     Decimal        @db.Decimal(18, 2)
+  createdAt      DateTime       @default(now())
 
   @@index([userId])
+  @@index([proofImageHash])
 }
 
 // ---------------------------------------------------------------------------
