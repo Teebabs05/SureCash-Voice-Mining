@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     const users = await prisma.user.findMany({
       where: q
-        ? { OR: [{ fullName: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] }
+        ? { OR: [{ fullName: { contains: q } }, { email: { contains: q } }] }
         : undefined,
       orderBy: { createdAt: "desc" },
       take: 50,

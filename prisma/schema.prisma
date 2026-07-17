@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -230,7 +230,7 @@ model AdminProfile {
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   department  String?
-  permissions String[] @default([])
+  permissions Json     @default("[]")
   createdAt   DateTime @default(now())
 }
 
