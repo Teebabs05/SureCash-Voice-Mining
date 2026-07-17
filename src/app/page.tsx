@@ -106,8 +106,8 @@ export default async function Home() {
               <Pickaxe className="h-5 w-5" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white">SureCash Mining</h1>
-          <p className="max-w-xs text-sm text-white/75">
+          <h1 className="text-4xl font-bold text-white sm:text-5xl">SureCash Mining</h1>
+          <p className="max-w-xs text-base text-white/75">
             Earn real cash with your voice, daily mining, tasks, and referrals — all in one wallet.
           </p>
           <div className="mt-2 flex w-full max-w-xs flex-col gap-3">
@@ -212,7 +212,7 @@ export default async function Home() {
 
           <div>
             <h2 className="text-lg font-bold">What members are saying</h2>
-            <div className="no-scrollbar mt-4 flex snap-x gap-3 overflow-x-auto pb-1">
+            <div className="no-scrollbar mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-1 touch-pan-x [-webkit-overflow-scrolling:touch]">
               {TESTIMONIALS.map((t) => (
                 <div key={t.name} className="card flex w-64 flex-none snap-start flex-col gap-3 p-4">
                   <Quote className="h-5 w-5 text-brand-primary/40" />
