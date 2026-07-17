@@ -12,13 +12,6 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    // The hosting nginx terminates TLS and always proxies to this app over
-    // plain HTTP, setting X-Forwarded-Proto to the client's real scheme.
-    if (!dev && req.headers["x-forwarded-proto"] === "http") {
-      res.writeHead(308, { Location: `https://${req.headers.host}${req.url}` });
-      res.end();
-      return;
-    }
     handle(req, res);
   }).listen(port, () => {
     console.log(`> Ready on port ${port}`);
