@@ -27,9 +27,9 @@ export async function GET() {
       prisma.withdrawal.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
       prisma.voiceRecording.count({ where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
       prisma.$queryRaw<{ day: Date; count: bigint }[]>`
-        SELECT date_trunc('day', "createdAt") as day, count(*)::bigint as count
-        FROM "User"
-        WHERE "createdAt" > now() - interval '7 days'
+        SELECT DATE(\`createdAt\`) as day, COUNT(*) as count
+        FROM \`User\`
+        WHERE \`createdAt\` > NOW() - INTERVAL 7 DAY
         GROUP BY 1 ORDER BY 1
       `,
     ]);

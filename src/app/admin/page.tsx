@@ -21,10 +21,22 @@ interface Stats {
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<Stats>("/api/admin/stats").then(setStats);
+    apiFetch<Stats>("/api/admin/stats")
+      .then(setStats)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load stats"));
   }, []);
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-2">
+        <h1 className="text-2xl font-bold">Overview</h1>
+        <p className="text-sm text-red-500">Couldn&apos;t load stats: {error}</p>
+      </div>
+    );
+  }
 
   if (!stats) return <p className="text-sm text-foreground/50">Loading…</p>;
 
