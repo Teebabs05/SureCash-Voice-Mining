@@ -38,6 +38,13 @@ const DEPOSIT_METHOD_FIELDS = [
   { key: "deposit_manual_enabled", label: "Manual (bank transfer + receipt upload)" },
 ];
 
+const GATEWAY_PROVIDER_FIELDS = [
+  { key: "deposit_gateway_paystack_enabled", label: "Paystack" },
+  { key: "deposit_gateway_monnify_enabled", label: "Monnify" },
+  { key: "deposit_gateway_korapay_enabled", label: "Korapay" },
+  { key: "deposit_gateway_flutterwave_enabled", label: "Flutterwave" },
+];
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
@@ -167,6 +174,29 @@ export default function AdminSettingsPage() {
         </p>
         <div className="flex flex-col gap-2.5">
           {DEPOSIT_METHOD_FIELDS.map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={settings[key] !== "false"}
+                disabled={loading === key}
+                onChange={(e) => saveBool(key, e.target.checked)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Instant funding providers</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Choose which gateways show up as buttons on the Instant tab. Turning all of them off is the same as
+          switching Instant off entirely above.
+        </p>
+        <div className="flex flex-col gap-2.5">
+          {GATEWAY_PROVIDER_FIELDS.map(({ key, label }) => (
             <label key={key} className="flex items-center gap-2.5 text-sm">
               <input
                 type="checkbox"

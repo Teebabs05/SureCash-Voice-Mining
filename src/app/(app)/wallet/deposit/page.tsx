@@ -18,6 +18,7 @@ interface VirtualAccount {
 
 interface DepositMethods {
   gatewayEnabled: boolean;
+  gateways: Record<string, boolean>;
   virtualAccountEnabled: boolean;
   manual: {
     enabled: boolean;
@@ -170,7 +171,7 @@ export default function DepositPage() {
 
       {tab === "gateway" && (
         <div className="grid grid-cols-2 gap-3">
-          {GATEWAYS.map((g) => (
+          {GATEWAYS.filter((g) => methods?.gateways[g.method] !== false).map((g) => (
             <button
               key={g.method}
               disabled={loading}
