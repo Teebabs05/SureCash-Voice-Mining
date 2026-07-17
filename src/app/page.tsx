@@ -11,8 +11,6 @@ import {
   ListChecks,
   Banknote,
   ArrowUpRight,
-  Star,
-  Quote,
   Smartphone,
   Wifi,
   Zap,
@@ -20,6 +18,7 @@ import {
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/server/current-user";
 import { formatCurrency } from "@/lib/utils";
+import { TestimonialsCarousel } from "@/components/landing/testimonials-carousel";
 
 const FEATURES = [
   { icon: Mic, label: "Voice AI Tasks", description: "Read short prompts aloud and get paid per session." },
@@ -212,30 +211,7 @@ export default async function Home() {
 
           <div>
             <h2 className="text-lg font-bold">What members are saying</h2>
-            <div className="no-scrollbar mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-1 touch-pan-x [-webkit-overflow-scrolling:touch]">
-              {TESTIMONIALS.map((t) => (
-                <div key={t.name} className="card flex w-64 flex-none snap-start flex-col gap-3 p-4">
-                  <Quote className="h-5 w-5 text-brand-primary/40" />
-                  <p className="text-sm text-foreground/80">&ldquo;{t.quote}&rdquo;</p>
-                  <div className="mt-auto flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/10 text-[11px] font-bold text-brand-primary">
-                        {t.initials}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold">{t.name}</p>
-                        <p className="text-[10px] text-foreground/50">{t.location}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: t.rating }).map((_, i) => (
-                        <Star key={i} className="h-3 w-3 fill-brand-amber text-brand-amber" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TestimonialsCarousel testimonials={TESTIMONIALS} />
           </div>
 
           <div>
