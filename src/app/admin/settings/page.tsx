@@ -182,6 +182,25 @@ export default function AdminSettingsPage() {
 
       <Card className="max-w-lg">
         <CardHeader>
+          <CardTitle>Plan requirement</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Off by default: anyone can mine, do Voice Tasks, and Task Center at base rates, and activating a plan
+          just boosts their rate. Turn this on to block all three until a user activates a plan.
+        </p>
+        <label className="flex items-center gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.require_active_plan === "true"}
+            disabled={loading === "require_active_plan"}
+            onChange={(e) => saveBool("require_active_plan", e.target.checked)}
+          />
+          Require an active plan to mine, do Voice Tasks, and Task Center
+        </label>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
           <CardTitle>Manual deposit bank account</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">

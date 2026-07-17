@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 export async function GET(req: NextRequest) {
   try {
     const user = await requireUser();
+    const planRequired = (await isActivePlanRequired()) && !user.planId;
     const category = req.nextUrl.searchParams.get("category");
     const typeFilter =
       category === "sponsored" ? { type: "sponsored_post" } : { type: { not: "sponsored_post" } };
@@ -17,6 +19,7 @@ export async function GET(req: NextRequest) {
     const statusByTask = new Map(completions.map((c) => [c.taskId, c.status]));
 
     return NextResponse.json({
+      planRequired,
       tasks: tasks.map((t) => {
         const status = statusByTask.get(t.id);
         return {

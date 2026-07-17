@@ -19,6 +19,7 @@ import { upsertDevice, estimateVpnSuspicion } from "@/lib/server/device";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { XP_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 export const runtime = "nodejs";
 
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user.emailVerified) {
       return jsonError("Please verify your email before submitting voice tasks", 403);
+    }
+    if ((await isActivePlanRequired()) && !user.planId) {
+      return jsonError("Activate a plan to submit voice tasks", 403);
     }
 
     const { ipAddress, userAgent } = getRequestMeta(req);

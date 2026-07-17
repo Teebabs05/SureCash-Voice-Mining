@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ClipboardCheck, CheckCircle2, ExternalLink, Clock, Upload } from "lucide-react";
+import Link from "next/link";
+import { ClipboardCheck, CheckCircle2, ExternalLink, Clock, Upload, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface TaskCenterTask {
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskCenterTask[]>([]);
+  const [planRequired, setPlanRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [proofTaskId, setProofTaskId] = useState<string | null>(null);
@@ -31,8 +33,11 @@ export default function TasksPage() {
   const [proofImage, setProofImage] = useState<File | null>(null);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks")
-      .then((res) => setTasks(res.tasks))
+    apiFetch<{ tasks: TaskCenterTask[]; planRequired: boolean }>("/api/tasks")
+      .then((res) => {
+        setTasks(res.tasks);
+        setPlanRequired(res.planRequired);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -100,6 +105,19 @@ export default function TasksPage() {
         <p className="text-sm text-foreground/60">Complete simple tasks for extra rewards.</p>
       </div>
 
+      {planRequired && (
+        <Card className="flex items-center gap-3 border border-brand-amber/30 bg-brand-amber/10 p-4">
+          <Crown className="h-5 w-5 flex-none text-brand-amber" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Activate a plan to complete tasks</p>
+            <p className="text-xs text-foreground/60">Task Center is only available to members with an active plan.</p>
+          </div>
+          <Link href="/plans" className="flex-none rounded-lg bg-brand-amber px-3 py-1.5 text-xs font-bold text-[#3a2c00]">
+            View plans
+          </Link>
+        </Card>
+      )}
+
       {tasks.length === 0 && (
         <p className="py-10 text-center text-sm text-foreground/50">No tasks available right now.</p>
       )}
@@ -127,7 +145,7 @@ export default function TasksPage() {
                 <CheckCircle2 className="h-4 w-4" /> Done
               </span>
             ) : (
-              <Button size="sm" loading={completingId === task.id} onClick={() => complete(task)}>
+              <Button size="sm" disabled={planRequired} loading={completingId === task.id} onClick={() => complete(task)}>
                 {task.actionUrl && <ExternalLink className="h-3.5 w-3.5" />}
                 Go
               </Button>

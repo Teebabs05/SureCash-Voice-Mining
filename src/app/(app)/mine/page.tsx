@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Pickaxe, Flame } from "lucide-react";
+import Link from "next/link";
+import { Pickaxe, Flame, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { Card } from "@/components/ui/card";
 
 interface MiningStatus {
   canMine: boolean;
+  planRequired: boolean;
   nextAvailableAt: string | null;
   streakCount: number;
   longestStreak: number;
@@ -84,6 +86,19 @@ export default function MinePage() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-6">
+      {status.planRequired && (
+        <Card className="flex w-full items-center gap-3 border border-brand-amber/30 bg-brand-amber/10 p-4">
+          <Crown className="h-5 w-5 flex-none text-brand-amber" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Activate a plan to start mining</p>
+            <p className="text-xs text-foreground/60">Daily mining is only available to members with an active plan.</p>
+          </div>
+          <Link href="/plans" className="flex-none rounded-lg bg-brand-amber px-3 py-1.5 text-xs font-bold text-[#3a2c00]">
+            View plans
+          </Link>
+        </Card>
+      )}
+
       <div className="flex items-center gap-2 rounded-full bg-surface-muted px-4 py-1.5">
         <Flame className="h-4 w-4 text-orange-500" />
         <span className="text-sm font-semibold">{status.streakCount}-day streak</span>
@@ -93,12 +108,12 @@ export default function MinePage() {
         <div
           className={cn(
             "absolute inset-0 rounded-full gradient-brand opacity-20",
-            status.canMine && "animate-pulse-glow"
+            status.canMine && !status.planRequired && "animate-pulse-glow"
           )}
         />
         <button
           onClick={onMine}
-          disabled={!status.canMine || mining}
+          disabled={!status.canMine || mining || status.planRequired}
           className={cn(
             "relative flex h-44 w-44 items-center justify-center rounded-full gradient-brand text-white shadow-2xl transition-transform active:scale-95 disabled:opacity-70",
             mining && "animate-pulse-glow"

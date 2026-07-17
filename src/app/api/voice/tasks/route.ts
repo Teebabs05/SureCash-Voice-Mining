@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { TIER_CONFIG } from "@/lib/config";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 /** Fisher-Yates shuffle — randomizes sentence order per request so users
  * don't always record the same prompts in the same sequence. */
@@ -30,8 +31,10 @@ export async function GET() {
     });
     const countMap = new Map(todayCounts.map((c) => [c.voiceTaskId, c._count._all]));
     const multiplier = TIER_CONFIG[user.tier].dailyLimitMultiplier;
+    const planRequired = (await isActivePlanRequired()) && !user.planId;
 
     return NextResponse.json({
+      planRequired,
       tasks: shuffle(
         tasks.map((t) => ({
           ...t,

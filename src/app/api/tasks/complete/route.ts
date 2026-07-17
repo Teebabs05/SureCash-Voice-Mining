@@ -9,6 +9,7 @@ import { payReferralCommission } from "@/lib/server/referral-commission";
 import { saveUploadedFile } from "@/lib/server/storage";
 import { hashBuffer } from "@/lib/server/file-hash";
 import { XP_CONFIG } from "@/lib/config";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 type Tx = Prisma.TransactionClient;
 
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user.emailVerified) {
       return jsonError("Please verify your email before completing tasks", 403);
+    }
+    if ((await isActivePlanRequired()) && !user.planId) {
+      return jsonError("Activate a plan to complete tasks", 403);
     }
 
     const form = await req.formData();

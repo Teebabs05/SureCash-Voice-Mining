@@ -3,10 +3,12 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { MINING_CONFIG } from "@/lib/config";
 import { getMiningBaseReward } from "@/lib/server/mining-settings";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 export async function GET() {
   try {
     const user = await requireUser();
+    const planRequired = (await isActivePlanRequired()) && !user.planId;
     const cooldownMs = MINING_CONFIG.cooldownHours * 60 * 60 * 1000;
     const nextAvailableAt = user.lastMiningAt
       ? new Date(user.lastMiningAt.getTime() + cooldownMs)
@@ -21,6 +23,7 @@ export async function GET() {
 
     return NextResponse.json({
       canMine,
+      planRequired,
       nextAvailableAt,
       streakCount: user.streakCount,
       longestStreak: user.longestStreak,
