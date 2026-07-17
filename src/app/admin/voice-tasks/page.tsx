@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Check, X, Trash2 } from "lucide-react";
+import { Plus, Check, X, Trash2, Pencil } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ export default function AdminVoiceTasksPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "" });
 
   const loadTasks = useCallback(() => {
     apiFetch<{ tasks: VoiceTask[] }>("/api/admin/voice-tasks").then((res) => setTasks(res.tasks));
@@ -74,6 +76,40 @@ export default function AdminVoiceTasksPage() {
       loadTasks();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not create task");
+    }
+  }
+
+  function startEdit(task: VoiceTask) {
+    setEditingId(task.id);
+    setEditForm({
+      title: task.title,
+      promptText: task.promptText,
+      category: task.category,
+      rewardAmount: task.rewardAmount,
+      dailyLimit: String(task.dailyLimit),
+    });
+  }
+
+  async function saveEdit(id: string) {
+    setBusyId(id);
+    try {
+      await apiFetch(`/api/admin/voice-tasks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: editForm.title,
+          promptText: editForm.promptText,
+          category: editForm.category,
+          rewardAmount: Number(editForm.rewardAmount),
+          dailyLimit: Number(editForm.dailyLimit),
+        }),
+      });
+      toast.success("Voice task updated");
+      setEditingId(null);
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update task");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -129,32 +165,80 @@ export default function AdminVoiceTasksPage() {
           <CardTitle>Task templates</CardTitle>
         </CardHeader>
         <div className="flex flex-col gap-2">
-          {tasks.map((t) => (
-            <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
-              <div>
-                <p className="text-sm font-semibold">
-                  {t.title} {t.category === "word_game" && <span className="text-xs text-brand-primary">(Word Game)</span>}
-                </p>
-                <p className="text-xs text-foreground/50">{t.promptText}</p>
-                <p className="text-xs font-medium text-brand-green">
-                  {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={t.isActive ? "outline" : "primary"}
-                  loading={busyId === t.id}
-                  onClick={() => toggleActive(t)}
+          {tasks.map((t) =>
+            editingId === t.id ? (
+              <div key={t.id} className="flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
+                <Input
+                  placeholder="Title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                />
+                <Input
+                  placeholder="Prompt text to read aloud"
+                  value={editForm.promptText}
+                  onChange={(e) => setEditForm({ ...editForm, promptText: e.target.value })}
+                />
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
                 >
-                  {t.isActive ? "Deactivate" : "Activate"}
-                </Button>
-                <Button size="sm" variant="danger" loading={busyId === t.id} onClick={() => deleteTask(t)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                  <option value="session">Voice Earn session</option>
+                  <option value="word_game">Word Game</option>
+                </select>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Reward amount"
+                    type="number"
+                    value={editForm.rewardAmount}
+                    onChange={(e) => setEditForm({ ...editForm, rewardAmount: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Daily limit"
+                    type="number"
+                    value={editForm.dailyLimit}
+                    onChange={(e) => setEditForm({ ...editForm, dailyLimit: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" loading={busyId === t.id} onClick={() => saveEdit(t.id)}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {t.title} {t.category === "word_game" && <span className="text-xs text-brand-primary">(Word Game)</span>}
+                  </p>
+                  <p className="text-xs text-foreground/50">{t.promptText}</p>
+                  <p className="text-xs font-medium text-brand-green">
+                    {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day
+                  </p>
+                </div>
+                <div className="flex flex-none gap-2">
+                  <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={t.isActive ? "outline" : "primary"}
+                    loading={busyId === t.id}
+                    onClick={() => toggleActive(t)}
+                  >
+                    {t.isActive ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button size="sm" variant="danger" loading={busyId === t.id} onClick={() => deleteTask(t)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         {showForm ? (

@@ -10,9 +10,10 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get("q");
 
     const users = await prisma.user.findMany({
-      where: q
-        ? { OR: [{ fullName: { contains: q, mode: "insensitive" } }, { email: { contains: q, mode: "insensitive" } }] }
-        : undefined,
+      // MySQL's default collation is already case-insensitive, unlike
+      // Postgres, which needed the (Postgres-only) `mode: "insensitive"`
+      // option this app used to run on.
+      where: q ? { OR: [{ fullName: { contains: q } }, { email: { contains: q } }] } : undefined,
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {

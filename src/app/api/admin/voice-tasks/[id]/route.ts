@@ -7,6 +7,7 @@ import { handleApiError } from "@/lib/server/api-response";
 const schema = z.object({
   title: z.string().min(2).optional(),
   promptText: z.string().min(2).optional(),
+  category: z.enum(["session", "word_game"]).optional(),
   rewardAmount: z.number().positive().optional(),
   dailyLimit: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),

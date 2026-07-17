@@ -16,18 +16,19 @@ interface VirtualAccount {
   bankName: string;
 }
 
+interface ManualBank {
+  configured: boolean;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+}
+
 const GATEWAYS = [
   { method: "PAYSTACK", label: "Paystack" },
   { method: "MONNIFY", label: "Monnify" },
   { method: "KORAPAY", label: "Korapay" },
   { method: "FLUTTERWAVE", label: "Flutterwave" },
 ] as const;
-
-const MANUAL_BANK = {
-  bankName: "SureCash Trust MFB",
-  accountNumber: "0123456789",
-  accountName: "SureCash Mining Ltd",
-};
 
 interface Deposit {
   id: string;
@@ -49,9 +50,11 @@ export default function DepositPage() {
   const [virtualAccountError, setVirtualAccountError] = useState<string | null>(null);
   const [virtualAccountLoading, setVirtualAccountLoading] = useState(false);
   const [virtualAccountAttempted, setVirtualAccountAttempted] = useState(false);
+  const [manualBank, setManualBank] = useState<ManualBank | null>(null);
 
   useEffect(() => {
     apiFetch<{ deposits: Deposit[] }>("/api/deposits").then((res) => setDeposits(res.deposits));
+    apiFetch<ManualBank>("/api/deposits/manual-bank").then(setManualBank);
   }, []);
 
   useEffect(() => {
@@ -185,6 +188,11 @@ export default function DepositPage() {
             A fallback for when instant payment gateways are down. Enter the amount you&apos;re sending, then
             transfer to our bank account and upload your receipt for admin review.
           </p>
+          {manualBank && !manualBank.configured && (
+            <p className="mt-3 rounded-lg bg-brand-amber/15 px-3 py-2 text-xs text-[#a67c00]">
+              Manual bank transfer isn&apos;t set up yet — please use Instant or Bank transfer instead.
+            </p>
+          )}
           <Input
             className="mt-3"
             label="Amount"
@@ -196,6 +204,7 @@ export default function DepositPage() {
           />
           <Button
             className="mt-3 w-full"
+            disabled={!manualBank?.configured}
             onClick={() => {
               if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
               setManualStep("transfer");
@@ -206,7 +215,7 @@ export default function DepositPage() {
         </Card>
       )}
 
-      {tab === "manual" && manualStep === "transfer" && (
+      {tab === "manual" && manualStep === "transfer" && manualBank?.configured && (
         <Card>
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
@@ -214,7 +223,7 @@ export default function DepositPage() {
             </div>
             <p className="text-2xl font-bold">Pay {formatCurrency(amount)}</p>
             <p className="text-sm text-foreground/60">
-              Please proceed to your mobile banking app to complete your bank transfer to {MANUAL_BANK.accountName}.
+              Please proceed to your mobile banking app to complete your bank transfer to {manualBank.accountName}.
             </p>
           </div>
 
@@ -225,11 +234,11 @@ export default function DepositPage() {
             </div>
             <div className="flex items-center justify-between py-3 text-sm">
               <span className="text-foreground/60">Account number</span>
-              <span className="font-semibold">{MANUAL_BANK.accountNumber}</span>
+              <span className="font-semibold">{manualBank.accountNumber}</span>
             </div>
             <div className="flex items-center justify-between py-3 text-sm">
               <span className="text-foreground/60">Bank name</span>
-              <span className="font-semibold">{MANUAL_BANK.bankName}</span>
+              <span className="font-semibold">{manualBank.bankName}</span>
             </div>
           </div>
 

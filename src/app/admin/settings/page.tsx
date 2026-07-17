@@ -26,6 +26,12 @@ const GAMIFICATION_SETTING_FIELDS = [
   { key: "referral_signup_bonus", label: "Referral signup bonus" },
 ];
 
+const MANUAL_BANK_FIELDS = [
+  { key: "manual_deposit_bank_name", label: "Bank name" },
+  { key: "manual_deposit_account_number", label: "Account number" },
+  { key: "manual_deposit_account_name", label: "Account name" },
+];
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
@@ -53,6 +59,21 @@ export default function AdminSettingsPage() {
         method: "PUT",
         body: JSON.stringify({ key, value: raw === "" ? "" : numeric }),
       });
+      toast.success(`${key.replaceAll("_", " ")} updated`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save setting");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function saveText(key: string) {
+    const value = (settings[key] ?? "").trim();
+    if (!value) return toast.error("This field can't be empty");
+
+    setLoading(key);
+    try {
+      await apiFetch("/api/admin/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
       toast.success(`${key.replaceAll("_", " ")} updated`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save setting");
@@ -110,6 +131,30 @@ export default function AdminSettingsPage() {
                 onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
               />
               <Button size="sm" loading={loading === key} onClick={() => save(key)}>
+                Save
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Manual deposit bank account</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Shown to users on the &quot;Manual&quot; tab of Fund Wallet when instant gateways are down. Leave any
+          field empty and that tab stays disabled for users.
+        </p>
+        <div className="flex flex-col gap-3">
+          {MANUAL_BANK_FIELDS.map(({ key, label }) => (
+            <div key={key} className="flex items-end gap-2">
+              <Input
+                label={label}
+                value={settings[key] ?? ""}
+                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+              />
+              <Button size="sm" loading={loading === key} onClick={() => saveText(key)}>
                 Save
               </Button>
             </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Ban, CheckCircle } from "lucide-react";
+import { Search, Ban, CheckCircle, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -122,15 +123,22 @@ export default function AdminUsersPage() {
                 </td>
                 <td className="px-4 py-3 text-foreground/50">{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
-                  <Button
-                    size="sm"
-                    variant={u.isBanned ? "outline" : "danger"}
-                    loading={busyId === u.id}
-                    onClick={() => toggleBan(u)}
-                  >
-                    {u.isBanned ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                    {u.isBanned ? "Unban" : "Ban"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Link href={`/admin/users/${u.id}`}>
+                      <Button size="sm" variant="outline">
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </Button>
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant={u.isBanned ? "outline" : "danger"}
+                      loading={busyId === u.id}
+                      onClick={() => toggleBan(u)}
+                    >
+                      {u.isBanned ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                      {u.isBanned ? "Unban" : "Ban"}
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
