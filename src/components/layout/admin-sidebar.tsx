@@ -91,7 +91,9 @@ export function AdminSidebar() {
           <Menu className="h-5 w-5" />
         </button>
         <p className="text-sm font-semibold">{current?.label ?? "SureCash Admin"}</p>
-        <div className="w-8" />
+        <button onClick={logout} aria-label="Log out" className="rounded-lg p-1.5 text-red-500 hover:bg-red-500/10">
+          <LogOut className="h-5 w-5" />
+        </button>
       </div>
 
       {drawerOpen && (
