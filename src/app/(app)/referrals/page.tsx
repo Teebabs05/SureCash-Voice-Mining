@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Users, CheckCircle2, Clock, Network } from "lucide-react";
+import { Copy, Users, CheckCircle2, Clock, Network, Share2, MessageCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,17 +23,50 @@ interface ReferralData {
   networkSize: number;
 }
 
+interface Plan {
+  id: string;
+  name: string;
+  price: string;
+  referralCommission: string;
+}
+
+function shareMessage(referralUrl: string) {
+  return `Join SureCash Mining and start earning with your voice, daily mining, and tasks! Sign up with my link: ${referralUrl}`;
+}
+
 export default function ReferralsPage() {
   const [data, setData] = useState<ReferralData | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
 
   useEffect(() => {
     apiFetch<ReferralData>("/api/referrals").then(setData);
+    apiFetch<{ plans: Plan[] }>("/api/plans").then((res) => setPlans(res.plans));
   }, []);
 
   function copyLink() {
     if (!data) return;
     navigator.clipboard.writeText(data.referralUrl);
     toast.success("Referral link copied");
+  }
+
+  async function share() {
+    if (!data) return;
+    const text = shareMessage(data.referralUrl);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "SureCash Mining", text, url: data.referralUrl });
+      } catch {
+        // User cancelled the share sheet - nothing to do.
+      }
+    } else {
+      navigator.clipboard.writeText(text);
+      toast.success("Message copied - paste it anywhere to share");
+    }
+  }
+
+  function shareToWhatsApp() {
+    if (!data) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(shareMessage(data.referralUrl))}`, "_blank");
   }
 
   if (!data) return <p className="py-10 text-center text-sm text-foreground/50">Loading…</p>;
@@ -48,10 +81,27 @@ export default function ReferralsPage() {
       <div className="card gradient-wallet-referral p-5 text-white">
         <p className="text-xs text-white/75">Your referral code</p>
         <p className="text-2xl font-bold tracking-widest">{data.referralCode}</p>
-        <Button variant="secondary" size="sm" className="mt-3 w-full" onClick={copyLink}>
-          <Copy className="h-4 w-4" /> Copy invite link
-        </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your referral link</CardTitle>
+        </CardHeader>
+        <div className="flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2.5 text-sm">
+          <p className="flex-1 truncate text-foreground/70">{data.referralUrl}</p>
+          <Button size="sm" onClick={copyLink}>
+            <Copy className="h-3.5 w-3.5" /> Copy
+          </Button>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Button variant="outline" onClick={share}>
+            <Share2 className="h-4 w-4" /> Share
+          </Button>
+          <Button variant="outline" onClick={shareToWhatsApp}>
+            <MessageCircle className="h-4 w-4" /> WhatsApp
+          </Button>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="text-center">
@@ -64,6 +114,34 @@ export default function ReferralsPage() {
           <p className="text-xs text-foreground/50">Total earned</p>
         </Card>
       </div>
+
+      <Card className="bg-brand-primary/5">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-brand-primary">
+          <Info className="h-4 w-4" /> How your commission is calculated
+        </p>
+        <p className="mt-1.5 text-sm text-foreground/70">
+          You earn a commission based on the plan your referral activates - the bigger the plan they buy, the more
+          you earn.
+        </p>
+      </Card>
+
+      {plans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Commission per plan activated</CardTitle>
+          </CardHeader>
+          <div className="flex flex-col divide-y divide-border">
+            {plans.map((p) => (
+              <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
+                <span>
+                  {p.name} <span className="text-foreground/50">({formatCurrency(p.price)})</span>
+                </span>
+                <span className="font-semibold text-brand-green">{formatCurrency(p.referralCommission)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
