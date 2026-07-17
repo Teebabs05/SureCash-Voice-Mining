@@ -16,11 +16,15 @@ interface VirtualAccount {
   bankName: string;
 }
 
-interface ManualBank {
-  configured: boolean;
-  bankName: string;
-  accountNumber: string;
-  accountName: string;
+interface DepositMethods {
+  gatewayEnabled: boolean;
+  virtualAccountEnabled: boolean;
+  manual: {
+    enabled: boolean;
+    bankName: string;
+    accountNumber: string;
+    accountName: string;
+  };
 }
 
 const GATEWAYS = [
@@ -50,11 +54,16 @@ export default function DepositPage() {
   const [virtualAccountError, setVirtualAccountError] = useState<string | null>(null);
   const [virtualAccountLoading, setVirtualAccountLoading] = useState(false);
   const [virtualAccountAttempted, setVirtualAccountAttempted] = useState(false);
-  const [manualBank, setManualBank] = useState<ManualBank | null>(null);
+  const [methods, setMethods] = useState<DepositMethods | null>(null);
 
   useEffect(() => {
     apiFetch<{ deposits: Deposit[] }>("/api/deposits").then((res) => setDeposits(res.deposits));
-    apiFetch<ManualBank>("/api/deposits/manual-bank").then(setManualBank);
+    apiFetch<DepositMethods>("/api/deposits/methods").then((res) => {
+      setMethods(res);
+      if (!res.gatewayEnabled) {
+        setTab(res.virtualAccountEnabled ? "transfer" : "manual");
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -118,20 +127,35 @@ export default function DepositPage() {
       </button>
       <h1 className="text-xl font-bold">Fund Wallet</h1>
 
-      <div className="flex gap-2 rounded-xl bg-surface-muted p-1">
-        {(["gateway", "transfer", "manual"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={cn(
-              "flex-1 rounded-lg py-2 text-sm font-medium capitalize transition-colors",
-              tab === t ? "bg-surface shadow" : "text-foreground/50"
-            )}
-          >
-            {t === "gateway" ? "Instant" : t === "transfer" ? "Bank transfer" : "Manual"}
-          </button>
-        ))}
-      </div>
+      {methods && !methods.gatewayEnabled && !methods.virtualAccountEnabled && !methods.manual.enabled && (
+        <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">
+          Deposits are temporarily unavailable. Please check back later.
+        </p>
+      )}
+
+      {methods && (methods.gatewayEnabled || methods.virtualAccountEnabled || methods.manual.enabled) && (
+        <div className="flex gap-2 rounded-xl bg-surface-muted p-1">
+          {(["gateway", "transfer", "manual"] as const)
+            .filter(
+              (t) =>
+                (t === "gateway" && methods.gatewayEnabled) ||
+                (t === "transfer" && methods.virtualAccountEnabled) ||
+                (t === "manual" && methods.manual.enabled)
+            )
+            .map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  "flex-1 rounded-lg py-2 text-sm font-medium capitalize transition-colors",
+                  tab === t ? "bg-surface shadow" : "text-foreground/50"
+                )}
+              >
+                {t === "gateway" ? "Instant" : t === "transfer" ? "Bank transfer" : "Manual"}
+              </button>
+            ))}
+        </div>
+      )}
 
       {tab === "gateway" && (
         <Input
@@ -188,11 +212,6 @@ export default function DepositPage() {
             A fallback for when instant payment gateways are down. Enter the amount you&apos;re sending, then
             transfer to our bank account and upload your receipt for admin review.
           </p>
-          {manualBank && !manualBank.configured && (
-            <p className="mt-3 rounded-lg bg-brand-amber/15 px-3 py-2 text-xs text-[#a67c00]">
-              Manual bank transfer isn&apos;t set up yet — please use Instant or Bank transfer instead.
-            </p>
-          )}
           <Input
             className="mt-3"
             label="Amount"
@@ -204,7 +223,6 @@ export default function DepositPage() {
           />
           <Button
             className="mt-3 w-full"
-            disabled={!manualBank?.configured}
             onClick={() => {
               if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
               setManualStep("transfer");
@@ -215,7 +233,7 @@ export default function DepositPage() {
         </Card>
       )}
 
-      {tab === "manual" && manualStep === "transfer" && manualBank?.configured && (
+      {tab === "manual" && manualStep === "transfer" && methods?.manual.enabled && (
         <Card>
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
@@ -223,7 +241,7 @@ export default function DepositPage() {
             </div>
             <p className="text-2xl font-bold">Pay {formatCurrency(amount)}</p>
             <p className="text-sm text-foreground/60">
-              Please proceed to your mobile banking app to complete your bank transfer to {manualBank.accountName}.
+              Please proceed to your mobile banking app to complete your bank transfer to {methods.manual.accountName}.
             </p>
           </div>
 
@@ -234,11 +252,11 @@ export default function DepositPage() {
             </div>
             <div className="flex items-center justify-between py-3 text-sm">
               <span className="text-foreground/60">Account number</span>
-              <span className="font-semibold">{manualBank.accountNumber}</span>
+              <span className="font-semibold">{methods.manual.accountNumber}</span>
             </div>
             <div className="flex items-center justify-between py-3 text-sm">
               <span className="text-foreground/60">Bank name</span>
-              <span className="font-semibold">{manualBank.bankName}</span>
+              <span className="font-semibold">{methods.manual.bankName}</span>
             </div>
           </div>
 

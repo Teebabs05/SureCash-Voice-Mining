@@ -32,6 +32,12 @@ const MANUAL_BANK_FIELDS = [
   { key: "manual_deposit_account_name", label: "Account name" },
 ];
 
+const DEPOSIT_METHOD_FIELDS = [
+  { key: "deposit_gateway_enabled", label: "Instant (Paystack / Monnify / Korapay / Flutterwave)" },
+  { key: "deposit_virtual_account_enabled", label: "Bank transfer (dedicated account number)" },
+  { key: "deposit_manual_enabled", label: "Manual (bank transfer + receipt upload)" },
+];
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
@@ -59,6 +65,19 @@ export default function AdminSettingsPage() {
         method: "PUT",
         body: JSON.stringify({ key, value: raw === "" ? "" : numeric }),
       });
+      toast.success(`${key.replaceAll("_", " ")} updated`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save setting");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function saveBool(key: string, value: boolean) {
+    setSettings({ ...settings, [key]: String(value) });
+    setLoading(key);
+    try {
+      await apiFetch("/api/admin/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
       toast.success(`${key.replaceAll("_", " ")} updated`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save setting");
@@ -134,6 +153,29 @@ export default function AdminSettingsPage() {
                 Save
               </Button>
             </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Deposit methods</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Turn a method off to hide its tab on Fund Wallet for everyone — e.g. switch off Instant and Bank
+          transfer to run on Manual only while you&apos;re not using automatic payment gateways.
+        </p>
+        <div className="flex flex-col gap-2.5">
+          {DEPOSIT_METHOD_FIELDS.map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={settings[key] !== "false"}
+                disabled={loading === key}
+                onChange={(e) => saveBool(key, e.target.checked)}
+              />
+              {label}
+            </label>
           ))}
         </div>
       </Card>

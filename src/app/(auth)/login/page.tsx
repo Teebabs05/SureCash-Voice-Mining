@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Home } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -72,6 +73,9 @@ export default function LoginPage() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <Link href="/" className="flex w-fit items-center gap-1.5 text-xs font-medium text-foreground/50 hover:text-foreground/70">
+        <Home className="h-3.5 w-3.5" /> Home
+      </Link>
       <h2 className="text-lg font-semibold">Welcome back</h2>
       <Input
         label="Email"

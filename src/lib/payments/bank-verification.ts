@@ -46,6 +46,11 @@ export async function resolveBankAccount(params: {
   return { accountName: data.data.account_name, verified: true, configured: true };
 }
 
+// This static list is only used until a payment gateway key is configured
+// (see getBankList below) — once one is, the live Paystack bank list takes
+// over automatically. Codes here are used directly for real payout routing,
+// so only add a bank once its NIBSS code is confirmed against a live
+// provider list — do not guess.
 const FALLBACK_BANKS: BankListEntry[] = [
   { code: "044", name: "Access Bank" },
   { code: "023", name: "Citibank Nigeria" },
@@ -60,6 +65,8 @@ const FALLBACK_BANKS: BankListEntry[] = [
   { code: "50211", name: "Kuda Bank" },
   { code: "526", name: "Moniepoint MFB" },
   { code: "50515", name: "Moniepoint Microfinance Bank" },
+  { code: "999992", name: "OPay Digital Services Limited (OPay)" },
+  { code: "999991", name: "PalmPay" },
   { code: "076", name: "Polaris Bank" },
   { code: "101", name: "Providus Bank" },
   { code: "221", name: "Stanbic IBTC Bank" },
