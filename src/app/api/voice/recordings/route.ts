@@ -132,6 +132,24 @@ export async function POST(req: NextRequest) {
     const passed =
       !isDuplicate && !isReplayAttack && !noise.flagged && !isSynthesizedVoice && transcription.confidence >= 0.6;
 
+    // The system is the sole decision-maker on every submission - approved
+    // or rejected immediately, nothing sits in a manual review queue. Pick
+    // the most specific reason first (fraud-related checks before
+    // quality-related ones) so the user knows exactly what to fix.
+    const rejectionReason = passed
+      ? null
+      : isReplayAttack
+        ? "This sounds like a replay of a previous recording, not a fresh live reading."
+        : isDuplicate
+          ? "This recording matches one that's already been submitted."
+          : isSynthesizedVoice
+            ? "This sounds like a synthesized or AI-generated voice rather than a real live reading."
+            : noise.flagged
+              ? "Too much background noise - please record somewhere quieter."
+              : transcription.confidence < 0.6
+                ? "We couldn't clearly make out your speech - please read the prompt clearly and try again."
+                : "This submission didn't pass automatic review.";
+
     // A user's active plan re-prices every voice activity at a flat rate for
     // that activity type (session vs word game), overriding the individual
     // task's own rewardAmount. Users with no active plan keep today's
@@ -158,7 +176,7 @@ export async function POST(req: NextRequest) {
           audioHash,
           durationSec,
           deviceId: device.id,
-          status: passed ? "APPROVED" : isDuplicate || isReplayAttack || isSynthesizedVoice ? "FLAGGED" : "REJECTED",
+          status: passed ? "APPROVED" : "REJECTED",
           rewardAmount: passed ? effectiveReward : null,
           reviewedAt: new Date(),
         },
@@ -225,6 +243,7 @@ export async function POST(req: NextRequest) {
       recording: result,
       passed,
       reward: passed ? Number(effectiveReward) : 0,
+      reason: rejectionReason,
     });
   } catch (error) {
     return handleApiError(error);

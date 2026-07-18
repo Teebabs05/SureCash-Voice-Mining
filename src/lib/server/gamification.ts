@@ -74,11 +74,29 @@ export async function incrementMissionProgress(userId: string, missionType: stri
   today.setHours(0, 0, 0, 0);
 
   for (const mission of missions) {
-    const progress = await client.userMissionProgress.upsert({
-      where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
-      update: { progress: { increment: by } },
-      create: { userId, missionId: mission.id, date: today, progress: by },
-    });
+    let progress;
+    try {
+      progress = await client.userMissionProgress.upsert({
+        where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
+        update: { progress: { increment: by } },
+        create: { userId, missionId: mission.id, date: today, progress: by },
+      });
+    } catch (error) {
+      // Two near-simultaneous calls for the same (userId, missionId, date) -
+      // e.g. a resubmitted request on a flaky connection - can both miss
+      // upsert's own existence check and race to insert the same row; the
+      // loser fails on the unique constraint even though bumping today's
+      // progress is still a perfectly valid thing to do, so fall back to a
+      // plain update against the row the winner just created.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        progress = await client.userMissionProgress.update({
+          where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
+          data: { progress: { increment: by } },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     if (!progress.completed && progress.progress >= mission.target) {
       await client.userMissionProgress.update({

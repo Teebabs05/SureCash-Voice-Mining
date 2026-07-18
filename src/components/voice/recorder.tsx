@@ -70,16 +70,15 @@ export function VoiceRecorder({ task, onDone }: { task: VoiceTaskLite; onDone: (
       form.append("durationSec", String(seconds));
       form.append("fingerprint", fingerprint);
 
-      const res = await apiFetch<{ passed: boolean; reward: number }>("/api/voice/recordings", {
-        method: "POST",
-        body: form,
-        headers: {},
-      });
+      const res = await apiFetch<{ passed: boolean; reward: number; reason: string | null }>(
+        "/api/voice/recordings",
+        { method: "POST", body: form, headers: {} }
+      );
 
       if (res.passed) {
         toast.success(`Approved! +${formatCurrency(res.reward)} added to your Voice wallet`);
       } else {
-        toast.warning("Recording didn't pass validation. Try again in a quiet space.");
+        toast.warning(res.reason ?? "Recording didn't pass validation. Try again in a quiet space.");
       }
       discard();
       onDone();
