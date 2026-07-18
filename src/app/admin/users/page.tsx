@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Search, Ban, CheckCircle, Eye } from "lucide-react";
+import { Search, Ban, CheckCircle, Eye, Plus } from "lucide-react";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -27,6 +28,9 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
 
   const load = useCallback((query?: string) => {
     apiFetch<{ users: AdminUser[] }>(`/api/admin/users${query ? `?q=${encodeURIComponent(query)}` : ""}`).then((res) =>
@@ -67,6 +71,24 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function createUser() {
+    if (!form.fullName || !form.email || form.password.length < 8) {
+      return toast.error("Full name, email, and an 8+ character password are required");
+    }
+    setCreating(true);
+    try {
+      await apiFetch("/api/admin/users", { method: "POST", body: JSON.stringify(form) });
+      toast.success("User created");
+      setForm({ fullName: "", email: "", phone: "", password: "" });
+      setShowCreate(false);
+      load(q);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not create user");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Users</h1>
@@ -77,6 +99,49 @@ export default function AdminUsersPage() {
           <Search className="h-4 w-4" />
         </Button>
       </div>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Create user</CardTitle>
+        </CardHeader>
+        {showCreate ? (
+          <div className="flex flex-col gap-2">
+            <Input placeholder="Full name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+            <Input
+              placeholder="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            <Input
+              placeholder="Phone (optional)"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <Input
+              placeholder="Password (8+ characters)"
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" loading={creating} onClick={createUser}>
+                Create
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowCreate(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-border py-2.5 text-sm text-brand-primary"
+          >
+            <Plus className="h-4 w-4" /> New user
+          </button>
+        )}
+      </Card>
 
       <div className="overflow-x-auto rounded-2xl border border-border">
         <table className="w-full text-left text-sm">

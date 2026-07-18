@@ -160,12 +160,14 @@ model User {
   fullName     String
   role         UserRole @default(USER)
 
-  emailVerified Boolean  @default(false)
-  phoneVerified Boolean  @default(false)
-  isBanned      Boolean  @default(false)
-  banReason     String?
-  tier          UserTier @default(FREE)
-  avatarUrl     String?
+  emailVerified      Boolean  @default(false)
+  phoneVerified      Boolean  @default(false)
+  isBanned           Boolean  @default(false)
+  banReason          String?
+  withdrawalsLocked  Boolean  @default(false)
+  withdrawalLockNote String?
+  tier               UserTier @default(FREE)
+  avatarUrl          String?
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?

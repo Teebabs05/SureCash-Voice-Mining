@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Ban, CheckCircle } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, ShieldCheck, Lock, Unlock, Trash2, Pencil } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
 
@@ -17,6 +18,8 @@ interface UserDetail {
   role: string;
   isBanned: boolean;
   banReason: string | null;
+  withdrawalsLocked: boolean;
+  withdrawalLockNote: string | null;
   emailVerified: boolean;
   phoneVerified: boolean;
   level: number;
@@ -49,6 +52,8 @@ interface DepositOrWithdrawal {
 }
 
 const TIERS = ["FREE", "SILVER", "GOLD", "VIP"] as const;
+const ROLES = ["USER", "ADMIN", "SUPERADMIN"] as const;
+const WALLET_TYPES = ["MAIN", "ENGAGEMENT", "SALES"] as const;
 
 export default function AdminUserDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +64,16 @@ export default function AdminUserDetailPage() {
   const [withdrawals, setWithdrawals] = useState<DepositOrWithdrawal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [myRole, setMyRole] = useState<string | null>(null);
+
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ fullName: "", email: "", phone: "" });
+
+  const [showLockForm, setShowLockForm] = useState(false);
+  const [lockNote, setLockNote] = useState("");
+
+  const [adjustForm, setAdjustForm] = useState({ walletType: "MAIN", direction: "credit", amount: "", reason: "" });
+  const [adjusting, setAdjusting] = useState(false);
 
   const load = useCallback(() => {
     apiFetch<{
@@ -78,14 +93,15 @@ export default function AdminUserDetailPage() {
 
   useEffect(() => {
     load();
+    apiFetch<{ user: { role: string } }>("/api/auth/me").then((res) => setMyRole(res.user.role));
   }, [load]);
 
-  async function toggleBan() {
+  async function patch(body: Record<string, unknown>, successMessage: string) {
     if (!user) return;
     setBusy(true);
     try {
-      await apiFetch(`/api/admin/users/${user.id}`, { method: "PATCH", body: JSON.stringify({ isBanned: !user.isBanned }) });
-      toast.success(user.isBanned ? "User unbanned" : "User banned");
+      await apiFetch(`/api/admin/users/${user.id}`, { method: "PATCH", body: JSON.stringify(body) });
+      toast.success(successMessage);
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Action failed");
@@ -94,19 +110,71 @@ export default function AdminUserDetailPage() {
     }
   }
 
-  async function changeTier(tier: string) {
+  function startEditProfile() {
     if (!user) return;
+    setProfileForm({ fullName: user.fullName, email: user.email, phone: user.phone ?? "" });
+    setEditingProfile(true);
+  }
+
+  async function saveProfile() {
+    await patch(
+      { fullName: profileForm.fullName, email: profileForm.email, phone: profileForm.phone || undefined },
+      "Profile updated"
+    );
+    setEditingProfile(false);
+  }
+
+  async function toggleLock() {
+    if (!user) return;
+    if (user.withdrawalsLocked) {
+      await patch({ withdrawalsLocked: false }, "Withdrawals unlocked");
+    } else {
+      setShowLockForm(true);
+    }
+  }
+
+  async function confirmLock() {
+    await patch({ withdrawalsLocked: true, withdrawalLockNote: lockNote || undefined }, "Withdrawals locked");
+    setShowLockForm(false);
+    setLockNote("");
+  }
+
+  async function deleteUser() {
+    if (!user) return;
+    if (!confirm(`Permanently delete ${user.fullName} (${user.email})? This cannot be undone.`)) return;
     setBusy(true);
     try {
-      await apiFetch(`/api/admin/users/${user.id}`, { method: "PATCH", body: JSON.stringify({ tier }) });
-      toast.success(`Moved to ${tier}`);
-      load();
+      await apiFetch(`/api/admin/users/${user.id}`, { method: "DELETE" });
+      toast.success("User deleted");
+      router.push("/admin/users");
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Action failed");
+      toast.error(err instanceof ApiError ? err.message : "Could not delete user");
     } finally {
       setBusy(false);
     }
   }
+
+  async function submitAdjustment() {
+    if (!user) return;
+    if (!adjustForm.amount || Number(adjustForm.amount) <= 0) return toast.error("Enter a valid amount");
+    if (!adjustForm.reason.trim()) return toast.error("A reason is required");
+    setAdjusting(true);
+    try {
+      await apiFetch(`/api/admin/users/${user.id}/wallet-adjustment`, {
+        method: "POST",
+        body: JSON.stringify({ ...adjustForm, amount: Number(adjustForm.amount) }),
+      });
+      toast.success(`Wallet ${adjustForm.direction}ed`);
+      setAdjustForm({ walletType: "MAIN", direction: "credit", amount: "", reason: "" });
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not adjust wallet");
+    } finally {
+      setAdjusting(false);
+    }
+  }
+
+  const isSuperAdmin = myRole === "SUPERADMIN";
 
   return (
     <div className="flex flex-col gap-4">
@@ -129,7 +197,7 @@ export default function AdminUserDetailPage() {
               <select
                 value={user.tier}
                 disabled={busy}
-                onChange={(e) => changeTier(e.target.value)}
+                onChange={(e) => patch({ tier: e.target.value }, `Moved to ${e.target.value}`)}
                 className="rounded-lg border border-border bg-surface px-2 py-1.5 text-sm"
               >
                 {TIERS.map((t) => (
@@ -138,15 +206,54 @@ export default function AdminUserDetailPage() {
                   </option>
                 ))}
               </select>
-              <Button size="sm" variant={user.isBanned ? "outline" : "danger"} loading={busy} onClick={toggleBan}>
+              <Button
+                size="sm"
+                variant={user.isBanned ? "outline" : "danger"}
+                loading={busy}
+                onClick={() => patch({ isBanned: !user.isBanned }, user.isBanned ? "User unbanned" : "User banned")}
+              >
                 {user.isBanned ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
                 {user.isBanned ? "Unban" : "Ban"}
               </Button>
+              <Button size="sm" variant={user.withdrawalsLocked ? "outline" : "danger"} loading={busy} onClick={toggleLock}>
+                {user.withdrawalsLocked ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                {user.withdrawalsLocked ? "Unlock withdrawals" : "Lock withdrawals"}
+              </Button>
+              {!user.emailVerified && (
+                <Button size="sm" variant="outline" loading={busy} onClick={() => patch({ emailVerified: true }, "Email verified")}>
+                  <ShieldCheck className="h-3.5 w-3.5" /> Verify email
+                </Button>
+              )}
+              {isSuperAdmin && (
+                <Button size="sm" variant="danger" loading={busy} onClick={deleteUser}>
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
+                </Button>
+              )}
             </div>
           </div>
 
           {user.isBanned && user.banReason && (
             <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">Ban reason: {user.banReason}</p>
+          )}
+          {user.withdrawalsLocked && (
+            <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">
+              Withdrawals locked{user.withdrawalLockNote ? `: ${user.withdrawalLockNote}` : ""}
+            </p>
+          )}
+
+          {showLockForm && (
+            <Card>
+              <p className="mb-2 text-sm font-semibold">Lock withdrawals - optional note shown to the user</p>
+              <div className="flex gap-2">
+                <Input placeholder="e.g. Verifying a recent deposit" value={lockNote} onChange={(e) => setLockNote(e.target.value)} />
+                <Button size="sm" loading={busy} onClick={confirmLock}>
+                  Confirm lock
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowLockForm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </Card>
           )}
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -178,26 +285,122 @@ export default function AdminUserDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Account</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Account</CardTitle>
+                {!editingProfile && (
+                  <Button size="sm" variant="outline" onClick={startEditProfile}>
+                    <Pencil className="h-3.5 w-3.5" /> Edit profile
+                  </Button>
+                )}
+              </div>
             </CardHeader>
-            <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
-              <p>
-                <span className="text-foreground/50">Role:</span> {user.role}
-              </p>
-              <p>
-                <span className="text-foreground/50">Email verified:</span> {user.emailVerified ? "Yes" : "No"}
-              </p>
-              <p>
-                <span className="text-foreground/50">Phone verified:</span> {user.phoneVerified ? "Yes" : "No"}
-              </p>
-              <p>
-                <span className="text-foreground/50">Joined:</span> {new Date(user.createdAt).toLocaleDateString()}
-              </p>
-              {user.referredBy && (
-                <p className="col-span-2">
-                  <span className="text-foreground/50">Referred by:</span> {user.referredBy.fullName} ({user.referredBy.email})
+
+            {editingProfile ? (
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Full name"
+                  value={profileForm.fullName}
+                  onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                />
+                <Input
+                  label="Phone"
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" loading={busy} onClick={saveProfile}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingProfile(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-foreground/50">Role:</span>
+                  {isSuperAdmin ? (
+                    <select
+                      value={user.role}
+                      disabled={busy}
+                      onChange={(e) => patch({ role: e.target.value }, `Role changed to ${e.target.value}`)}
+                      className="rounded-lg border border-border bg-surface px-1.5 py-0.5 text-xs"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span>{user.role}</span>
+                  )}
+                </div>
+                <p>
+                  <span className="text-foreground/50">Email verified:</span> {user.emailVerified ? "Yes" : "No"}
                 </p>
-              )}
+                <p>
+                  <span className="text-foreground/50">Phone verified:</span> {user.phoneVerified ? "Yes" : "No"}
+                </p>
+                <p>
+                  <span className="text-foreground/50">Joined:</span> {new Date(user.createdAt).toLocaleDateString()}
+                </p>
+                {user.referredBy && (
+                  <p className="col-span-2">
+                    <span className="text-foreground/50">Referred by:</span> {user.referredBy.fullName} ({user.referredBy.email})
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Manually credit or debit a wallet</CardTitle>
+            </CardHeader>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <select
+                  value={adjustForm.walletType}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, walletType: e.target.value })}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                >
+                  {WALLET_TYPES.map((w) => (
+                    <option key={w} value={w}>
+                      {w}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={adjustForm.direction}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, direction: e.target.value })}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                >
+                  <option value="credit">Credit (add)</option>
+                  <option value="debit">Debit (remove)</option>
+                </select>
+                <Input
+                  placeholder="Amount"
+                  type="number"
+                  value={adjustForm.amount}
+                  onChange={(e) => setAdjustForm({ ...adjustForm, amount: e.target.value })}
+                />
+              </div>
+              <Input
+                placeholder="Reason (shown in the user's notification and the audit log)"
+                value={adjustForm.reason}
+                onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
+              />
+              <Button size="sm" loading={adjusting} onClick={submitAdjustment} className="w-fit">
+                Apply adjustment
+              </Button>
             </div>
           </Card>
 

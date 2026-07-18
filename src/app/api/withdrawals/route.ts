@@ -44,6 +44,12 @@ export async function POST(req: NextRequest) {
     if (!user.emailVerified) {
       return jsonError("Please verify your email before withdrawing", 403);
     }
+    if (user.withdrawalsLocked) {
+      return jsonError(
+        user.withdrawalLockNote || "Withdrawals are currently locked on your account. Contact support for help.",
+        403
+      );
+    }
 
     const body = schema.parse(await req.json());
     const { ipAddress, userAgent } = getRequestMeta(req);
