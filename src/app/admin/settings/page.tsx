@@ -54,6 +54,8 @@ export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     apiFetch<{ settings: Setting[] }>("/api/admin/settings").then((res) => {
@@ -126,6 +128,36 @@ export default function AdminSettingsPage() {
       toast.error(err instanceof ApiError ? err.message : "Could not save setting");
     } finally {
       setLoading(null);
+    }
+  }
+
+  async function uploadLogo() {
+    if (!logoFile) return toast.error("Choose an image first");
+    setUploadingLogo(true);
+    try {
+      const form = new FormData();
+      form.append("logo", logoFile);
+      const res = await apiFetch<{ logoUrl: string }>("/api/admin/settings/logo", { method: "POST", body: form, headers: {} });
+      setSettings({ ...settings, site_logo_url: res.logoUrl });
+      setLogoFile(null);
+      toast.success("Logo updated");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not upload logo");
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  async function removeLogo() {
+    setUploadingLogo(true);
+    try {
+      await apiFetch("/api/admin/settings/logo", { method: "DELETE" });
+      setSettings({ ...settings, site_logo_url: "" });
+      toast.success("Logo removed");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not remove logo");
+    } finally {
+      setUploadingLogo(false);
     }
   }
 
@@ -271,6 +303,35 @@ export default function AdminSettingsPage() {
               </Button>
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Site logo</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Shown at the top center of the landing, login, and register pages. JPEG, PNG, WebP, or SVG, under 3MB.
+        </p>
+        {settings.site_logo_url && (
+          <div className="mb-3 flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo, arbitrary external-ish source */}
+            <img src={settings.site_logo_url} alt="Current logo" className="h-12 w-auto rounded-lg border border-border" />
+            <Button size="sm" variant="outline" loading={uploadingLogo} onClick={removeLogo}>
+              Remove
+            </Button>
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+            className="flex-1 text-xs"
+          />
+          <Button size="sm" loading={uploadingLogo} onClick={uploadLogo}>
+            Upload
+          </Button>
         </div>
       </Card>
 

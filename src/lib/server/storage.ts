@@ -10,7 +10,7 @@ const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
  * replacing this function — callers only depend on the returned public URL.
  */
 export async function saveUploadedFile(params: {
-  folder: "receipts" | "voice" | "task-proofs" | "avatars";
+  folder: "receipts" | "voice" | "task-proofs" | "avatars" | "branding";
   buffer: Buffer;
   extension: string;
 }) {

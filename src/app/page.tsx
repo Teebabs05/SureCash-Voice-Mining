@@ -19,6 +19,7 @@ import {
 import { getCurrentUser } from "@/lib/server/current-user";
 import { formatCurrency } from "@/lib/utils";
 import { TestimonialsCarousel } from "@/components/landing/testimonials-carousel";
+import { getSetting } from "@/lib/server/settings";
 
 const FEATURES = [
   { icon: Mic, label: "Voice AI Tasks", description: "Read short prompts aloud and get paid per session." },
@@ -89,11 +90,16 @@ const TESTIMONIALS = [
 export default async function Home() {
   const user = await getCurrentUser();
   if (user) redirect(user.role === "USER" ? "/dashboard" : "/admin");
+  const logoUrl = await getSetting("site_logo_url", "");
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md">
         <div className="profile-banner flex flex-col items-center gap-4 px-6 pb-12 pt-16 text-center">
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo
+            <img src={logoUrl} alt="SureCash Mining" className="h-14 w-auto" />
+          )}
           <div className="flex items-end gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25">
               <Banknote className="h-5 w-5" />

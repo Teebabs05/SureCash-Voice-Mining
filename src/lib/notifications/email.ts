@@ -103,6 +103,24 @@ function emailHeading(text: string): string {
   return `<h2 style="margin:0 0 16px;color:#10201d;font-size:20px;">${text}</h2>`;
 }
 
+export function passwordResetEmailHtml(fullName: string, resetUrl: string) {
+  return emailLayout(`
+    ${emailHeading("Reset your password")}
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(fullName)},</p>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">
+      We got a request to reset your SureCash Mining password. Click below to choose a new one.
+    </p>
+    ${emailButton(resetUrl, "Reset Password")}
+    <p style="margin:16px 0 0;font-size:12px;color:#8a9c98;word-break:break-all;">
+      If the button doesn't work, copy this link: ${resetUrl}
+    </p>
+    <p style="margin:16px 0 0;font-size:13px;color:#8a9c98;">
+      This link expires in 1 hour. If you didn't request this, you can safely ignore this email - your
+      password won't change.
+    </p>
+  `);
+}
+
 export function verificationEmailHtml(fullName: string, verifyUrl: string) {
   return emailLayout(`
     ${emailHeading("Verify your account")}

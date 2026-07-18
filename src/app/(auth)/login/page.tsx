@@ -91,6 +91,9 @@ export default function LoginPage() {
         value={form.password}
         onChange={(e) => setForm({ ...form, password: e.target.value })}
       />
+      <Link href="/forgot-password" className="-mt-2 text-right text-xs font-medium text-brand-primary">
+        Forgot password?
+      </Link>
       {error && <p className="text-sm text-red-500">{error}</p>}
       <Button type="submit" loading={loading} className="w-full">
         Log in
