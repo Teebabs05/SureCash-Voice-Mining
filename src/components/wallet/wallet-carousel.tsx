@@ -119,9 +119,28 @@ export function WalletCarousel({ wallets }: { wallets: WalletCardData[] }) {
     }
   }
 
+  // Static slivers of the card(s) behind, always visible (not tied to drag
+  // position) so it reads as a stack at rest, not just mid-swipe.
+  const stackBehind = [1, 2]
+    .filter((offset) => offset < count)
+    .map((offset) => ordered[(active + offset) % count])
+    .reverse();
+
   return (
     <div>
       <div className="relative h-[240px]">
+        {stackBehind.map((wallet, i) => (
+          <div
+            key={`stack-${wallet.type}`}
+            className={cn("absolute inset-x-0 top-0 rounded-[1.75rem]", WALLET_META[wallet.type].gradient)}
+            style={{
+              height: "100%",
+              transform: `translateY(${-8 * (stackBehind.length - i)}px) scale(${1 - 0.04 * (stackBehind.length - i)})`,
+              opacity: 0.55 - i * 0.15,
+            }}
+          />
+        ))}
+
         <motion.div
           key={`peek-${ordered[peekIndex].type}`}
           className="absolute inset-0"
