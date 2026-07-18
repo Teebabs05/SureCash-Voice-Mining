@@ -311,12 +311,14 @@ export default function AdminSettingsPage() {
           <CardTitle>Site logo</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
-          Shown at the top center of the landing, login, and register pages. JPEG, PNG, WebP, or SVG, under 3MB.
+          Shown at the top center of the landing, login, and register pages. JPEG, PNG, WebP, or SVG, under 8MB. If
+          uploading an iPhone photo, make sure it's not in HEIC format (convert to JPG first, or take a screenshot
+          of it).
         </p>
         {settings.site_logo_url && (
           <div className="mb-3 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo, arbitrary external-ish source */}
-            <img src={settings.site_logo_url} alt="Current logo" className="h-12 w-auto rounded-lg border border-border" />
+            <img src={settings.site_logo_url} alt="Current logo" className="h-20 w-auto rounded-lg border border-border" />
             <Button size="sm" variant="outline" loading={uploadingLogo} onClick={removeLogo}>
               Remove
             </Button>
