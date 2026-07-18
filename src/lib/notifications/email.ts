@@ -62,18 +62,6 @@ export async function sendEmail(message: EmailMessage) {
   await provider.send(message);
 }
 
-export function verificationEmailHtml(fullName: string, verifyUrl: string) {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-      <h2 style="color:#0D8A82;">Verify your SureCash Mining account</h2>
-      <p>Hi ${fullName},</p>
-      <p>Thanks for signing up. Please confirm your email address to activate your account and start mining.</p>
-      <a href="${verifyUrl}" style="display:inline-block;background:#0D8A82;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin:16px 0;">Verify Email</a>
-      <p>If the button doesn't work, copy this link: ${verifyUrl}</p>
-    </div>
-  `;
-}
-
 function escapeHtml(text: string) {
   return text
     .replaceAll("&", "&amp;")
@@ -83,20 +71,64 @@ function escapeHtml(text: string) {
     .replaceAll("'", "&#39;");
 }
 
+// Shared branded shell every email template renders inside - a teal wordmark
+// header, a white card with the actual message, and a plain-text footer.
+// Kept to inline styles/table-safe markup throughout since email clients
+// don't run stylesheets or modern CSS.
+function emailLayout(bodyHtml: string): string {
+  return `
+    <div style="background:#f7faf9;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#10201d;">
+      <div style="max-width:480px;margin:0 auto;">
+        <div style="text-align:center;padding-bottom:20px;">
+          <span style="display:inline-block;background:linear-gradient(135deg,#0D8A82,#075C56);color:#ffffff;font-weight:bold;font-size:18px;padding:10px 22px;border-radius:12px;letter-spacing:0.2px;">
+            SureCash Mining
+          </span>
+        </div>
+        <div style="background:#ffffff;border-radius:20px;padding:32px;box-shadow:0 4px 20px -4px rgba(13,138,130,0.15);">
+          ${bodyHtml}
+        </div>
+        <p style="text-align:center;color:#8a9c98;font-size:12px;margin-top:20px;">
+          © ${new Date().getFullYear()} SureCash Mining. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function emailButton(url: string, label: string): string {
+  return `<a href="${url}" style="display:inline-block;background:linear-gradient(135deg,#0D8A82,#075C56);color:#ffffff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;margin:20px 0;">${label}</a>`;
+}
+
+function emailHeading(text: string): string {
+  return `<h2 style="margin:0 0 16px;color:#10201d;font-size:20px;">${text}</h2>`;
+}
+
+export function verificationEmailHtml(fullName: string, verifyUrl: string) {
+  return emailLayout(`
+    ${emailHeading("Verify your account")}
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(fullName)},</p>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">
+      Thanks for signing up. Please confirm your email address to activate your account and start earning.
+    </p>
+    ${emailButton(verifyUrl, "Verify Email")}
+    <p style="margin:16px 0 0;font-size:12px;color:#8a9c98;word-break:break-all;">
+      If the button doesn't work, copy this link: ${verifyUrl}
+    </p>
+  `);
+}
+
 export function broadcastEmailHtml(fullName: string, subject: string, message: string) {
   const paragraphs = escapeHtml(message)
     .split(/\n{2,}/)
-    .map((p) => `<p>${p.replaceAll("\n", "<br/>")}</p>`)
+    .map((p) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.6;">${p.replaceAll("\n", "<br/>")}</p>`)
     .join("");
 
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-      <h2 style="color:#0D8A82;">${escapeHtml(subject)}</h2>
-      <p>Hi ${escapeHtml(fullName)},</p>
-      ${paragraphs}
-      <p style="color:#5c6b68; font-size: 13px; margin-top: 24px;">— The SureCash Mining team</p>
-    </div>
-  `;
+  return emailLayout(`
+    ${emailHeading(escapeHtml(subject))}
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(fullName)},</p>
+    ${paragraphs}
+    <p style="color:#8a9c98;font-size:13px;margin-top:20px;">— The SureCash Mining team</p>
+  `);
 }
 
 export function manualDepositSubmittedEmailHtml(params: {
@@ -106,17 +138,18 @@ export function manualDepositSubmittedEmailHtml(params: {
   reference: string;
   reviewUrl: string;
 }) {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-      <h2 style="color:#0D8A82;">New manual deposit awaiting review</h2>
-      <p><strong>${escapeHtml(params.fullName)}</strong> (${escapeHtml(params.email)}) submitted a bank transfer receipt for approval.</p>
-      <p style="margin: 16px 0;">
-        <strong>Amount:</strong> ${escapeHtml(params.amount)}<br/>
-        <strong>Reference:</strong> ${escapeHtml(params.reference)}
-      </p>
-      <a href="${params.reviewUrl}" style="display:inline-block;background:#0D8A82;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin:8px 0;">Review in admin panel</a>
+  return emailLayout(`
+    ${emailHeading("New manual deposit awaiting review")}
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+      <strong>${escapeHtml(params.fullName)}</strong> (${escapeHtml(params.email)}) submitted a bank transfer
+      receipt for approval.
+    </p>
+    <div style="background:#eef3f2;border-radius:12px;padding:16px;font-size:14px;line-height:1.8;">
+      <strong>Amount:</strong> ${escapeHtml(params.amount)}<br/>
+      <strong>Reference:</strong> ${escapeHtml(params.reference)}
     </div>
-  `;
+    ${emailButton(params.reviewUrl, "Review in admin panel")}
+  `);
 }
 
 export function withdrawalPendingReviewEmailHtml(params: {
@@ -127,26 +160,27 @@ export function withdrawalPendingReviewEmailHtml(params: {
   reference: string;
   reviewUrl: string;
 }) {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-      <h2 style="color:#0D8A82;">Withdrawal awaiting manual processing</h2>
-      <p><strong>${escapeHtml(params.fullName)}</strong> (${escapeHtml(params.email)}) requested a ${escapeHtml(params.method)} withdrawal that couldn't be paid out automatically.</p>
-      <p style="margin: 16px 0;">
-        <strong>Amount:</strong> ${escapeHtml(params.amount)}<br/>
-        <strong>Reference:</strong> ${escapeHtml(params.reference)}
-      </p>
-      <a href="${params.reviewUrl}" style="display:inline-block;background:#0D8A82;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin:8px 0;">Review in admin panel</a>
+  return emailLayout(`
+    ${emailHeading("Withdrawal awaiting manual processing")}
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+      <strong>${escapeHtml(params.fullName)}</strong> (${escapeHtml(params.email)}) requested a
+      ${escapeHtml(params.method)} withdrawal that couldn't be paid out automatically.
+    </p>
+    <div style="background:#eef3f2;border-radius:12px;padding:16px;font-size:14px;line-height:1.8;">
+      <strong>Amount:</strong> ${escapeHtml(params.amount)}<br/>
+      <strong>Reference:</strong> ${escapeHtml(params.reference)}
     </div>
-  `;
+    ${emailButton(params.reviewUrl, "Review in admin panel")}
+  `);
 }
 
 export function otpEmailHtml(purpose: string, code: string) {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto;">
-      <h2 style="color:#0D8A82;">Your SureCash Mining verification code</h2>
-      <p>Use this code to ${purpose}:</p>
-      <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color:#10201d; margin: 24px 0;">${code}</p>
-      <p style="color:#5c6b68; font-size: 13px;">This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.</p>
-    </div>
-  `;
+  return emailLayout(`
+    ${emailHeading("Your verification code")}
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">Use this code to ${escapeHtml(purpose)}:</p>
+    <p style="text-align:center;font-size:34px;font-weight:bold;letter-spacing:10px;color:#0D8A82;margin:24px 0;">${escapeHtml(code)}</p>
+    <p style="color:#8a9c98;font-size:13px;margin:0;">
+      This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.
+    </p>
+  `);
 }

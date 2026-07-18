@@ -3,13 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Mic, Pickaxe, Target, Gift, Users, Wallet as WalletIcon, Flame, ChevronRight, Smartphone, Wifi, Zap, Tv, Banknote } from "lucide-react";
+import { Mic, Pickaxe, Target, Gift, Users, Wallet as WalletIcon, Flame, ChevronRight, Smartphone, Wifi, Zap, Tv, Banknote, MailWarning, CheckCircle2, Circle, Megaphone } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { MissionsCard } from "@/components/dashboard/missions-card";
 import { ActivityTicker } from "@/components/dashboard/activity-ticker";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiFetch } from "@/lib/api-client";
-import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { apiFetch, ApiError } from "@/lib/api-client";
+import { formatCurrency, cn } from "@/lib/utils";
+
+interface SetupStep {
+  key: string;
+  label: string;
+  done: boolean;
+  href: string;
+}
 
 interface DashboardData {
   user: {
@@ -24,6 +32,8 @@ interface DashboardData {
   totalBalance: number;
   earnings: { today: number; week: number; month: number; lifetime: number; pending: number };
   levelProgress: { percent: number; nextLevelTitle: string | null; nextLevelBonus: number | null };
+  setupSteps: SetupStep[];
+  announcement: string | null;
 }
 
 const BILL_PAYMENTS = [
@@ -52,29 +62,96 @@ function greeting() {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     apiFetch<DashboardData>("/api/dashboard").then(setData);
   }, []);
 
+  async function resendVerification() {
+    setResending(true);
+    try {
+      await apiFetch("/api/auth/resend-verification", { method: "POST" });
+      toast.success("Verification email sent - check your inbox");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send email");
+    } finally {
+      setResending(false);
+    }
+  }
+
   if (!data) return <p className="py-10 text-center text-sm text-foreground/50">Loading dashboard…</p>;
+
+  const nextStep = data.setupSteps.find((s) => !s.done);
 
   return (
     <div className="flex flex-col gap-5">
+      {data.announcement && (
+        <div className="flex items-start gap-2 rounded-xl bg-brand-primary/10 px-3 py-2.5 text-sm text-brand-primary">
+          <Megaphone className="mt-0.5 h-4 w-4 flex-none" />
+          <p>{data.announcement}</p>
+        </div>
+      )}
+
       <div>
         <p className="text-sm text-foreground/60">
           {greeting()}, {data.user.fullName.split(" ")[0]}
         </p>
-        {!data.user.emailVerified && (
-          <p className="mt-1 rounded-lg bg-brand-amber/15 px-3 py-1.5 text-xs font-medium text-[#a67c00]">
-            Verify your email to unlock mining, voice tasks & withdrawals.
-          </p>
-        )}
       </div>
+
+      {!data.user.emailVerified && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-brand-amber/15 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <MailWarning className="h-4 w-4 flex-none text-[#a67c00]" />
+            <p className="text-xs font-medium text-[#a67c00]">
+              Verify your email to unlock mining, voice tasks &amp; withdrawals.
+            </p>
+          </div>
+          <Button size="sm" variant="secondary" loading={resending} onClick={resendVerification} className="flex-none">
+            Resend
+          </Button>
+        </div>
+      )}
 
       <ActivityTicker />
 
       <WalletCarousel wallets={data.wallets} />
+
+      {nextStep && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <CardTitle>Finish setting up</CardTitle>
+            <span className="text-xs font-semibold text-foreground/50">
+              {data.setupSteps.filter((s) => s.done).length}/{data.setupSteps.length}
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
+            <div
+              className="h-full rounded-full bg-brand-primary transition-all"
+              style={{ width: `${(data.setupSteps.filter((s) => s.done).length / data.setupSteps.length) * 100}%` }}
+            />
+          </div>
+          <div className="mt-3 flex flex-col gap-2">
+            {data.setupSteps.map((step) => (
+              <Link
+                key={step.key}
+                href={step.href}
+                className={cn(
+                  "flex items-center gap-2 text-sm",
+                  step.done ? "text-foreground/40 line-through" : "font-medium text-foreground"
+                )}
+              >
+                {step.done ? (
+                  <CheckCircle2 className="h-4 w-4 flex-none text-brand-green" />
+                ) : (
+                  <Circle className="h-4 w-4 flex-none text-foreground/30" />
+                )}
+                {step.label}
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
         {BILL_PAYMENTS.map(({ label, icon: Icon, iconClass }) => (

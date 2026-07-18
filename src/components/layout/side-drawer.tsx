@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   X,
   Home,
@@ -15,6 +15,7 @@ import {
   User,
   Rss,
   MessageCircle,
+  Send,
   LogOut,
   Crown,
 } from "lucide-react";
@@ -37,11 +38,16 @@ const links = [
 
 export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const [social, setSocial] = useState<{ whatsappUrl: string; telegramUrl: string } | null>(null);
 
   useEffect(() => {
     onClose();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  useEffect(() => {
+    apiFetch<{ whatsappUrl: string; telegramUrl: string }>("/api/settings/social-links").then(setSocial);
+  }, []);
 
   async function logout() {
     await apiFetch("/api/auth/logout", { method: "POST" });
@@ -72,6 +78,31 @@ export function SideDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             </Link>
           ))}
         </nav>
+
+        {(social?.whatsappUrl || social?.telegramUrl) && (
+          <div className="flex flex-col gap-2 border-t border-border pt-3">
+            {social.whatsappUrl && (
+              <a
+                href={social.whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-2.5 text-sm font-semibold text-white"
+              >
+                <MessageCircle className="h-4 w-4" /> WhatsApp
+              </a>
+            )}
+            {social.telegramUrl && (
+              <a
+                href={social.telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-xl bg-[#229ED9] py-2.5 text-sm font-semibold text-white"
+              >
+                <Send className="h-4 w-4" /> Telegram
+              </a>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 border-t border-border pt-3">
           <div>

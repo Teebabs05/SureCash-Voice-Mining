@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const items = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -74,12 +75,15 @@ export function AdminSidebar() {
             );
           })}
         </nav>
-        <button
-          onClick={logout}
-          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
-        >
-          <LogOut className="h-4 w-4" /> Log out
-        </button>
+        <div className="flex flex-col gap-3 border-t border-border pt-3">
+          <ThemeToggle />
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
+          >
+            <LogOut className="h-4 w-4" /> Log out
+          </button>
+        </div>
       </aside>
 
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-surface px-4 py-3 md:hidden">
@@ -126,12 +130,15 @@ export function AdminSidebar() {
               })}
             </nav>
 
-            <button
-              onClick={logout}
-              className="flex items-center gap-3 rounded-xl border-t border-border px-3 py-2.5 pt-4 text-sm font-medium text-red-500 hover:bg-red-500/10"
-            >
-              <LogOut className="h-4 w-4" /> Log out
-            </button>
+            <div className="flex flex-col gap-3 border-t border-border pt-3">
+              <ThemeToggle />
+              <button
+                onClick={logout}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-500 hover:bg-red-500/10"
+              >
+                <LogOut className="h-4 w-4" /> Log out
+              </button>
+            </div>
           </div>
         </div>
       )}

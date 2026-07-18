@@ -45,6 +45,11 @@ const GATEWAY_PROVIDER_FIELDS = [
   { key: "deposit_gateway_flutterwave_enabled", label: "Flutterwave" },
 ];
 
+const SOCIAL_LINK_FIELDS = [
+  { key: "social_whatsapp_url", label: "WhatsApp group/channel link" },
+  { key: "social_telegram_url", label: "Telegram channel link" },
+];
+
 export default function AdminSettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<string | null>(null);
@@ -101,6 +106,22 @@ export default function AdminSettingsPage() {
     try {
       await apiFetch("/api/admin/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
       toast.success(`${key.replaceAll("_", " ")} updated`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save setting");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  // Same as saveText but allows an empty value - used for fields where
+  // "empty" is a meaningful state (hide the social button, clear the
+  // pinned announcement) rather than a mistake to block.
+  async function saveOptionalText(key: string) {
+    const value = (settings[key] ?? "").trim();
+    setLoading(key);
+    try {
+      await apiFetch("/api/admin/settings", { method: "PUT", body: JSON.stringify({ key, value }) });
+      toast.success(value ? `${key.replaceAll("_", " ")} updated` : `${key.replaceAll("_", " ")} cleared`);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save setting");
     } finally {
@@ -250,6 +271,51 @@ export default function AdminSettingsPage() {
               </Button>
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Social links</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Shown as buttons in the user side menu. Leave a field empty to hide that button.
+        </p>
+        <div className="flex flex-col gap-3">
+          {SOCIAL_LINK_FIELDS.map(({ key, label }) => (
+            <div key={key} className="flex items-end gap-2">
+              <Input
+                label={label}
+                placeholder="https://..."
+                value={settings[key] ?? ""}
+                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+              />
+              <Button size="sm" loading={loading === key} onClick={() => saveOptionalText(key)}>
+                Save
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Pinned announcement</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Shows as a banner at the top of every user's dashboard. Clear it (save empty) to take it down once the
+          information is no longer relevant.
+        </p>
+        <div className="flex items-end gap-2">
+          <Input
+            label="Message"
+            placeholder="e.g. Scheduled maintenance tonight from 11pm-1am"
+            value={settings.pinned_announcement ?? ""}
+            onChange={(e) => setSettings({ ...settings, pinned_announcement: e.target.value })}
+          />
+          <Button size="sm" loading={loading === "pinned_announcement"} onClick={() => saveOptionalText("pinned_announcement")}>
+            Save
+          </Button>
         </div>
       </Card>
 
