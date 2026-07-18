@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { creditWallet } from "@/lib/server/wallet";
 import { notifyUser } from "@/lib/server/notifications";
@@ -74,29 +75,24 @@ export async function incrementMissionProgress(userId: string, missionType: stri
   today.setHours(0, 0, 0, 0);
 
   for (const mission of missions) {
-    let progress;
-    try {
-      progress = await client.userMissionProgress.upsert({
-        where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
-        update: { progress: { increment: by } },
-        create: { userId, missionId: mission.id, date: today, progress: by },
-      });
-    } catch (error) {
-      // Two near-simultaneous calls for the same (userId, missionId, date) -
-      // e.g. a resubmitted request on a flaky connection - can both miss
-      // upsert's own existence check and race to insert the same row; the
-      // loser fails on the unique constraint even though bumping today's
-      // progress is still a perfectly valid thing to do, so fall back to a
-      // plain update against the row the winner just created.
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        progress = await client.userMissionProgress.update({
-          where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
-          data: { progress: { increment: by } },
-        });
-      } else {
-        throw error;
-      }
-    }
+    // Prisma's upsert() does a SELECT then INSERT-or-UPDATE, which isn't
+    // atomic - under MySQL's default REPEATABLE READ isolation, two
+    // near-simultaneous calls (e.g. a resubmitted request on a flaky
+    // connection) can both miss the SELECT, race to INSERT, and the loser
+    // throws a unique-constraint error. Worse, a plain retry-with-update
+    // can *also* fail with "record not found", because the loser's
+    // transaction snapshot may not yet see the winner's committed row even
+    // though the constraint proves it exists. A raw `INSERT ... ON
+    // DUPLICATE KEY UPDATE` is a single atomic statement at the database
+    // level, so this race can't happen at all.
+    await client.$executeRaw`
+      INSERT INTO \`UserMissionProgress\` (\`id\`, \`userId\`, \`missionId\`, \`date\`, \`progress\`, \`completed\`)
+      VALUES (${randomUUID()}, ${userId}, ${mission.id}, ${today}, ${by}, false)
+      ON DUPLICATE KEY UPDATE \`progress\` = \`progress\` + ${by}
+    `;
+    const progress = await client.userMissionProgress.findUniqueOrThrow({
+      where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
+    });
 
     if (!progress.completed && progress.progress >= mission.target) {
       await client.userMissionProgress.update({
