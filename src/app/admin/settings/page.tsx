@@ -318,7 +318,7 @@ export default function AdminSettingsPage() {
         {settings.site_logo_url && (
           <div className="mb-3 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo, arbitrary external-ish source */}
-            <img src={settings.site_logo_url} alt="Current logo" className="h-20 w-auto rounded-lg border border-border" />
+            <img src={settings.site_logo_url} alt="Current logo" className="h-28 w-auto rounded-lg border border-border" />
             <Button size="sm" variant="outline" loading={uploadingLogo} onClick={removeLogo}>
               Remove
             </Button>

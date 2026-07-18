@@ -13,7 +13,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
         <div className="mb-6 text-center">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo
-            <img src={logoUrl} alt="SureCash Mining" className="mx-auto mb-2 h-24 w-auto" />
+            <img src={logoUrl} alt="SureCash Mining" className="mx-auto mb-2 h-32 w-auto max-w-[80%]" />
           ) : (
             <h1 className="text-2xl font-bold text-white">SureCash Mining</h1>
           )}

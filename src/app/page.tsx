@@ -98,7 +98,7 @@ export default async function Home() {
         <div className="profile-banner flex flex-col items-center gap-4 px-6 pb-12 pt-16 text-center">
           {logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo
-            <img src={logoUrl} alt="SureCash Mining" className="h-24 w-auto" />
+            <img src={logoUrl} alt="SureCash Mining" className="h-36 w-auto max-w-[80%]" />
           )}
           <div className="flex items-end gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25">
