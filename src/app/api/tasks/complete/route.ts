@@ -15,8 +15,33 @@ type Tx = Prisma.TransactionClient;
 
 async function approveAndPay(
   tx: Tx,
-  params: { userId: string; taskId: string; title: string; reward: number; proofUrl?: string; proofText?: string; proofImageUrl?: string; proofImageHash?: string }
+  params: {
+    userId: string;
+    taskId: string;
+    taskType: string;
+    title: string;
+    reward: number;
+    proofUrl?: string;
+    proofText?: string;
+    proofImageUrl?: string;
+    proofImageHash?: string;
+  }
 ) {
+  if (params.taskType === "checkin") {
+    // Claim today's check-in atomically: only proceeds past this point if
+    // this request is the one that flips lastCheckInAt from "not today" to
+    // "today", so two near-simultaneous taps can't both pay out.
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const claimed = await tx.$executeRaw`
+      UPDATE \`User\` SET \`lastCheckInAt\` = NOW()
+      WHERE \`id\` = ${params.userId} AND (\`lastCheckInAt\` IS NULL OR \`lastCheckInAt\` < ${startOfDay})
+    `;
+    if (claimed === 0) {
+      throw new Error("You've already checked in today. Come back tomorrow for another check-in.");
+    }
+  }
+
   const completion = await tx.userTaskCompletion.create({
     data: {
       userId: params.userId,
@@ -150,6 +175,7 @@ export async function POST(req: NextRequest) {
           approveAndPay(tx, {
             userId: user.id,
             taskId,
+            taskType: task.type,
             title: task.title,
             reward: effectiveReward,
             proofUrl,
@@ -176,7 +202,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await prisma.$transaction((tx) =>
-      approveAndPay(tx, { userId: user.id, taskId, title: task.title, reward: effectiveReward })
+      approveAndPay(tx, { userId: user.id, taskId, taskType: task.type, title: task.title, reward: effectiveReward })
     );
 
     return NextResponse.json({ completion: result, reward: effectiveReward, pending: false });

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { dateOnlyKey } from "@/lib/server/gamification";
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
     });
     const completions = await prisma.userTaskCompletion.findMany({ where: { userId: user.id } });
     const statusByTask = new Map(completions.map((c) => [c.taskId, c.status]));
+    const checkedInToday = Boolean(user.lastCheckInAt && dateOnlyKey(user.lastCheckInAt) === dateOnlyKey());
 
     return NextResponse.json({
       planRequired,
@@ -24,7 +26,8 @@ export async function GET(req: NextRequest) {
         const status = statusByTask.get(t.id);
         return {
           ...t,
-          isCompleted: !t.isRepeatable && status !== undefined && status !== "REJECTED",
+          isCompleted:
+            t.type === "checkin" ? checkedInToday : !t.isRepeatable && status !== undefined && status !== "REJECTED",
           isPending: status === "PENDING_REVIEW",
         };
       }),
