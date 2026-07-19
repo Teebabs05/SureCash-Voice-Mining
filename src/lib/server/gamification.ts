@@ -69,10 +69,29 @@ export async function bumpMiningStreak(userId: string, client: Tx) {
   });
 }
 
+/**
+ * Formats a date as a plain `YYYY-MM-DD` string (local calendar day).
+ *
+ * `UserMissionProgress.date` is a MySQL `@db.Date` column. Passing a JS
+ * `Date` object for it worked fine in Prisma's normal (structured) query
+ * builder, but the raw `$executeRaw` INSERT below serializes `Date`
+ * parameters differently - the two paths could disagree on which calendar
+ * day a midnight `Date` instance actually represents, so a row inserted
+ * "for today" by the raw query wouldn't be found by the structured
+ * `findUniqueOrThrow` lookup right after it. A plain date-only string is
+ * unambiguous to both, since there's no time-of-day/timezone left to
+ * convert.
+ */
+export function dateOnlyKey(date: Date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export async function incrementMissionProgress(userId: string, missionType: string, by: number, client: Tx) {
   const missions = await client.dailyMission.findMany({ where: { type: missionType, isActive: true } });
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = dateOnlyKey();
 
   for (const mission of missions) {
     // Prisma's upsert() does a SELECT then INSERT-or-UPDATE, which isn't
