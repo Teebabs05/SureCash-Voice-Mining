@@ -2,6 +2,9 @@
 // file directly with `node server.js` and expects it to bind an HTTP server
 // on the port it provides via process.env.PORT. Plain `next start` doesn't
 // do this itself, so this is Next.js's documented custom-server pattern.
+// CommonJS is required here (not ESM import) - Passenger runs this file
+// directly with `node server.js`, not through Next.js's own module loader.
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createServer } = require("http");
 const next = require("next");
 

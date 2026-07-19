@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { creditWallet } from "@/lib/server/wallet";
 import { notifyUser } from "@/lib/server/notifications";
@@ -54,39 +55,48 @@ export async function POST(req: NextRequest) {
     const succeeded = status === "" || status.includes("success") || status.includes("completed");
     if (!succeeded) return NextResponse.json({ received: true });
 
-    await prisma.$transaction(async (tx) => {
-      const existing = await tx.deposit.findUnique({ where: { reference } });
-      if (existing) return;
+    try {
+      await prisma.$transaction(async (tx) => {
+        // `reference` is unique at the DB level, so a redelivered webhook
+        // racing this same transaction can only ever get here once - the
+        // loser's create() below throws a unique-constraint error instead
+        // of a second deposit ever existing to double-credit from.
+        await tx.deposit.create({
+          data: {
+            userId: virtualAccount.userId,
+            amount,
+            method: "BILLSTACK",
+            reference,
+            status: "APPROVED",
+            verifiedAt: new Date(),
+            gatewayData: body,
+          },
+        });
 
-      await tx.deposit.create({
-        data: {
+        await creditWallet({
           userId: virtualAccount.userId,
+          type: "MAIN",
           amount,
-          method: "BILLSTACK",
-          reference,
-          status: "APPROVED",
-          verifiedAt: new Date(),
-          gatewayData: body,
-        },
-      });
+          reason: "DEPOSIT",
+          description: `BillStack bank transfer ${reference}`,
+          client: tx,
+        });
 
-      await creditWallet({
-        userId: virtualAccount.userId,
-        type: "MAIN",
-        amount,
-        reason: "DEPOSIT",
-        description: `BillStack bank transfer ${reference}`,
-        client: tx,
+        await notifyUser({
+          userId: virtualAccount.userId,
+          title: "Deposit successful",
+          body: `Your deposit of ${amount} has been credited to your Main wallet.`,
+          type: "WALLET",
+          client: tx,
+        });
       });
-
-      await notifyUser({
-        userId: virtualAccount.userId,
-        title: "Deposit successful",
-        body: `Your deposit of ${amount} has been credited to your Main wallet.`,
-        type: "WALLET",
-        client: tx,
-      });
-    });
+    } catch (error) {
+      // A unique-constraint failure here means this reference was already
+      // recorded by a concurrent/earlier delivery of the same webhook -
+      // that's success, not an error, so acknowledge it instead of making
+      // the gateway retry forever.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002")) throw error;
+    }
 
     return NextResponse.json({ received: true });
   }
@@ -100,7 +110,11 @@ export async function POST(req: NextRequest) {
 
     if (succeeded && withdrawal.status !== "PAID") {
       await prisma.$transaction(async (tx) => {
-        await tx.withdrawal.update({ where: { id: withdrawal.id }, data: { status: "PAID", processedAt: new Date() } });
+        const claimed = await tx.withdrawal.updateMany({
+          where: { id: withdrawal.id, status: { not: "PAID" } },
+          data: { status: "PAID", processedAt: new Date() },
+        });
+        if (claimed.count === 0) return;
         await notifyUser({
           userId: withdrawal.userId,
           title: "Withdrawal paid",

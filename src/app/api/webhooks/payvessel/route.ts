@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
 
   if (succeeded && withdrawal.status !== "PAID") {
     await prisma.$transaction(async (tx) => {
-      await tx.withdrawal.update({ where: { id: withdrawal.id }, data: { status: "PAID", processedAt: new Date() } });
+      const claimed = await tx.withdrawal.updateMany({
+        where: { id: withdrawal.id, status: { not: "PAID" } },
+        data: { status: "PAID", processedAt: new Date() },
+      });
+      if (claimed.count === 0) return;
       await notifyUser({
         userId: withdrawal.userId,
         title: "Withdrawal paid",

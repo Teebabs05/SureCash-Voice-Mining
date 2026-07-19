@@ -17,10 +17,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (deposit.status !== "PENDING") return jsonError("Deposit already processed", 409);
 
     await prisma.$transaction(async (tx) => {
-      await tx.deposit.update({
-        where: { id },
+      // Atomic status flip so a double-tapped Approve button (or a
+      // resubmitted request) can't both pass the PENDING check above and
+      // each credit the deposit.
+      const claimed = await tx.deposit.updateMany({
+        where: { id, status: "PENDING" },
         data: { status: "APPROVED", verifiedAt: new Date(), verifiedById: admin.id },
       });
+      if (claimed.count === 0) throw new Error("Deposit already processed");
 
       await creditWallet({
         userId: deposit.userId,

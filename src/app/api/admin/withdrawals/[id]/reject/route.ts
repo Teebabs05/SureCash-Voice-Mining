@@ -23,8 +23,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.withdrawal.update({
-        where: { id },
+      // Claim the rejection atomically against its current status so two
+      // near-simultaneous reject clicks (or a resubmitted request) can't
+      // both pass the earlier check and each credit a refund - only the
+      // request that actually flips PENDING/PROCESSING -> REJECTED proceeds
+      // to move money.
+      const claimed = await tx.withdrawal.updateMany({
+        where: { id, status: { in: ["PENDING", "PROCESSING"] } },
         data: {
           status: "REJECTED",
           processedAt: new Date(),
@@ -32,6 +37,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           rejectionReason: reason,
         },
       });
+      if (claimed.count === 0) {
+        throw new Error("Withdrawal already processed");
+      }
 
       await creditWallet({
         userId: withdrawal.userId,

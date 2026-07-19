@@ -28,13 +28,17 @@ export async function POST(req: NextRequest) {
     const amount = event.data.amount / 100;
 
     await prisma.$transaction(async (tx) => {
-      const deposit = await tx.deposit.findUnique({ where: { reference } });
-      if (!deposit || deposit.status === "APPROVED") return;
-
-      await tx.deposit.update({
-        where: { id: deposit.id },
+      // Atomic status flip: gateways commonly redeliver the same webhook, and
+      // two overlapping deliveries could otherwise both pass a plain
+      // read-then-check and each credit the deposit. Only the delivery that
+      // actually flips the status away from APPROVED proceeds to move money.
+      const claimed = await tx.deposit.updateMany({
+        where: { reference, status: { not: "APPROVED" } },
         data: { status: "APPROVED", verifiedAt: new Date(), gatewayData: event.data },
       });
+      if (claimed.count === 0) return;
+
+      const deposit = await tx.deposit.findUniqueOrThrow({ where: { reference } });
 
       await creditWallet({
         userId: deposit.userId,
@@ -63,12 +67,13 @@ export async function POST(req: NextRequest) {
 
     await prisma.$transaction(async (tx) => {
       const withdrawal = await tx.withdrawal.findUnique({ where: { reference } });
-      if (!withdrawal || withdrawal.status === "PAID") return;
+      if (!withdrawal) return;
 
-      await tx.withdrawal.update({
-        where: { id: withdrawal.id },
+      const claimed = await tx.withdrawal.updateMany({
+        where: { reference, status: { not: "PAID" } },
         data: { status: "PAID", processedAt: new Date() },
       });
+      if (claimed.count === 0) return;
 
       await notifyUser({
         userId: withdrawal.userId,

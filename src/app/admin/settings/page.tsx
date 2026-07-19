@@ -312,8 +312,8 @@ export default function AdminSettingsPage() {
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
           Shown at the top center of the landing, login, and register pages. JPEG, PNG, WebP, or SVG, under 8MB. If
-          uploading an iPhone photo, make sure it's not in HEIC format (convert to JPG first, or take a screenshot
-          of it).
+          uploading an iPhone photo, make sure it&apos;s not in HEIC format (convert to JPG first, or take a
+          screenshot of it).
         </p>
         {settings.site_logo_url && (
           <div className="mb-3 flex items-center gap-3">
@@ -366,7 +366,7 @@ export default function AdminSettingsPage() {
           <CardTitle>Pinned announcement</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
-          Shows as a banner at the top of every user's dashboard. Clear it (save empty) to take it down once the
+          Shows as a banner at the top of every user&apos;s dashboard. Clear it (save empty) to take it down once the
           information is no longer relevant.
         </p>
         <div className="flex items-end gap-2">
