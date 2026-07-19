@@ -100,7 +100,7 @@ export default function BankAccountPage() {
               </div>
             </div>
             <div className="flex flex-none items-center gap-2">
-              {acc.isVerified ? (
+              {acc.isVerified && acc.autoVerified ? (
                 <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Added
                 </span>
@@ -108,9 +108,13 @@ export default function BankAccountPage() {
                 <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500">
                   <XCircle className="h-3.5 w-3.5" /> Rejected
                 </span>
+              ) : !acc.isVerified ? (
+                <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
+                  <Clock className="h-3.5 w-3.5" /> Confirm OTP
+                </span>
               ) : (
                 <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
-                  <Clock className="h-3.5 w-3.5" /> Pending
+                  <Clock className="h-3.5 w-3.5" /> Awaiting review
                 </span>
               )}
               <button

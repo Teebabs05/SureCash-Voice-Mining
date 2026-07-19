@@ -22,17 +22,16 @@ export async function POST(req: NextRequest) {
     const { bankCode, accountNumber } = schema.parse(await req.json());
     const resolved = await resolveBankAccount({ bankCode, accountNumber });
 
-    if (!resolved.configured) {
-      // No verification provider configured — the UI falls back to letting
-      // the user proceed to manual admin review instead of instant verification.
-      return NextResponse.json({ configured: false, verified: false, accountName: null });
-    }
-
-    if (!resolved.verified) {
-      return jsonError("Could not verify this account number for the selected bank. Please double-check the details.", 422);
-    }
-
-    return NextResponse.json({ configured: true, verified: true, accountName: resolved.accountName });
+    // Whether nothing's configured, or a configured gateway just doesn't
+    // support name lookups for this particular bank (common for newer
+    // fintech/MFB banks), the outcome is the same: fall back to letting the
+    // user proceed with a self-reported name for manual admin review,
+    // instead of hard-blocking them from adding a legitimate account.
+    return NextResponse.json({
+      configured: resolved.configured,
+      verified: resolved.verified,
+      accountName: resolved.verified ? resolved.accountName : null,
+    });
   } catch (error) {
     return handleApiError(error);
   }

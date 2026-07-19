@@ -74,6 +74,13 @@ export async function POST(req: NextRequest) {
       if (!bankAccount.isVerified) {
         return jsonError("Please confirm this bank account with the OTP sent to you before withdrawing", 403);
       }
+      // autoVerified is set either by a gateway's real-time name lookup at
+      // add-time, or by an admin manually approving it afterward (Admin >
+      // Bank Accounts) - a bank account that skipped both isn't cleared to
+      // pay out to yet, regardless of OTP status.
+      if (!bankAccount.autoVerified) {
+        return jsonError("This bank account is still awaiting manual review. We'll notify you once it's approved.", 403);
+      }
 
       const fee = Number((body.amount * (feePercent / 100)).toFixed(2));
       const totalDebit = body.amount + fee;

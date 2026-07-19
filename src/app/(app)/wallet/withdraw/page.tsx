@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, ShieldCheck, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Plus, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,10 @@ export default function WithdrawPage() {
   const load = useCallback(() => {
     apiFetch<{ accounts: BankAccount[] }>("/api/bank-accounts").then((res) => {
       setAccounts(res.accounts);
-      if (res.accounts.length > 0) setSelectedAccount((prev) => prev || res.accounts[0].id);
+      if (res.accounts.length > 0) {
+        const eligible = res.accounts.find((a) => a.isVerified && a.autoVerified);
+        setSelectedAccount((prev) => prev || eligible?.id || res.accounts[0].id);
+      }
     });
     apiFetch<{ wallets: CryptoWallet[] }>("/api/crypto-wallets").then((res) => {
       setCryptoWallets(res.wallets);
@@ -114,8 +117,17 @@ export default function WithdrawPage() {
     }
   }
 
+  const selectedBankAccount = accounts.find((a) => a.id === selectedAccount);
+  const bankAccountBlocked = method === "BANK" && selectedBankAccount && !(selectedBankAccount.isVerified && selectedBankAccount.autoVerified);
+
   async function submitWithdrawal() {
     if (method === "BANK" && !selectedAccount) return toast.error("Add a bank account first");
+    if (method === "BANK" && selectedBankAccount && !selectedBankAccount.isVerified) {
+      return toast.error("Confirm this account with the OTP sent to you first");
+    }
+    if (method === "BANK" && selectedBankAccount && !selectedBankAccount.autoVerified) {
+      return toast.error("This account is still awaiting manual review before it can be paid out to");
+    }
     if (method === "USDT" && !selectedCryptoWallet) return toast.error("Add a USDT wallet first");
     if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
     setLoading(true);
@@ -197,20 +209,30 @@ export default function WithdrawPage() {
                   <p className="text-xs text-foreground/50">{acc.bankName} · {acc.accountNumber}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {acc.autoVerified && (
-                    <span title="Automatically verified">
-                      <BadgeCheck className="h-4 w-4 text-brand-primary" />
+                  {acc.isVerified && acc.autoVerified ? (
+                    <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2 py-0.5 text-[10px] font-bold text-brand-green">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Ready
                     </span>
-                  )}
-                  {acc.isVerified && (
-                    <span title="OTP confirmed">
-                      <ShieldCheck className="h-4 w-4 text-brand-green" />
+                  ) : !acc.isVerified ? (
+                    <span className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00]">
+                      Confirm OTP
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00]">
+                      Awaiting review
                     </span>
                   )}
                 </div>
               </button>
             ))}
           </div>
+          {bankAccountBlocked && (
+            <p className="mt-2 text-xs text-[#a67c00]">
+              {!selectedBankAccount?.isVerified
+                ? "Confirm this account with the OTP sent to you before you can withdraw to it."
+                : "This account is still awaiting manual review — you'll be notified once it's approved."}
+            </p>
+          )}
 
           {showAddAccount ? (
             <div className="mt-3">
@@ -276,7 +298,7 @@ export default function WithdrawPage() {
             A flat network fee applies on top of the usual withdrawal fee for USDT payouts.
           </p>
         )}
-        <Button className="mt-3 w-full" loading={loading} onClick={submitWithdrawal}>
+        <Button className="mt-3 w-full" loading={loading} disabled={Boolean(bankAccountBlocked)} onClick={submitWithdrawal}>
           Request withdrawal
         </Button>
       </Card>
