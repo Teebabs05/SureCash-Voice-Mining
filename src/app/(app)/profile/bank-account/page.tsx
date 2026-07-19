@@ -44,10 +44,11 @@ export default function BankAccountPage() {
     load();
   }
 
-  async function removeAccount(id: string) {
-    setRemovingId(id);
+  async function removeAccount(acc: BankAccount) {
+    if (!confirm(`Remove ${acc.bankName} •••${acc.accountNumber.slice(-4)}? This cannot be undone.`)) return;
+    setRemovingId(acc.id);
     try {
-      await apiFetch(`/api/bank-accounts/${id}`, { method: "DELETE" });
+      await apiFetch(`/api/bank-accounts/${acc.id}`, { method: "DELETE" });
       toast.success("Bank account removed");
       load();
     } catch (err) {
@@ -98,32 +99,33 @@ export default function BankAccountPage() {
                 </p>
               </div>
             </div>
-            {acc.isVerified ? (
-              <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Added
-              </span>
-            ) : acc.reviewNote ? (
-              <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500">
-                <XCircle className="h-3.5 w-3.5" /> Rejected
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
-                <Clock className="h-3.5 w-3.5" /> Pending
-              </span>
-            )}
+            <div className="flex flex-none items-center gap-2">
+              {acc.isVerified ? (
+                <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Added
+                </span>
+              ) : acc.reviewNote ? (
+                <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500">
+                  <XCircle className="h-3.5 w-3.5" /> Rejected
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
+                  <Clock className="h-3.5 w-3.5" /> Pending
+                </span>
+              )}
+              <button
+                onClick={() => removeAccount(acc)}
+                disabled={removingId === acc.id}
+                aria-label="Remove bank account"
+                className="rounded-full p-1.5 text-foreground/40 hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           {acc.reviewNote && (
-            <div className="flex items-center justify-between gap-2 rounded-lg bg-red-500/10 px-3 py-2">
+            <div className="rounded-lg bg-red-500/10 px-3 py-2">
               <p className="text-xs text-red-500">{acc.reviewNote} — remove this and add the correct details.</p>
-              <Button
-                size="sm"
-                variant="outline"
-                loading={removingId === acc.id}
-                onClick={() => removeAccount(acc.id)}
-                className="flex-none"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Remove
-              </Button>
             </div>
           )}
         </Card>
