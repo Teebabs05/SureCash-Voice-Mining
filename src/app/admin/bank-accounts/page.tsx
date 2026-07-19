@@ -20,13 +20,18 @@ interface PendingBankAccount {
 export default function AdminBankAccountsPage() {
   const [accounts, setAccounts] = useState<PendingBankAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
 
   function load() {
     apiFetch<{ accounts: PendingBankAccount[] }>("/api/admin/bank-accounts")
-      .then((res) => setAccounts(res.accounts))
+      .then((res) => {
+        setAccounts(res.accounts);
+        setLoadError(null);
+      })
+      .catch((err) => setLoadError(err instanceof ApiError ? err.message : "Could not load bank accounts"))
       .finally(() => setLoading(false));
   }
 
@@ -74,7 +79,10 @@ export default function AdminBankAccountsPage() {
       </div>
 
       {loading && <p className="text-sm text-foreground/50">Loading…</p>}
-      {!loading && accounts.length === 0 && (
+      {!loading && loadError && (
+        <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">{loadError}</p>
+      )}
+      {!loading && !loadError && accounts.length === 0 && (
         <p className="py-10 text-center text-sm text-foreground/50">Nothing waiting on review.</p>
       )}
 
