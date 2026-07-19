@@ -160,6 +160,34 @@ export async function isMonnifyConfigured(): Promise<boolean> {
   return Boolean(await getCredentials());
 }
 
+export interface BankListEntry {
+  code: string;
+  name: string;
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function listBanks(): Promise<BankListEntry[]> {
+  if (!(await getCredentials())) return [];
+
+  const res = await fetch(`${BASE_URL}/api/v1/banks`);
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data?.responseBody)) return [];
+
+  return data.responseBody.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
+  if (!(await getCredentials())) return null;
+
+  const res = await authedFetch(
+    `/api/v1/disbursements/account/validate?accountNumber=${encodeURIComponent(accountNumber)}&bankCode=${encodeURIComponent(bankCode)}`
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.responseBody?.accountName) return null;
+  return data.responseBody.accountName as string;
+}
+
 export async function verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {
   const creds = await getCredentials();
   if (!creds || !signature) return false;

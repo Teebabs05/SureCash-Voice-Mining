@@ -132,6 +132,39 @@ export async function isKorapayConfigured(): Promise<boolean> {
   return Boolean(await getSecretKey());
 }
 
+export interface BankListEntry {
+  code: string;
+  name: string;
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function listBanks(): Promise<BankListEntry[]> {
+  const key = await getSecretKey();
+  if (!key) return [];
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks?countryCode=NG`, { headers: headers(key) });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data?.data)) return [];
+
+  return data.data.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
+  const key = await getSecretKey();
+  if (!key) return null;
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ bank: bankCode, account: accountNumber }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data?.account_name) return null;
+  return data.data.account_name as string;
+}
+
 /**
  * Korapay's documented quirk (per training knowledge, unconfirmed live):
  * the signature is computed over JSON.stringify(payload.data), not the raw

@@ -124,6 +124,39 @@ export async function isFlutterwaveConfigured(): Promise<boolean> {
   return Boolean(await getSecretKey());
 }
 
+export interface BankListEntry {
+  code: string;
+  name: string;
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function listBanks(): Promise<BankListEntry[]> {
+  const key = await getSecretKey();
+  if (!key) return [];
+
+  const res = await fetch(`${BASE_URL}/banks/NG`, { headers: headers(key) });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data?.data)) return [];
+
+  return data.data.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
+  const key = await getSecretKey();
+  if (!key) return null;
+
+  const res = await fetch(`${BASE_URL}/accounts/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data?.account_name) return null;
+  return data.data.account_name as string;
+}
+
 /**
  * Flutterwave doesn't HMAC-sign webhooks — it just echoes back the static
  * secret hash you configured in your dashboard (FLUTTERWAVE_WEBHOOK_HASH),
