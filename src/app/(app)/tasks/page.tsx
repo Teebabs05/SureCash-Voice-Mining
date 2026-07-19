@@ -55,9 +55,12 @@ export default function TasksPage() {
     setCompletingId(task.id);
     try {
       if (task.actionUrl) window.open(task.actionUrl, "_blank", "noopener,noreferrer");
+      const form = new FormData();
+      form.append("taskId", task.id);
       const res = await apiFetch<{ reward: number }>("/api/tasks/complete", {
         method: "POST",
-        body: JSON.stringify({ taskId: task.id }),
+        body: form,
+        headers: {},
       });
       toast.success(`+${formatCurrency(res.reward)} added to your Task wallet`);
       load();
