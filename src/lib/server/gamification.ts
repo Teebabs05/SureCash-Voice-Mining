@@ -70,23 +70,23 @@ export async function bumpMiningStreak(userId: string, client: Tx) {
 }
 
 /**
- * Formats a date as a plain `YYYY-MM-DD` string (local calendar day).
+ * Returns a `Date` at UTC midnight for the given day (local calendar day by
+ * default).
  *
- * `UserMissionProgress.date` is a MySQL `@db.Date` column. Passing a JS
- * `Date` object for it worked fine in Prisma's normal (structured) query
- * builder, but the raw `$executeRaw` INSERT below serializes `Date`
- * parameters differently - the two paths could disagree on which calendar
- * day a midnight `Date` instance actually represents, so a row inserted
- * "for today" by the raw query wouldn't be found by the structured
- * `findUniqueOrThrow` lookup right after it. A plain date-only string is
- * unambiguous to both, since there's no time-of-day/timezone left to
- * convert.
+ * `UserMissionProgress.date` is a MySQL `@db.Date` column. A plain
+ * `YYYY-MM-DD` string looked like the unambiguous choice, but Prisma's
+ * structured query builder (`findUniqueOrThrow`, `findMany`, etc.) rejects
+ * date-only strings outright - it requires a full ISO-8601 *date-time* or an
+ * actual `Date` object. A `Date` object works for both the structured
+ * builder and the raw `$executeRaw` INSERT below, but only if it carries no
+ * ambiguous time-of-day: a *local* midnight `Date` (via `setHours(0,0,0,0)`)
+ * has a non-zero UTC hour whenever the server isn't running in UTC, and the
+ * raw and structured query paths can disagree on which calendar day that
+ * represents. Pinning the instant to UTC hour 0 removes that ambiguity -
+ * there's no offset left that could round it onto a different day.
  */
-export function dateOnlyKey(date: Date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+export function dateOnlyKey(date: Date = new Date()): Date {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 }
 
 export async function incrementMissionProgress(userId: string, missionType: string, by: number, client: Tx) {

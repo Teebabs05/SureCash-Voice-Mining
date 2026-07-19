@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
     });
     const completions = await prisma.userTaskCompletion.findMany({ where: { userId: user.id } });
     const statusByTask = new Map(completions.map((c) => [c.taskId, c.status]));
-    const checkedInToday = Boolean(user.lastCheckInAt && dateOnlyKey(user.lastCheckInAt) === dateOnlyKey());
+    const checkedInToday = Boolean(
+      user.lastCheckInAt && dateOnlyKey(user.lastCheckInAt).getTime() === dateOnlyKey().getTime()
+    );
 
     return NextResponse.json({
       planRequired,
