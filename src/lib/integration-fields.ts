@@ -84,7 +84,12 @@ export const INTEGRATION_GROUPS = [
   },
   {
     category: "Voice Verification",
-    provider: "Google Gemini (recommended — free tier available)",
+    provider: "Groq (recommended — free tier, usually no card needed)",
+    fields: [{ key: "GROQ_API_KEY", label: "API key", placeholder: "gsk_..." }],
+  },
+  {
+    category: "Voice Verification",
+    provider: "Google Gemini",
     fields: [{ key: "GEMINI_API_KEY", label: "API key", placeholder: "AIza..." }],
   },
   {

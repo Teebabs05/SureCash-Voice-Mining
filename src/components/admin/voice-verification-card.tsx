@@ -8,6 +8,7 @@ import { CredentialFieldGroups } from "@/components/admin/credential-field-group
 
 const PROVIDERS = [
   { value: "stub", label: "Off (approves everything automatically — not recommended)" },
+  { value: "groq", label: "Groq" },
   { value: "gemini", label: "Google Gemini" },
   { value: "whisper", label: "OpenAI Whisper" },
   { value: "azure", label: "Azure Speech" },
@@ -45,12 +46,12 @@ export function VoiceVerificationCard() {
       <p className="mb-3 text-xs text-foreground/50">
         Checks that a submitted voice task recording actually matches the required prompt before approving it. This
         needs a real speech-recognition key below — without one, the system can&apos;t listen to what was said and
-        every recording is approved automatically. Google Gemini has a free tier and no billing setup required to
-        get started: create a key at{" "}
-        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline">
-          aistudio.google.com/apikey
+        every recording is approved automatically. Groq&apos;s free tier has historically not required a card at
+        signup, which is usually the easiest starting point for a Nigerian card: create a key at{" "}
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline">
+          console.groq.com/keys
         </a>
-        , paste it below, then set the provider to Gemini.
+        , paste it below, then set the provider to Groq. (Terms can change — double-check at signup.)
       </p>
 
       <div className="mb-4 flex flex-col gap-1.5">

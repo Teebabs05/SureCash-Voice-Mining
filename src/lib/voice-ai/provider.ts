@@ -61,6 +61,33 @@ class WhisperProvider implements VoiceAiProvider {
   }
 }
 
+class GroqProvider implements VoiceAiProvider {
+  name = "groq";
+
+  // Groq hosts open-source Whisper models behind an OpenAI-compatible API,
+  // and (unlike OpenAI/Google) its free tier has historically not required
+  // a card at signup - the most likely option to work without one. Terms
+  // can change, so double-check at console.groq.com when signing up.
+  async transcribe(audio: Buffer, mimeType: string): Promise<TranscriptionResult> {
+    const apiKey = await getCredential("GROQ_API_KEY");
+    if (!apiKey) throw new Error("GROQ_API_KEY is not configured");
+
+    const form = new FormData();
+    form.append("model", "whisper-large-v3");
+    form.append("file", new Blob([new Uint8Array(audio)], { type: mimeType }), "recording.webm");
+
+    const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+
+    if (!res.ok) throw new Error(`Groq API error: ${res.status} ${await res.text()}`);
+    const data = (await res.json()) as { text: string };
+    return { transcript: data.text, confidence: 0.9, raw: data };
+  }
+}
+
 class GeminiProvider implements VoiceAiProvider {
   name = "gemini";
 
@@ -132,6 +159,8 @@ export async function getVoiceAiProvider(): Promise<VoiceAiProvider> {
       return new WhisperProvider();
     case "gemini":
       return new GeminiProvider();
+    case "groq":
+      return new GroqProvider();
     case "azure":
       return new AzureSpeechProvider();
     default:
