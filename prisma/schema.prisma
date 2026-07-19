@@ -364,12 +364,19 @@ model BankAccount {
   // number to a real account name (the "instant bank account detection"
   // flow) — distinct from `isVerified`, which tracks the separate OTP step
   // confirming the account owner authorized adding this payout destination.
-  autoVerified          Boolean  @default(false)
-  isVerified            Boolean  @default(false)
-  isPrimary             Boolean  @default(false)
+  autoVerified          Boolean   @default(false)
+  isVerified            Boolean   @default(false)
+  isPrimary             Boolean   @default(false)
   paystackRecipientCode String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  // Set once an admin has manually reviewed an account that couldn't be
+  // auto-verified (no bank API configured, or the lookup failed) — see
+  // Admin > Bank Accounts. Approving sets autoVerified; rejecting clears
+  // isVerified so the account can't be used for a withdrawal until fixed.
+  reviewedAt            DateTime?
+  reviewedById          String?
+  reviewNote            String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   withdrawals Withdrawal[]
 

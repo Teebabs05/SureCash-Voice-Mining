@@ -20,6 +20,7 @@ interface BankAccount {
   accountName: string;
   autoVerified: boolean;
   isVerified: boolean;
+  reviewNote: string | null;
 }
 
 export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) => void }) {

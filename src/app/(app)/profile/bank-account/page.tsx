@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Landmark, CheckCircle2, Clock, Plus } from "lucide-react";
+import { ArrowLeft, Landmark, CheckCircle2, Clock, Plus, XCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ interface BankAccount {
   accountName: string;
   autoVerified: boolean;
   isVerified: boolean;
+  reviewNote: string | null;
 }
 
 export default function BankAccountPage() {
@@ -26,6 +27,7 @@ export default function BankAccountPage() {
   const [pendingOtpId, setPendingOtpId] = useState<string | null>(null);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     apiFetch<{ accounts: BankAccount[] }>("/api/bank-accounts").then((res) => setAccounts(res.accounts));
@@ -40,6 +42,19 @@ export default function BankAccountPage() {
     setPendingOtpId(account.id);
     setShowAddAccount(false);
     load();
+  }
+
+  async function removeAccount(id: string) {
+    setRemovingId(id);
+    try {
+      await apiFetch(`/api/bank-accounts/${id}`, { method: "DELETE" });
+      toast.success("Bank account removed");
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not remove this account");
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   async function confirmOtp() {
@@ -70,26 +85,46 @@ export default function BankAccountPage() {
       <p className="text-sm text-foreground/60">Manage the account your withdrawals are paid into.</p>
 
       {accounts.map((acc) => (
-        <Card key={acc.id} className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
-              <Landmark className="h-4.5 w-4.5" />
+        <Card key={acc.id} className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                <Landmark className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">{acc.bankName}</p>
+                <p className="text-xs text-foreground/50">
+                  {acc.accountName} · •••{acc.accountNumber.slice(-4)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold">{acc.bankName}</p>
-              <p className="text-xs text-foreground/50">
-                {acc.accountName} · •••{acc.accountNumber.slice(-4)}
-              </p>
-            </div>
+            {acc.isVerified ? (
+              <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Added
+              </span>
+            ) : acc.reviewNote ? (
+              <span className="flex items-center gap-1 rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500">
+                <XCircle className="h-3.5 w-3.5" /> Rejected
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
+                <Clock className="h-3.5 w-3.5" /> Pending
+              </span>
+            )}
           </div>
-          {acc.isVerified ? (
-            <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Added
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
-              <Clock className="h-3.5 w-3.5" /> Pending
-            </span>
+          {acc.reviewNote && (
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-red-500/10 px-3 py-2">
+              <p className="text-xs text-red-500">{acc.reviewNote} — remove this and add the correct details.</p>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={removingId === acc.id}
+                onClick={() => removeAccount(acc.id)}
+                className="flex-none"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Remove
+              </Button>
+            </div>
           )}
         </Card>
       ))}
