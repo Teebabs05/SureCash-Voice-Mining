@@ -82,6 +82,24 @@ export const INTEGRATION_GROUPS = [
       { key: "WHATSAPP_TEMPLATE_LANGUAGE", label: "Template language code (optional)", placeholder: "en_US" },
     ],
   },
+  {
+    category: "Voice Verification",
+    provider: "Google Gemini (recommended — free tier available)",
+    fields: [{ key: "GEMINI_API_KEY", label: "API key", placeholder: "AIza..." }],
+  },
+  {
+    category: "Voice Verification",
+    provider: "OpenAI Whisper",
+    fields: [{ key: "OPENAI_API_KEY", label: "API key", placeholder: "sk-..." }],
+  },
+  {
+    category: "Voice Verification",
+    provider: "Azure Speech",
+    fields: [
+      { key: "AZURE_SPEECH_KEY", label: "API key", placeholder: "" },
+      { key: "AZURE_SPEECH_REGION", label: "Region", placeholder: "e.g. westeurope" },
+    ],
+  },
 ] as const;
 
 export const INTEGRATION_KEYS: string[] = INTEGRATION_GROUPS.flatMap((g) => g.fields.map((f) => f.key));

@@ -6,6 +6,7 @@ import { creditWallet } from "@/lib/server/wallet";
 import { addXp, incrementMissionProgress, checkAchievements } from "@/lib/server/gamification";
 import { payReferralCommission } from "@/lib/server/referral-commission";
 import { getVoiceAiProvider } from "@/lib/voice-ai/provider";
+import { scorePromptMatch } from "@/lib/voice-ai/match";
 import {
   hashAudioBuffer,
   analyzeAudioEnergy,
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     // Safari's audio/mp4 output isn't a WebM container).
     const noise = (await analyzeAudioEnergy(buffer, file.type || "audio/webm")) ?? detectBackgroundNoiseHeuristic(buffer);
 
-    const provider = getVoiceAiProvider();
+    const provider = await getVoiceAiProvider();
     const transcription = await provider.transcribe(buffer, file.type || "audio/webm");
 
     // Prefer real pitch-contour analysis on decoded PCM; fall back to the
@@ -129,8 +130,21 @@ export async function POST(req: NextRequest) {
         byteLength: buffer.byteLength,
       });
 
+    // The actual content check: does what was transcribed match the prompt
+    // the user was asked to read? Without this, a submission could pass
+    // every fraud/quality heuristic while containing completely unrelated
+    // speech (or, with no real transcription provider configured, nothing
+    // meaningful at all) and still get approved.
+    const promptMatchScore = scorePromptMatch(transcription.transcript, voiceTask.promptText);
+    const promptMismatch = promptMatchScore < 0.5;
+
     const passed =
-      !isDuplicate && !isReplayAttack && !noise.flagged && !isSynthesizedVoice && transcription.confidence >= 0.6;
+      !isDuplicate &&
+      !isReplayAttack &&
+      !noise.flagged &&
+      !isSynthesizedVoice &&
+      !promptMismatch &&
+      transcription.confidence >= 0.6;
 
     // The system is the sole decision-maker on every submission - approved
     // or rejected immediately, nothing sits in a manual review queue. Pick
@@ -146,9 +160,11 @@ export async function POST(req: NextRequest) {
             ? "This sounds like a synthesized or AI-generated voice rather than a real live reading."
             : noise.flagged
               ? "Too much background noise - please record somewhere quieter."
-              : transcription.confidence < 0.6
-                ? "We couldn't clearly make out your speech - please read the prompt clearly and try again."
-                : "This submission didn't pass automatic review.";
+              : promptMismatch
+                ? "What we heard doesn't match the required text - please read the prompt exactly as shown."
+                : transcription.confidence < 0.6
+                  ? "We couldn't clearly make out your speech - please read the prompt clearly and try again."
+                  : "This submission didn't pass automatic review.";
 
     // A user's active plan re-prices every voice activity at a flat rate for
     // that activity type (session vs word game), overriding the individual

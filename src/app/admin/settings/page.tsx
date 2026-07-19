@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { PaymentGatewaysCard } from "@/components/admin/payment-gateways-card";
 import { NotificationsIntegrationsCard } from "@/components/admin/notifications-integrations-card";
+import { VoiceVerificationCard } from "@/components/admin/voice-verification-card";
 
 interface Setting {
   key: string;
@@ -386,6 +387,7 @@ export default function AdminSettingsPage() {
         <>
           <PaymentGatewaysCard />
           <NotificationsIntegrationsCard />
+          <VoiceVerificationCard />
         </>
       )}
     </div>

@@ -1,3 +1,6 @@
+import { getCredential } from "@/lib/server/credentials";
+import { getSetting } from "@/lib/server/settings";
+
 export interface TranscriptionResult {
   transcript: string;
   confidence: number; // 0..1
@@ -10,10 +13,13 @@ export interface VoiceAiProvider {
 }
 
 /**
- * Stub provider: no external API calls, deterministic-enough output so the
- * rest of the pipeline (duplicate/replay detection, wallet crediting) can be
- * exercised end-to-end without paid API keys. Swap VOICE_AI_PROVIDER to
- * "whisper" | "gemini" | "azure" and supply credentials to use a real model.
+ * Stub provider: no external API calls, so there's no real transcript to
+ * check the recording's content against - the "Off" option in Admin >
+ * Settings > Voice Verification. It exists to exercise the rest of the
+ * pipeline (duplicate/replay detection, wallet crediting) without a paid API
+ * key, not as a real fraud check: since it can't verify what was actually
+ * said, downstream prompt-matching will fail almost every real submission.
+ * Configure a real provider (Gemini/Whisper/Azure) to get real verification.
  */
 class StubProvider implements VoiceAiProvider {
   name = "stub";
@@ -36,7 +42,7 @@ class WhisperProvider implements VoiceAiProvider {
   name = "whisper";
 
   async transcribe(audio: Buffer, mimeType: string): Promise<TranscriptionResult> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = await getCredential("OPENAI_API_KEY");
     if (!apiKey) throw new Error("OPENAI_API_KEY is not configured");
 
     const form = new FormData();
@@ -59,7 +65,7 @@ class GeminiProvider implements VoiceAiProvider {
   name = "gemini";
 
   async transcribe(audio: Buffer, mimeType: string): Promise<TranscriptionResult> {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = await getCredential("GEMINI_API_KEY");
     if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
     const res = await fetch(
@@ -91,8 +97,7 @@ class AzureSpeechProvider implements VoiceAiProvider {
   name = "azure";
 
   async transcribe(audio: Buffer, mimeType: string): Promise<TranscriptionResult> {
-    const key = process.env.AZURE_SPEECH_KEY;
-    const region = process.env.AZURE_SPEECH_REGION;
+    const [key, region] = await Promise.all([getCredential("AZURE_SPEECH_KEY"), getCredential("AZURE_SPEECH_REGION")]);
     if (!key || !region) throw new Error("AZURE_SPEECH_KEY / AZURE_SPEECH_REGION are not configured");
 
     const res = await fetch(
@@ -117,8 +122,12 @@ class AzureSpeechProvider implements VoiceAiProvider {
   }
 }
 
-export function getVoiceAiProvider(): VoiceAiProvider {
-  switch (process.env.VOICE_AI_PROVIDER) {
+export async function getVoiceAiProvider(): Promise<VoiceAiProvider> {
+  // Admin > Settings > Voice Verification can switch providers live; falls
+  // back to the .env value (and then "stub") so an existing deployment
+  // keeps working unchanged until someone configures this from the panel.
+  const choice = await getSetting("voice_ai_provider", process.env.VOICE_AI_PROVIDER || "stub");
+  switch (choice) {
     case "whisper":
       return new WhisperProvider();
     case "gemini":
