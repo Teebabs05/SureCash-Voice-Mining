@@ -152,6 +152,16 @@ export async function listBanks(): Promise<BankListEntry[]> {
   return data.data.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
 }
 
+/** Same call as listBanks, but returns the raw response for admin diagnostics. */
+export async function debugListBanks() {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, status: 0, body: { error: "Korapay is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks?countryCode=NG`, { headers: headers(key) });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
+}
+
 /** Best-effort, same standing as the rest of this file - unverified against a live response. */
 export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
   const key = await getSecretKey();

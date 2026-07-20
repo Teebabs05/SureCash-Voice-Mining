@@ -35,6 +35,17 @@ async function paystackResolveBankAccount(bankCode: string, accountNumber: strin
   return data?.data?.account_name ?? null;
 }
 
+async function paystackDebugListBanks() {
+  const key = await getCredential("PAYSTACK_SECRET_KEY");
+  if (!key) return { ok: false, status: 0, body: { error: "Paystack is not configured" } };
+
+  const res = await fetch("https://api.paystack.co/bank?country=nigeria&currency=NGN", {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
+}
+
 async function paystackDebugResolveBankAccount(bankCode: string, accountNumber: string) {
   const key = await getCredential("PAYSTACK_SECRET_KEY");
   if (!key) {
@@ -64,7 +75,7 @@ type ProviderKey = "PAYSTACK" | "KORAPAY" | "MONNIFY" | "FLUTTERWAVE";
 export interface RawResolveResult {
   ok: boolean;
   status: number;
-  request: unknown;
+  request?: unknown;
   body: unknown;
 }
 
@@ -73,6 +84,7 @@ interface Provider {
   isConfigured(): Promise<boolean>;
   listBanks(): Promise<BankListEntry[]>;
   resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null>;
+  debugListBanks(): Promise<RawResolveResult>;
   debugResolveBankAccount(bankCode: string, accountNumber: string): Promise<RawResolveResult>;
 }
 
@@ -82,6 +94,7 @@ const PROVIDERS: Provider[] = [
     isConfigured: async () => Boolean(await getCredential("PAYSTACK_SECRET_KEY")),
     listBanks: paystackListBanks,
     resolveBankAccount: paystackResolveBankAccount,
+    debugListBanks: paystackDebugListBanks,
     debugResolveBankAccount: paystackDebugResolveBankAccount,
   },
   {
@@ -89,6 +102,7 @@ const PROVIDERS: Provider[] = [
     isConfigured: korapay.isKorapayConfigured,
     listBanks: korapay.listBanks,
     resolveBankAccount: korapay.resolveBankAccount,
+    debugListBanks: korapay.debugListBanks,
     debugResolveBankAccount: korapay.debugResolveBankAccount,
   },
   {
@@ -96,6 +110,7 @@ const PROVIDERS: Provider[] = [
     isConfigured: monnify.isMonnifyConfigured,
     listBanks: monnify.listBanks,
     resolveBankAccount: monnify.resolveBankAccount,
+    debugListBanks: monnify.debugListBanks,
     debugResolveBankAccount: monnify.debugResolveBankAccount,
   },
   {
@@ -103,6 +118,7 @@ const PROVIDERS: Provider[] = [
     isConfigured: flutterwave.isFlutterwaveConfigured,
     listBanks: flutterwave.listBanks,
     resolveBankAccount: flutterwave.resolveBankAccount,
+    debugListBanks: flutterwave.debugListBanks,
     debugResolveBankAccount: flutterwave.debugResolveBankAccount,
   },
 ];
@@ -164,6 +180,21 @@ export async function debugResolveBankAccount(params: {
     return { provider: null, ok: false, status: 0, request: params, body: { error: "No verification provider is configured" } };
   }
   const result = await provider.debugResolveBankAccount(params.bankCode, params.accountNumber);
+  return { provider: provider.key, ...result };
+}
+
+/**
+ * Raw bank-list call for the same active provider, for the Admin > Bank
+ * Accounts diagnostic tool - shows whether the dropdown is really being
+ * populated from the gateway's live list (and what code it assigns a given
+ * bank) or silently falling back to the static list.
+ */
+export async function debugListBanks(): Promise<{ provider: ProviderKey | null } & RawResolveResult> {
+  const provider = await getActiveProvider();
+  if (!provider) {
+    return { provider: null, ok: false, status: 0, body: { error: "No verification provider is configured" } };
+  }
+  const result = await provider.debugListBanks();
   return { provider: provider.key, ...result };
 }
 

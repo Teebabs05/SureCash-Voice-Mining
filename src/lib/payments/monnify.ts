@@ -176,6 +176,15 @@ export async function listBanks(): Promise<BankListEntry[]> {
   return data.responseBody.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
 }
 
+/** Same call as listBanks, but returns the raw response for admin diagnostics. */
+export async function debugListBanks() {
+  if (!(await getCredentials())) return { ok: false, status: 0, body: { error: "Monnify is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/api/v1/banks`);
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
+}
+
 /** Best-effort, same standing as the rest of this file - unverified against a live response. */
 export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
   if (!(await getCredentials())) return null;

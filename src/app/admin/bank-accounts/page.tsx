@@ -31,12 +31,16 @@ interface TestResolveResult {
   body: unknown;
 }
 
+const WATCH_NAMES = ["opay", "palmpay", "moniepoint", "kuda"];
+
 function TestResolveCard() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResolveResult | null>(null);
+  const [listing, setListing] = useState(false);
+  const [listResult, setListResult] = useState<TestResolveResult | null>(null);
 
   useEffect(() => {
     apiFetch<{ banks: Bank[] }>("/api/banks").then((res) => setBanks(res.banks));
@@ -58,6 +62,28 @@ function TestResolveCard() {
       setTesting(false);
     }
   }
+
+  async function runListTest() {
+    setListing(true);
+    setListResult(null);
+    try {
+      const res = await apiFetch<TestResolveResult>("/api/admin/bank-accounts/test-list-banks", { method: "POST" });
+      setListResult(res);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Test failed");
+    } finally {
+      setListing(false);
+    }
+  }
+
+  const rawBankEntries = Array.isArray((listResult?.body as { data?: unknown[] } | undefined)?.data)
+    ? ((listResult!.body as { data: Record<string, unknown>[] }).data)
+    : Array.isArray((listResult?.body as { responseBody?: unknown[] } | undefined)?.responseBody)
+      ? ((listResult!.body as { responseBody: Record<string, unknown>[] }).responseBody)
+      : [];
+  const watchedEntries = rawBankEntries.filter((b) =>
+    WATCH_NAMES.some((w) => String(b.name ?? "").toLowerCase().includes(w))
+  );
 
   return (
     <Card>
@@ -102,6 +128,34 @@ function TestResolveCard() {
           </pre>
         </div>
       )}
+
+      <div className="mt-4 border-t border-border pt-3">
+        <p className="mb-2 text-xs text-foreground/50">
+          Or check the gateway&apos;s own bank list directly — confirms whether the dropdown above is really using
+          live codes from the gateway, and what code it assigns OPay/PalmPay/Moniepoint/Kuda.
+        </p>
+        <Button size="sm" variant="outline" loading={listing} onClick={runListTest}>
+          Check raw bank list
+        </Button>
+        {listResult && (
+          <div className="mt-3 rounded-xl bg-surface-muted p-3">
+            <p className={`mb-1 text-xs font-bold ${listResult.ok ? "text-brand-green" : "text-red-500"}`}>
+              {listResult.provider ?? "No provider"} · HTTP {listResult.status} · {listResult.ok ? "OK" : "Failed"} ·{" "}
+              {rawBankEntries.length} banks returned
+            </p>
+            {listResult.ok && rawBankEntries.length > 0 && (
+              <p className="mb-2 text-[11px] text-foreground/60">
+                {watchedEntries.length > 0
+                  ? `Found ${watchedEntries.length} matching entr${watchedEntries.length === 1 ? "y" : "ies"} below.`
+                  : "None of OPay/PalmPay/Moniepoint/Kuda appear in this list by name at all."}
+              </p>
+            )}
+            <pre className="overflow-x-auto text-[11px] leading-relaxed text-foreground/70">
+              {JSON.stringify(watchedEntries.length > 0 ? watchedEntries : listResult.body, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
