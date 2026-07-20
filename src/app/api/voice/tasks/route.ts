@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
@@ -16,13 +16,17 @@ function shuffle<T>(items: T[]): T[] {
   return arr;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireUser();
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const tasks = await prisma.voiceTask.findMany({ where: { isActive: true }, orderBy: { createdAt: "desc" } });
+    const category = req.nextUrl.searchParams.get("category");
+    const tasks = await prisma.voiceTask.findMany({
+      where: { isActive: true, ...(category === "session" || category === "word_game" ? { category } : {}) },
+      orderBy: { createdAt: "desc" },
+    });
 
     const todayCounts = await prisma.voiceRecording.groupBy({
       by: ["voiceTaskId"],

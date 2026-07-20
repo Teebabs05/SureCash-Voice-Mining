@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pickaxe, Mic, ClipboardCheck, Camera, ChevronRight, Crown } from "lucide-react";
+import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, ChevronRight, Crown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api-client";
 
@@ -37,6 +37,14 @@ const WAYS = [
     iconClass: "bg-brand-primary/15 text-brand-primary",
   },
   {
+    key: "wordgame",
+    href: "/word-game",
+    title: "Word Game",
+    description: "Pronounce long words within 10 seconds",
+    icon: BookOpen,
+    iconClass: "bg-brand-green/15 text-brand-green",
+  },
+  {
     key: "tasks",
     href: "/tasks",
     title: "Tasks",
@@ -61,10 +69,16 @@ export default function EarnPage() {
     apiFetch<MiningStatus>("/api/mining/status")
       .then((res) => setStatus((s) => ({ ...s, mine: res.canMine ? "Ready" : "Claimed" })))
       .catch(() => {});
-    apiFetch<{ tasks: VoiceTask[] }>("/api/voice/tasks")
+    apiFetch<{ tasks: VoiceTask[] }>("/api/voice/tasks?category=session")
       .then((res) => {
         const remaining = res.tasks.reduce((sum, t) => sum + Math.max(t.dailyLimit - t.completedToday, 0), 0);
         setStatus((s) => ({ ...s, voice: remaining > 0 ? "Ready" : "All done" }));
+      })
+      .catch(() => {});
+    apiFetch<{ tasks: VoiceTask[] }>("/api/voice/tasks?category=word_game")
+      .then((res) => {
+        const remaining = res.tasks.reduce((sum, t) => sum + Math.max(t.dailyLimit - t.completedToday, 0), 0);
+        setStatus((s) => ({ ...s, wordgame: remaining > 0 ? "Ready" : "All done" }));
       })
       .catch(() => {});
     apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks")

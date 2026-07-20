@@ -4,6 +4,11 @@
 // text the user was never supposed to say aloud.
 const INSTRUCTIONAL_PREFIX = /^(pronounce the word|say the word|read the word|say|read|repeat)\s*:\s*/i;
 
+/** Strips instructional framing off a prompt for display purposes, e.g. "Pronounce the word: opportunity" -> "opportunity". */
+export function stripInstructionalPrefix(prompt: string): string {
+  return prompt.replace(INSTRUCTIONAL_PREFIX, "").trim();
+}
+
 function normalizeWords(text: string): string[] {
   return text
     .toLowerCase()
@@ -23,7 +28,7 @@ function normalizeWords(text: string): string[] {
  * the expected words means the user very likely didn't read the prompt.
  */
 export function scorePromptMatch(transcript: string, expectedPrompt: string): number {
-  const expectedWords = normalizeWords(expectedPrompt.replace(INSTRUCTIONAL_PREFIX, ""));
+  const expectedWords = normalizeWords(stripInstructionalPrefix(expectedPrompt));
   if (expectedWords.length === 0) return 1;
 
   const transcriptWords = new Set(normalizeWords(transcript));

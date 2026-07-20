@@ -16,6 +16,8 @@ interface VoiceTask {
   category: string;
   rewardAmount: string;
   dailyLimit: number;
+  minDuration: number;
+  maxDuration: number;
   isActive: boolean;
 }
 
@@ -40,9 +42,25 @@ export default function AdminVoiceTasksPage() {
   const [flagged, setFlagged] = useState<FlaggedRecording[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
+  const [form, setForm] = useState({
+    title: "",
+    promptText: "",
+    category: "session",
+    rewardAmount: "",
+    dailyLimit: "5",
+    minDuration: "3",
+    maxDuration: "30",
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "" });
+  const [editForm, setEditForm] = useState({
+    title: "",
+    promptText: "",
+    category: "session",
+    rewardAmount: "",
+    dailyLimit: "",
+    minDuration: "",
+    maxDuration: "",
+  });
 
   const loadTasks = useCallback(() => {
     apiFetch<{ tasks: VoiceTask[] }>("/api/admin/voice-tasks").then((res) => setTasks(res.tasks));
@@ -68,10 +86,20 @@ export default function AdminVoiceTasksPage() {
           category: form.category,
           rewardAmount: Number(form.rewardAmount),
           dailyLimit: Number(form.dailyLimit),
+          minDuration: Number(form.minDuration),
+          maxDuration: Number(form.maxDuration),
         }),
       });
       toast.success("Voice task created");
-      setForm({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
+      setForm({
+        title: "",
+        promptText: "",
+        category: "session",
+        rewardAmount: "",
+        dailyLimit: "5",
+        minDuration: "3",
+        maxDuration: "30",
+      });
       setShowForm(false);
       loadTasks();
     } catch (err) {
@@ -87,6 +115,8 @@ export default function AdminVoiceTasksPage() {
       category: task.category,
       rewardAmount: task.rewardAmount,
       dailyLimit: String(task.dailyLimit),
+      minDuration: String(task.minDuration),
+      maxDuration: String(task.maxDuration),
     });
   }
 
@@ -101,6 +131,8 @@ export default function AdminVoiceTasksPage() {
           category: editForm.category,
           rewardAmount: Number(editForm.rewardAmount),
           dailyLimit: Number(editForm.dailyLimit),
+          minDuration: Number(editForm.minDuration),
+          maxDuration: Number(editForm.maxDuration),
         }),
       });
       toast.success("Voice task updated");
@@ -201,6 +233,20 @@ export default function AdminVoiceTasksPage() {
                   />
                 </div>
                 <div className="flex gap-2">
+                  <Input
+                    label="Min seconds"
+                    type="number"
+                    value={editForm.minDuration}
+                    onChange={(e) => setEditForm({ ...editForm, minDuration: e.target.value })}
+                  />
+                  <Input
+                    label="Max seconds"
+                    type="number"
+                    value={editForm.maxDuration}
+                    onChange={(e) => setEditForm({ ...editForm, maxDuration: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2">
                   <Button size="sm" loading={busyId === t.id} onClick={() => saveEdit(t.id)}>
                     Save
                   </Button>
@@ -217,7 +263,7 @@ export default function AdminVoiceTasksPage() {
                   </p>
                   <p className="text-xs text-foreground/50">{t.promptText}</p>
                   <p className="text-xs font-medium text-brand-green">
-                    {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day
+                    {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day · {t.minDuration}-{t.maxDuration}s
                   </p>
                 </div>
                 <div className="flex flex-none gap-2">
@@ -271,6 +317,23 @@ export default function AdminVoiceTasksPage() {
                 onChange={(e) => setForm({ ...form, dailyLimit: e.target.value })}
               />
             </div>
+            <div className="flex gap-2">
+              <Input
+                label="Min seconds"
+                type="number"
+                value={form.minDuration}
+                onChange={(e) => setForm({ ...form, minDuration: e.target.value })}
+              />
+              <Input
+                label="Max seconds"
+                type="number"
+                value={form.maxDuration}
+                onChange={(e) => setForm({ ...form, maxDuration: e.target.value })}
+              />
+            </div>
+            <p className="text-xs text-foreground/50">
+              For Word Game, keep max seconds at 10 or below so the in-app countdown matches the server limit.
+            </p>
             <Button onClick={createTask}>Create task</Button>
           </div>
         ) : (

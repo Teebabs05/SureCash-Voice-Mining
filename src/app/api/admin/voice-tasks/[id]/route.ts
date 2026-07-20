@@ -10,6 +10,8 @@ const schema = z.object({
   category: z.enum(["session", "word_game"]).optional(),
   rewardAmount: z.number().positive().optional(),
   dailyLimit: z.number().int().positive().optional(),
+  minDuration: z.number().int().positive().optional(),
+  maxDuration: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),
 });
 
