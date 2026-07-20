@@ -142,7 +142,7 @@ export async function listBanks(): Promise<BankListEntry[]> {
   const key = await getSecretKey();
   if (!key) return [];
 
-  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks?countryCode=NG`, { headers: headers(key) });
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks`, { headers: headers(key) });
   const data = await res.json().catch(() => null);
   if (!res.ok || !Array.isArray(data?.data)) {
     console.error("[korapay:listBanks] unexpected response", res.status, JSON.stringify(data));
@@ -157,7 +157,7 @@ export async function debugListBanks() {
   const key = await getSecretKey();
   if (!key) return { ok: false, status: 0, body: { error: "Korapay is not configured" } };
 
-  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks?countryCode=NG`, { headers: headers(key) });
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks`, { headers: headers(key) });
   const body = await res.json().catch(() => null);
   return { ok: res.ok, status: res.status, body };
 }
