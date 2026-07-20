@@ -144,7 +144,10 @@ export async function listBanks(): Promise<BankListEntry[]> {
 
   const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks?countryCode=NG`, { headers: headers(key) });
   const data = await res.json().catch(() => null);
-  if (!res.ok || !Array.isArray(data?.data)) return [];
+  if (!res.ok || !Array.isArray(data?.data)) {
+    console.error("[korapay:listBanks] unexpected response", res.status, JSON.stringify(data));
+    return [];
+  }
 
   return data.data.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
 }
@@ -161,7 +164,17 @@ export async function resolveBankAccount(bankCode: string, accountNumber: string
   });
 
   const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.data?.account_name) return null;
+  if (!res.ok || !data?.data?.account_name) {
+    // Logged (not just swallowed) so a real failure reason from Korapay -
+    // wrong bank code, unsupported bank, auth issue, etc. - shows up in the
+    // app's server logs instead of just silently falling back to manual
+    // review with no way to tell why.
+    console.error(
+      "[korapay:resolveBankAccount] failed",
+      JSON.stringify({ bankCode, status: res.status, body: data })
+    );
+    return null;
+  }
   return data.data.account_name as string;
 }
 
