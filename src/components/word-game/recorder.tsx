@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, Send, Square, Trash2 } from "lucide-react";
+import { Mic, RotateCw, Send, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -17,7 +17,15 @@ interface WordGameTaskLite {
   rewardAmount: string;
 }
 
-export function WordGameRecorder({ task, onDone }: { task: WordGameTaskLite; onDone: () => void }) {
+export function WordGameRecorder({
+  task,
+  onDone,
+  onSkip,
+}: {
+  task: WordGameTaskLite;
+  onDone: () => void;
+  onSkip: () => void;
+}) {
   const timeLimit = Math.min(task.maxDuration, 10);
   const [recording, setRecording] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(timeLimit);
@@ -31,6 +39,9 @@ export function WordGameRecorder({ task, onDone }: { task: WordGameTaskLite; onD
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") recorder.stop();
+      recorder?.stream.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -116,18 +127,29 @@ export function WordGameRecorder({ task, onDone }: { task: WordGameTaskLite; onD
 
       {!blob && (
         <>
-          <button
-            onClick={recording ? stopRecording : startRecording}
-            className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95 ${
-              recording ? "bg-red-500 animate-pulse-glow" : "gradient-brand"
-            }`}
-          >
-            {recording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={recording ? stopRecording : startRecording}
+              className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95 ${
+                recording ? "bg-red-500 animate-pulse-glow" : "gradient-brand"
+              }`}
+            >
+              {recording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+            </button>
+            {!recording && (
+              <button
+                onClick={onSkip}
+                title="Can't pronounce it? Get another word"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-foreground/60 shadow-md transition-transform active:scale-95 hover:text-foreground"
+              >
+                <RotateCw className="h-5 w-5" />
+              </button>
+            )}
+          </div>
           {recording ? (
             <p className="font-mono text-lg font-bold text-red-500">{secondsLeft}s left</p>
           ) : (
-            <p className="text-xs text-foreground/50">You have {timeLimit}s to say the word</p>
+            <p className="text-xs text-foreground/50">You have {timeLimit}s to say the word · tap the circle to skip</p>
           )}
         </>
       )}
@@ -141,6 +163,9 @@ export function WordGameRecorder({ task, onDone }: { task: WordGameTaskLite; onD
             </Button>
             <Button size="sm" loading={submitting} onClick={submit}>
               <Send className="h-4 w-4" /> Submit
+            </Button>
+            <Button variant="outline" size="sm" onClick={onSkip}>
+              <RotateCw className="h-4 w-4" /> Skip
             </Button>
           </div>
         </div>

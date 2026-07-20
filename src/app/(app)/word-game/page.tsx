@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { BookOpen, Crown } from "lucide-react";
+import { BookOpen, Crown, PartyPopper } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { WordGameRecorder } from "@/components/word-game/recorder";
 import { apiFetch } from "@/lib/api-client";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 interface WordGameTask {
   id: string;
@@ -19,24 +19,50 @@ interface WordGameTask {
   completedToday: number;
 }
 
+function pickRandom(list: WordGameTask[], excludeId: string | null): WordGameTask | null {
+  const candidates = list.length > 1 ? list.filter((t) => t.id !== excludeId) : list;
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
 export default function WordGamePage() {
   const [tasks, setTasks] = useState<WordGameTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastIdRef = useRef<string | null>(null);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: WordGameTask[]; planRequired: boolean }>("/api/voice/tasks?category=word_game")
-      .then((res) => {
+    return apiFetch<{ tasks: WordGameTask[]; planRequired: boolean }>("/api/voice/tasks?category=word_game").then(
+      (res) => {
         setTasks(res.tasks);
         setPlanRequired(res.planRequired);
-      })
-      .finally(() => setLoading(false));
+      }
+    );
   }, []);
 
   useEffect(() => {
-    load();
+    load().finally(() => setLoading(false));
   }, [load]);
+
+  const pool = tasks.filter((t) => t.completedToday < t.dailyLimit);
+
+  useEffect(() => {
+    if (currentId && pool.some((t) => t.id === currentId)) return;
+    const next = pickRandom(pool, lastIdRef.current);
+    lastIdRef.current = next?.id ?? null;
+    setCurrentId(next?.id ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when the pool composition or the active word actually changes
+  }, [currentId, pool.map((t) => t.id).join(",")]);
+
+  function skip() {
+    lastIdRef.current = currentId;
+    const next = pickRandom(pool, currentId);
+    setCurrentId(next?.id ?? null);
+  }
+
+  const current = tasks.find((t) => t.id === currentId) ?? null;
+  const totalRemaining = pool.reduce((sum, t) => sum + Math.max(t.dailyLimit - t.completedToday, 0), 0);
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading word game…</p>;
 
@@ -44,7 +70,7 @@ export default function WordGamePage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold">Word Game</h1>
-        <p className="text-sm text-foreground/60">Pronounce the word before time runs out to earn.</p>
+        <p className="text-sm text-foreground/60">Pronounce the word before time runs out to earn. Can&apos;t say it? Skip to another.</p>
       </div>
 
       {planRequired && (
@@ -60,53 +86,43 @@ export default function WordGamePage() {
         </Card>
       )}
 
-      {tasks.length === 0 && (
-        <p className="py-10 text-center text-sm text-foreground/50">No words available right now.</p>
+      {!planRequired && !current && (
+        <Card className="flex flex-col items-center gap-2 py-10 text-center">
+          <PartyPopper className="h-8 w-8 text-brand-green" />
+          <p className="font-semibold">
+            {tasks.length === 0 ? "No words available right now." : "You've done every word for today!"}
+          </p>
+          <p className="text-xs text-foreground/50">Come back tomorrow for more.</p>
+        </Card>
       )}
 
-      {tasks.map((task) => {
-        const exhausted = task.completedToday >= task.dailyLimit;
-        return (
-          <Card key={task.id}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-brand-green/15 p-2.5 text-brand-green">
-                  <BookOpen className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="font-semibold">{task.title}</p>
-                  <p className="text-xs text-foreground/50">
-                    {task.completedToday}/{task.dailyLimit} today · {Math.min(task.maxDuration, 10)}s to say it
-                  </p>
-                </div>
+      {!planRequired && current && (
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-brand-green/15 p-2.5 text-brand-green">
+                <BookOpen className="h-4 w-4" />
               </div>
-              <span className="whitespace-nowrap text-sm font-bold text-brand-green">
-                {formatCurrency(task.rewardAmount)}
-              </span>
+              <p className="text-xs text-foreground/50">{totalRemaining} word{totalRemaining === 1 ? "" : "s"} left today</p>
             </div>
+            <span className="whitespace-nowrap text-sm font-bold text-brand-green">
+              {formatCurrency(current.rewardAmount)}
+            </span>
+          </div>
 
-            {exhausted ? (
-              <p className="mt-3 rounded-xl bg-surface-muted py-2 text-center text-xs text-foreground/50">
-                Daily limit reached — come back tomorrow
-              </p>
-            ) : activeTaskId === task.id ? (
-              <div className="mt-3">
-                <WordGameRecorder task={task} onDone={() => { setActiveTaskId(null); load(); }} />
-              </div>
-            ) : (
-              <button
-                onClick={() => setActiveTaskId(task.id)}
-                disabled={planRequired}
-                className={cn(
-                  "mt-3 w-full rounded-xl gradient-brand py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                )}
-              >
-                Start
-              </button>
-            )}
-          </Card>
-        );
-      })}
+          <div className="mt-3">
+            <WordGameRecorder
+              key={current.id}
+              task={current}
+              onSkip={skip}
+              onDone={() => {
+                lastIdRef.current = current.id;
+                load().then(() => setCurrentId(null));
+              }}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
