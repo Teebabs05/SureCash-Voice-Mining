@@ -73,9 +73,9 @@ export default function EarnPage() {
         setStatus((s) => ({ ...s, tasks: available > 0 ? `${available} available` : "All done" }));
       })
       .catch(() => {});
-    apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks?category=sponsored")
+    apiFetch<{ platforms: { status: string }[] }>("/api/sponsored-posts")
       .then((res) => {
-        const available = res.tasks.filter((t) => !t.isCompleted).length;
+        const available = res.platforms.filter((p) => p.status === "AVAILABLE").length;
         setStatus((s) => ({ ...s, sponsored: available > 0 ? `${available} available` : "All done" }));
       })
       .catch(() => {});

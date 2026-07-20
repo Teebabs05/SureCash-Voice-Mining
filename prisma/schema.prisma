@@ -46,6 +46,19 @@ enum TxnReason {
   WALLET_TRANSFER
   PLAN_ACTIVATION
   PLAN_COMMISSION
+  SPONSORED_POST_REWARD
+}
+
+enum SponsoredPlatform {
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+  WHATSAPP
+}
+
+enum SponsoredShareStatus {
+  APPROVED
+  REJECTED
 }
 
 enum VoiceRecordingStatus {
@@ -223,6 +236,7 @@ model User {
   promoCodeRedemptions      PromoCodeRedemption[]
   supportTickets            SupportTicket[]
   supportTicketReplies      SupportTicketReply[]
+  sponsoredShares           SponsoredShare[]
 
   @@index([referredById])
   @@index([role])
@@ -662,6 +676,27 @@ model UserTaskCompletion {
 
   @@index([userId])
   @@index([proofImageHash])
+}
+
+// A single active campaign (caption/link/banner/reward) lives in Setting
+// (sponsored_post_*) — this table only tracks individual share attempts, one
+// per user per platform per day.
+model SponsoredShare {
+  id             String                @id @default(cuid())
+  userId         String
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform       SponsoredPlatform
+  date           DateTime
+  status         SponsoredShareStatus
+  proofImageUrl  String
+  proofImageHash String
+  rewardPaid     Decimal               @db.Decimal(18, 2)
+  reviewNote     String?
+  createdAt      DateTime              @default(now())
+
+  @@unique([userId, platform, date])
+  @@index([proofImageHash])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------

@@ -6,29 +6,29 @@ import { setSetting } from "@/lib/server/settings";
 import { detectImageType, NOT_AN_IMAGE_MESSAGE } from "@/lib/server/image-type";
 
 const MAX_BYTES = 8 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]);
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function POST(req: NextRequest) {
   try {
     await requireAdmin();
     const form = await req.formData();
-    const logo = form.get("logo");
+    const banner = form.get("banner");
 
-    if (!(logo instanceof Blob)) return jsonError("No image uploaded", 422);
-    if (logo.size > MAX_BYTES) return jsonError("Logo must be under 8MB", 422);
+    if (!(banner instanceof Blob)) return jsonError("No image uploaded", 422);
+    if (banner.size > MAX_BYTES) return jsonError("Banner must be under 8MB", 422);
 
-    const buffer = Buffer.from(await logo.arrayBuffer());
+    const buffer = Buffer.from(await banner.arrayBuffer());
     const detectedType = detectImageType(buffer);
     if (!detectedType || !ALLOWED_TYPES.has(detectedType)) {
       return jsonError(NOT_AN_IMAGE_MESSAGE, 422);
     }
 
-    const extension = detectedType.split("/")[1].replace("svg+xml", "svg");
-    const logoUrl = await saveUploadedFile({ folder: "branding", buffer, extension });
+    const extension = detectedType.split("/")[1];
+    const bannerUrl = await saveUploadedFile({ folder: "sponsored", buffer, extension });
 
-    await setSetting("site_logo_url", logoUrl);
+    await setSetting("sponsored_post_banner_url", bannerUrl);
 
-    return NextResponse.json({ logoUrl });
+    return NextResponse.json({ bannerUrl });
   } catch (error) {
     return handleApiError(error);
   }
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 export async function DELETE() {
   try {
     await requireAdmin();
-    await setSetting("site_logo_url", "");
+    await setSetting("sponsored_post_banner_url", "");
     return NextResponse.json({ success: true });
   } catch (error) {
     return handleApiError(error);
