@@ -47,6 +47,7 @@ enum TxnReason {
   PLAN_ACTIVATION
   PLAN_COMMISSION
   SPONSORED_POST_REWARD
+  EXTRA_SPIN_PURCHASE
 }
 
 enum SponsoredPlatform {

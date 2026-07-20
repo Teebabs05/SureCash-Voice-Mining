@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   Landmark,
+  Disc3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
@@ -35,6 +36,7 @@ const items = [
   { href: "/admin/bank-accounts", label: "Bank Accounts", icon: Landmark },
   { href: "/admin/voice-tasks", label: "Voice Tasks", icon: Mic },
   { href: "/admin/tasks", label: "Task Center", icon: ClipboardCheck },
+  { href: "/admin/spin-rewards", label: "Spin Wheel", icon: Disc3 },
   { href: "/admin/plans", label: "Plans", icon: Crown },
   { href: "/admin/promo-codes", label: "Promo Codes", icon: Gift },
   { href: "/admin/support", label: "Support Tickets", icon: Ticket },

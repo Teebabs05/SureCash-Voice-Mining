@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, ChevronRight, Crown } from "lucide-react";
+import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, Disc3, ChevronRight, Crown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { apiFetch } from "@/lib/api-client";
 
@@ -60,6 +60,14 @@ const WAYS = [
     icon: Camera,
     iconClass: "bg-red-500/15 text-red-500",
   },
+  {
+    key: "spin",
+    href: "/spin",
+    title: "Lucky Spin",
+    description: "One free spin daily, buy more to keep playing",
+    icon: Disc3,
+    iconClass: "bg-brand-amber/15 text-[#a67c00]",
+  },
 ] as const;
 
 export default function EarnPage() {
@@ -92,6 +100,9 @@ export default function EarnPage() {
         const available = res.platforms.filter((p) => p.status === "AVAILABLE").length;
         setStatus((s) => ({ ...s, sponsored: available > 0 ? `${available} available` : "All done" }));
       })
+      .catch(() => {});
+    apiFetch<{ canSpin: boolean }>("/api/spin")
+      .then((res) => setStatus((s) => ({ ...s, spin: res.canSpin ? "Ready" : "Claimed" })))
       .catch(() => {});
   }, []);
 

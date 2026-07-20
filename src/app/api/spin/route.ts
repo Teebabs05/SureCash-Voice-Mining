@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
-import { creditWallet } from "@/lib/server/wallet";
+import { creditWallet, debitWallet } from "@/lib/server/wallet";
+import { getSetting } from "@/lib/server/settings";
 
 export async function GET() {
   try {
@@ -10,12 +11,30 @@ export async function GET() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [rewards, spinsToday] = await Promise.all([
+    const [rewards, spinsToday, history, extraSpinPrice] = await Promise.all([
       prisma.spinReward.findMany({ where: { isActive: true } }),
       prisma.spinHistory.count({ where: { userId: user.id, createdAt: { gte: startOfDay } } }),
+      prisma.spinHistory.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: { spinReward: { select: { label: true, amount: true } } },
+      }),
+      getSetting("spin_extra_spin_price", 50),
     ]);
 
-    return NextResponse.json({ rewards, canSpin: spinsToday === 0 });
+    return NextResponse.json({
+      rewards,
+      canSpin: spinsToday === 0,
+      spinsToday,
+      extraSpinPrice,
+      history: history.map((h) => ({
+        id: h.id,
+        label: h.spinReward.label,
+        amount: h.spinReward.amount,
+        createdAt: h.createdAt,
+      })),
+    });
   } catch (error) {
     return handleApiError(error);
   }
@@ -30,9 +49,8 @@ export async function POST() {
     const spinsToday = await prisma.spinHistory.count({
       where: { userId: user.id, createdAt: { gte: startOfDay } },
     });
-    if (spinsToday > 0) {
-      return jsonError("You've already spun today. Come back tomorrow!", 429);
-    }
+    const isPaidSpin = spinsToday > 0;
+    const extraSpinPrice = await getSetting("spin_extra_spin_price", 50);
 
     const rewards = await prisma.spinReward.findMany({ where: { isActive: true } });
     if (rewards.length === 0) {
@@ -51,6 +69,17 @@ export async function POST() {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      if (isPaidSpin) {
+        await debitWallet({
+          userId: user.id,
+          type: "MAIN",
+          amount: extraSpinPrice,
+          reason: "EXTRA_SPIN_PURCHASE",
+          description: "Bought an extra spin",
+          client: tx,
+        });
+      }
+
       await tx.spinHistory.create({ data: { userId: user.id, spinRewardId: chosen.id } });
 
       if (Number(chosen.amount) > 0) {
@@ -67,7 +96,7 @@ export async function POST() {
       return chosen;
     });
 
-    return NextResponse.json({ reward: result });
+    return NextResponse.json({ reward: result, paid: isPaidSpin, pricePaid: isPaidSpin ? extraSpinPrice : 0 });
   } catch (error) {
     return handleApiError(error);
   }
