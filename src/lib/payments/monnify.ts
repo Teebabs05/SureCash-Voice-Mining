@@ -188,6 +188,18 @@ export async function resolveBankAccount(bankCode: string, accountNumber: string
   return data.responseBody.accountName as string;
 }
 
+/** Same call as resolveBankAccount, but returns the raw response for admin diagnostics. */
+export async function debugResolveBankAccount(bankCode: string, accountNumber: string) {
+  if (!(await getCredentials())) {
+    return { ok: false, status: 0, request: { accountNumber, bankCode }, body: { error: "Monnify is not configured" } };
+  }
+  const res = await authedFetch(
+    `/api/v1/disbursements/account/validate?accountNumber=${encodeURIComponent(accountNumber)}&bankCode=${encodeURIComponent(bankCode)}`
+  );
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, request: { accountNumber, bankCode }, body };
+}
+
 export async function verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {
   const creds = await getCredentials();
   if (!creds || !signature) return false;

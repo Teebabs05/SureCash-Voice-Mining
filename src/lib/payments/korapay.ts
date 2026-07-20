@@ -178,6 +178,20 @@ export async function resolveBankAccount(bankCode: string, accountNumber: string
   return data.data.account_name as string;
 }
 
+/** Same call as resolveBankAccount, but returns the raw response for admin diagnostics. */
+export async function debugResolveBankAccount(bankCode: string, accountNumber: string) {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, status: 0, request: { bank: bankCode, account: accountNumber }, body: { error: "Korapay is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ bank: bankCode, account: accountNumber }),
+  });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, request: { bank: bankCode, account: accountNumber }, body };
+}
+
 /**
  * Korapay's documented quirk (per training knowledge, unconfirmed live):
  * the signature is computed over JSON.stringify(payload.data), not the raw

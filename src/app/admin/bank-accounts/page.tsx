@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Landmark, CheckCircle2, Clock } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { apiFetch, ApiError } from "@/lib/api-client";
 
 interface PendingBankAccount {
@@ -15,6 +16,94 @@ interface PendingBankAccount {
   isVerified: boolean;
   createdAt: string;
   user: { id: string; fullName: string; email: string };
+}
+
+interface Bank {
+  code: string;
+  name: string;
+}
+
+interface TestResolveResult {
+  provider: string | null;
+  ok: boolean;
+  status: number;
+  request: unknown;
+  body: unknown;
+}
+
+function TestResolveCard() {
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [bankCode, setBankCode] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<TestResolveResult | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ banks: Bank[] }>("/api/banks").then((res) => setBanks(res.banks));
+  }, []);
+
+  async function runTest() {
+    if (!bankCode || accountNumber.length !== 10) return toast.error("Pick a bank and enter a 10-digit account number");
+    setTesting(true);
+    setResult(null);
+    try {
+      const res = await apiFetch<TestResolveResult>("/api/admin/bank-accounts/test-resolve", {
+        method: "POST",
+        body: JSON.stringify({ bankCode, accountNumber }),
+      });
+      setResult(res);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Test failed");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Test bank resolution</CardTitle>
+      </CardHeader>
+      <p className="mb-3 text-xs text-foreground/50">
+        Runs the exact same lookup as the &quot;Add bank account&quot; flow, using whichever gateway is currently
+        active, and shows the raw response — useful for diagnosing why a specific bank won&apos;t auto-verify.
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <select
+          value={bankCode}
+          onChange={(e) => setBankCode(e.target.value)}
+          className="rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand-primary sm:flex-1"
+        >
+          <option value="">Select a bank</option>
+          {banks.map((b) => (
+            <option key={b.code} value={b.code}>
+              {b.name} ({b.code})
+            </option>
+          ))}
+        </select>
+        <Input
+          placeholder="10-digit account number"
+          value={accountNumber}
+          maxLength={10}
+          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+          className="sm:w-56"
+        />
+        <Button size="sm" loading={testing} onClick={runTest} className="flex-none">
+          Test
+        </Button>
+      </div>
+      {result && (
+        <div className="mt-3 rounded-xl bg-surface-muted p-3">
+          <p className={`mb-1 text-xs font-bold ${result.ok ? "text-brand-green" : "text-red-500"}`}>
+            {result.provider ?? "No provider"} · HTTP {result.status} · {result.ok ? "OK" : "Failed"}
+          </p>
+          <pre className="overflow-x-auto text-[11px] leading-relaxed text-foreground/70">
+            {JSON.stringify({ request: result.request, response: result.body }, null, 2)}
+          </pre>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 export default function AdminBankAccountsPage() {
@@ -77,6 +166,8 @@ export default function AdminBankAccountsPage() {
           human to confirm the account name matches the account holder before withdrawals go out.
         </p>
       </div>
+
+      <TestResolveCard />
 
       {loading && <p className="text-sm text-foreground/50">Loading…</p>}
       {!loading && loadError && (

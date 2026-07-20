@@ -157,6 +157,21 @@ export async function resolveBankAccount(bankCode: string, accountNumber: string
   return data.data.account_name as string;
 }
 
+/** Same call as resolveBankAccount, but returns the raw response for admin diagnostics. */
+export async function debugResolveBankAccount(bankCode: string, accountNumber: string) {
+  const key = await getSecretKey();
+  if (!key) {
+    return { ok: false, status: 0, request: { account_number: accountNumber, account_bank: bankCode }, body: { error: "Flutterwave is not configured" } };
+  }
+  const res = await fetch(`${BASE_URL}/accounts/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
+  });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, request: { account_number: accountNumber, account_bank: bankCode }, body };
+}
+
 /**
  * Flutterwave doesn't HMAC-sign webhooks — it just echoes back the static
  * secret hash you configured in your dashboard (FLUTTERWAVE_WEBHOOK_HASH),
