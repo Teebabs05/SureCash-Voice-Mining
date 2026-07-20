@@ -23,6 +23,13 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
       throw error;
     }
 
+    // Removing the default account shouldn't leave the user with no default
+    // at all - hand it to whichever account they added next most recently.
+    if (account.isPrimary) {
+      const next = await prisma.bankAccount.findFirst({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });
+      if (next) await prisma.bankAccount.update({ where: { id: next.id }, data: { isPrimary: true } });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return handleApiError(error);

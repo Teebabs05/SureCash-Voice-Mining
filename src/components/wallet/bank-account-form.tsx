@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, Search, ShieldAlert } from "lucide-react";
+import { CheckCircle2, CheckSquare, Loader2, Search, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -20,6 +20,7 @@ interface BankAccount {
   accountName: string;
   autoVerified: boolean;
   isVerified: boolean;
+  isPrimary: boolean;
   reviewNote: string | null;
 }
 
@@ -112,44 +113,50 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="relative">
-        <Input
-          placeholder="Search for your bank"
-          value={selectedBank ? selectedBank.name : bankQuery}
-          onFocus={() => setShowDropdown(true)}
-          onChange={(e) => {
-            setSelectedBank(null);
-            setBankQuery(e.target.value);
-            setShowDropdown(true);
-          }}
-        />
-        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/30" />
-        {showDropdown && !selectedBank && (
-          <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
-            {filteredBanks.length === 0 && <p className="p-3 text-xs text-foreground/50">No banks found</p>}
-            {filteredBanks.map((b) => (
-              <button
-                key={b.code}
-                onClick={() => {
-                  setSelectedBank(b);
-                  setShowDropdown(false);
-                }}
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-muted"
-              >
-                {b.name}
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-foreground/60">Select Bank</label>
+        <div className="relative">
+          <Input
+            placeholder="Search for your bank"
+            value={selectedBank ? selectedBank.name : bankQuery}
+            onFocus={() => setShowDropdown(true)}
+            onChange={(e) => {
+              setSelectedBank(null);
+              setBankQuery(e.target.value);
+              setShowDropdown(true);
+            }}
+          />
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/30" />
+          {showDropdown && !selectedBank && (
+            <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
+              {filteredBanks.length === 0 && <p className="p-3 text-xs text-foreground/50">No banks found</p>}
+              {filteredBanks.map((b) => (
+                <button
+                  key={b.code}
+                  onClick={() => {
+                    setSelectedBank(b);
+                    setShowDropdown(false);
+                  }}
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-muted"
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <Input
-        placeholder="10-digit account number"
-        value={accountNumber}
-        maxLength={10}
-        onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
-      />
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-foreground/60">Account Number</label>
+        <Input
+          placeholder="10-digit account number"
+          value={accountNumber}
+          maxLength={10}
+          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+        />
+      </div>
 
       {resolving && (
         <p className="flex items-center gap-1.5 text-xs text-foreground/50">
@@ -157,9 +164,9 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
         </p>
       )}
       {resolvedName && (
-        <p className="flex items-center gap-1.5 text-xs font-medium text-brand-green">
-          <CheckCircle2 className="h-3.5 w-3.5" /> {resolvedName}
-        </p>
+        <div className="flex items-center gap-1.5 rounded-xl bg-brand-green/10 px-3 py-2.5 text-sm font-semibold text-brand-green">
+          <CheckCircle2 className="h-4 w-4 flex-none" /> {resolvedName}
+        </div>
       )}
       {needsManualName && (
         <>
@@ -176,7 +183,7 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
       )}
 
       <Button loading={submitting} disabled={!canSave} onClick={save} className={cn(!canSave && "opacity-50")}>
-        Save & send OTP
+        <CheckSquare className="h-4 w-4" /> Save Bank Account
       </Button>
     </div>
   );

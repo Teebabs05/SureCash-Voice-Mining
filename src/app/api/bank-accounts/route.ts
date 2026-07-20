@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
       return jsonError("We couldn't automatically verify this account. Please enter the account holder's name.", 422);
     }
 
+    const accountCount = await prisma.bankAccount.count({ where: { userId: user.id } });
+
     const account = await prisma.bankAccount.create({
       data: {
         userId: user.id,
@@ -58,6 +60,10 @@ export async function POST(req: NextRequest) {
         accountName: resolved.verified ? resolved.accountName : body.accountName!,
         autoVerified: resolved.verified,
         isVerified: false,
+        // The first account a user ever adds becomes their default payout
+        // method automatically - later ones are added alongside it until
+        // the user explicitly switches the default.
+        isPrimary: accountCount === 0,
       },
     });
 

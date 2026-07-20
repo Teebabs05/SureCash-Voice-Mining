@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { Suspense, useState, FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Home } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    searchParams.get("reason") === "idle" ? "You were logged out after 30 minutes of inactivity. Please log in again." : null
+  );
   const [form, setForm] = useState({ email: "", password: "" });
   const [pending2fa, setPending2fa] = useState<{ uid: string } | null>(null);
   const [code, setCode] = useState("");
@@ -105,5 +108,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-foreground/50">Loading…</p>}>
+      <LoginForm />
+    </Suspense>
   );
 }
