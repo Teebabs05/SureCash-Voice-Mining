@@ -13,7 +13,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(() =>
-    searchParams.get("reason") === "idle" ? "You were logged out after 30 minutes of inactivity. Please log in again." : null
+    searchParams.get("reason") === "idle" ? "You were logged out after 15 minutes of inactivity. Please log in again." : null
   );
   const [form, setForm] = useState({ email: "", password: "" });
   const [pending2fa, setPending2fa] = useState<{ uid: string } | null>(null);
