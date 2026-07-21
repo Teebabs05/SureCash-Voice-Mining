@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { BookOpen, PartyPopper } from "lucide-react";
+import { BookOpen, Gamepad2, PartyPopper } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PlanGateBanner } from "@/components/plan-gate-banner";
+import { PlanLockScreen } from "@/components/plan-lock-screen";
 import { WordGameRecorder } from "@/components/word-game/recorder";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
@@ -73,6 +74,19 @@ export default function WordGamePage() {
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading word game…</p>;
 
+  if (planRequired) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-xl font-bold">Word Game</h1>
+        <PlanLockScreen
+          icon={Gamepad2}
+          title="Word Game"
+          description="Pronounce simple words correctly and earn instant rewards - no timer, no pressure. Activate a plan to start playing and earning."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -82,15 +96,11 @@ export default function WordGamePage() {
         </p>
       </div>
 
-      {(planRequired || limitReached) && (
-        <PlanGateBanner
-          reason={planRequired ? "no_plan" : "limit_reached"}
-          feature="play Word Game"
-          dailyLimit={sectionDailyLimit ?? undefined}
-        />
+      {limitReached && (
+        <PlanGateBanner reason="limit_reached" feature="play Word Game" dailyLimit={sectionDailyLimit ?? undefined} />
       )}
 
-      {!planRequired && !limitReached && !current && (
+      {!limitReached && !current && (
         <Card className="flex flex-col items-center gap-2 py-10 text-center">
           <PartyPopper className="h-8 w-8 text-brand-green" />
           <p className="font-semibold">
@@ -100,7 +110,7 @@ export default function WordGamePage() {
         </Card>
       )}
 
-      {!planRequired && !limitReached && current && (
+      {!limitReached && current && (
         <Card>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Mic } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PlanGateBanner } from "@/components/plan-gate-banner";
+import { PlanLockScreen } from "@/components/plan-lock-screen";
 import { VoiceRecorder } from "@/components/voice/recorder";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -50,6 +51,19 @@ export default function VoicePage() {
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading voice tasks…</p>;
 
+  if (planRequired) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-xl font-bold">Voice Earn</h1>
+        <PlanLockScreen
+          icon={Mic}
+          title="Voice Earn"
+          description="Read short, simple sentences out loud and get paid for each completed session. Activate a plan to start earning with your voice."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -57,12 +71,8 @@ export default function VoicePage() {
         <p className="text-sm text-foreground/60">Record short voice samples to earn instantly.</p>
       </div>
 
-      {(planRequired || limitReached) && (
-        <PlanGateBanner
-          reason={planRequired ? "no_plan" : "limit_reached"}
-          feature="submit voice tasks"
-          dailyLimit={sectionDailyLimit ?? undefined}
-        />
+      {limitReached && (
+        <PlanGateBanner reason="limit_reached" feature="submit voice tasks" dailyLimit={sectionDailyLimit ?? undefined} />
       )}
 
       {tasks.length === 0 && (
@@ -101,7 +111,7 @@ export default function VoicePage() {
             ) : (
               <button
                 onClick={() => setActiveTaskId(task.id)}
-                disabled={planRequired || limitReached}
+                disabled={limitReached}
                 className={cn(
                   "mt-3 w-full rounded-xl gradient-brand py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 )}

@@ -5,6 +5,7 @@ import { ClipboardCheck, CheckCircle2, ExternalLink, Clock, Upload } from "lucid
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { PlanGateBanner } from "@/components/plan-gate-banner";
+import { PlanLockScreen } from "@/components/plan-lock-screen";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -110,6 +111,19 @@ export default function TasksPage() {
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading tasks…</p>;
 
+  if (planRequired) {
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-xl font-bold">Task Center</h1>
+        <PlanLockScreen
+          icon={ClipboardCheck}
+          title="Task Center"
+          description="Complete simple tasks around the app and get paid for each one. Activate a plan to start earning from tasks."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -117,12 +131,8 @@ export default function TasksPage() {
         <p className="text-sm text-foreground/60">Complete simple tasks for extra rewards.</p>
       </div>
 
-      {(planRequired || limitReached) && (
-        <PlanGateBanner
-          reason={planRequired ? "no_plan" : "limit_reached"}
-          feature="complete tasks"
-          dailyLimit={sectionDailyLimit ?? undefined}
-        />
+      {limitReached && (
+        <PlanGateBanner reason="limit_reached" feature="complete tasks" dailyLimit={sectionDailyLimit ?? undefined} />
       )}
 
       {tasks.length === 0 && (
@@ -154,7 +164,7 @@ export default function TasksPage() {
             ) : (
               <Button
                 size="sm"
-                disabled={planRequired || limitReached}
+                disabled={limitReached}
                 loading={completingId === task.id}
                 onClick={() => complete(task)}
               >
