@@ -42,7 +42,7 @@ export function TopEarnerFab({ fullName, lifetimeEarnings }: { fullName: string;
 
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-24 z-30">
+      <div className="pointer-events-none fixed inset-x-0 bottom-28 z-50">
         <div className="pointer-events-none relative mx-auto max-w-md">
           <button
             onClick={() => setOpen(true)}
