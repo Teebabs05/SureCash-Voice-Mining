@@ -159,21 +159,23 @@ function CircularProgress({ percent }: { percent: number }) {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
-  const [voiceStatus, setVoiceStatus] = useState<"ready" | "cooldown" | "restricted" | null>(null);
-  const [wordGameStatus, setWordGameStatus] = useState<"ready" | "cooldown" | "restricted" | null>(null);
-  const [tasksStatus, setTasksStatus] = useState<"ready" | "done" | "restricted" | null>(null);
-  const [sponsoredStatus, setSponsoredStatus] = useState<"ready" | "done" | "restricted" | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<"ready" | "cooldown" | "limit_reached" | null>(null);
+  const [wordGameStatus, setWordGameStatus] = useState<"ready" | "cooldown" | "limit_reached" | null>(null);
+  const [tasksStatus, setTasksStatus] = useState<"ready" | "done" | "limit_reached" | null>(null);
+  const [sponsoredStatus, setSponsoredStatus] = useState<"ready" | "done" | "limit_reached" | null>(null);
   const [sponsoredRate, setSponsoredRate] = useState(50);
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
     apiFetch<DashboardData>("/api/dashboard").then(setData);
     apiFetch<ReferralData>("/api/referrals").then(setReferral).catch(() => {});
-    apiFetch<{ tasks: VoiceTaskLite[]; needsHigherPlan: boolean }>("/api/voice/tasks?category=session")
+    apiFetch<{ tasks: VoiceTaskLite[]; sectionDailyLimit: number | null; sectionCompletedToday: number }>(
+      "/api/voice/tasks?category=session"
+    )
       .then((res) =>
         setVoiceStatus(
-          res.needsHigherPlan
-            ? "restricted"
+          res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit
+            ? "limit_reached"
             : res.tasks.length === 0
               ? null
               : res.tasks.some((t) => t.completedToday < t.dailyLimit)
@@ -182,11 +184,13 @@ export default function DashboardPage() {
         )
       )
       .catch(() => {});
-    apiFetch<{ tasks: VoiceTaskLite[]; needsHigherPlan: boolean }>("/api/voice/tasks?category=word_game")
+    apiFetch<{ tasks: VoiceTaskLite[]; sectionDailyLimit: number | null; sectionCompletedToday: number }>(
+      "/api/voice/tasks?category=word_game"
+    )
       .then((res) =>
         setWordGameStatus(
-          res.needsHigherPlan
-            ? "restricted"
+          res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit
+            ? "limit_reached"
             : res.tasks.length === 0
               ? null
               : res.tasks.some((t) => t.completedToday < t.dailyLimit)
@@ -195,18 +199,35 @@ export default function DashboardPage() {
         )
       )
       .catch(() => {});
-    apiFetch<{ tasks: TaskCenterTaskLite[]; needsHigherPlan: boolean }>("/api/tasks")
+    apiFetch<{ tasks: TaskCenterTaskLite[]; sectionDailyLimit: number | null; sectionCompletedToday: number }>(
+      "/api/tasks"
+    )
       .then((res) =>
         setTasksStatus(
-          res.needsHigherPlan ? "restricted" : res.tasks.length === 0 ? null : res.tasks.some((t) => !t.isCompleted) ? "ready" : "done"
+          res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit
+            ? "limit_reached"
+            : res.tasks.length === 0
+              ? null
+              : res.tasks.some((t) => !t.isCompleted)
+                ? "ready"
+                : "done"
         )
       )
       .catch(() => {});
-    apiFetch<{ platforms: { status: string }[]; rewardAmount: number; needsHigherPlan: boolean }>("/api/sponsored-posts")
+    apiFetch<{
+      platforms: { status: string }[];
+      rewardAmount: number;
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
+    }>("/api/sponsored-posts")
       .then((res) => {
         setSponsoredRate(res.rewardAmount);
         setSponsoredStatus(
-          res.needsHigherPlan ? "restricted" : res.platforms.some((p) => p.status === "AVAILABLE") ? "ready" : "done"
+          res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit
+            ? "limit_reached"
+            : res.platforms.some((p) => p.status === "AVAILABLE")
+              ? "ready"
+              : "done"
         );
       })
       .catch(() => {});
@@ -235,9 +256,8 @@ export default function DashboardPage() {
   const nextStep = data.setupSteps.find((s) => !s.done);
   const doneSteps = data.setupSteps.filter((s) => s.done).length;
 
-  function earnNowStatus(activityStatus: "ready" | "cooldown" | "done" | "restricted" | null) {
+  function earnNowStatus(activityStatus: "ready" | "cooldown" | "done" | "limit_reached" | null) {
     if (data!.planRequired) return "locked";
-    if (activityStatus === "restricted") return "restricted";
     return activityStatus;
   }
 
@@ -247,12 +267,11 @@ export default function DashboardPage() {
       href: "/voice",
       label: "Voice Earn",
       icon: Mic,
-      rate:
-        data.planRequired || voiceStatus === "restricted"
-          ? `+${formatCurrency(0)}/session`
-          : data.plan
-            ? `+${formatCurrency(data.plan.voiceSessionReward)}/session`
-            : "Base rate",
+      rate: data.planRequired
+        ? `+${formatCurrency(0)}/session`
+        : data.plan
+          ? `+${formatCurrency(data.plan.voiceSessionReward)}/session`
+          : "Base rate",
       status: earnNowStatus(voiceStatus),
     },
     {
@@ -260,12 +279,11 @@ export default function DashboardPage() {
       href: "/word-game",
       label: "Word Game",
       icon: Gamepad2,
-      rate:
-        data.planRequired || wordGameStatus === "restricted"
-          ? `+${formatCurrency(0)}/word`
-          : data.plan
-            ? `+${formatCurrency(data.plan.wordGameReward)}/word`
-            : "Base rate",
+      rate: data.planRequired
+        ? `+${formatCurrency(0)}/word`
+        : data.plan
+          ? `+${formatCurrency(data.plan.wordGameReward)}/word`
+          : "Base rate",
       status: earnNowStatus(wordGameStatus),
     },
     {
@@ -273,12 +291,11 @@ export default function DashboardPage() {
       href: "/tasks",
       label: "Tasks",
       icon: CheckSquare,
-      rate:
-        data.planRequired || tasksStatus === "restricted"
-          ? `+${formatCurrency(0)}/task`
-          : data.plan
-            ? `+${formatCurrency(data.plan.taskReward)}/task`
-            : "Base rate",
+      rate: data.planRequired
+        ? `+${formatCurrency(0)}/task`
+        : data.plan
+          ? `+${formatCurrency(data.plan.taskReward)}/task`
+          : "Base rate",
       status: earnNowStatus(tasksStatus),
     },
     {
@@ -286,10 +303,7 @@ export default function DashboardPage() {
       href: "/tasks/sponsored",
       label: "Sponsored",
       icon: Flag,
-      rate:
-        data.planRequired || sponsoredStatus === "restricted"
-          ? `+${formatCurrency(0)}/post`
-          : `+${formatCurrency(sponsoredRate)}/post`,
+      rate: data.planRequired ? `+${formatCurrency(0)}/post` : `+${formatCurrency(sponsoredRate)}/post`,
       status: earnNowStatus(sponsoredStatus),
     },
   ] as const;
@@ -481,7 +495,7 @@ export default function DashboardPage() {
           {earnNow.map(({ key, href, label, icon: Icon, rate, status }) => (
             <Link
               key={key}
-              href={status === "locked" || status === "restricted" ? "/plans" : href}
+              href={status === "locked" || status === "limit_reached" ? "/plans" : href}
               className="card flex flex-col items-center gap-1.5 py-5 text-center"
             >
               <Icon className="h-5 w-5 text-foreground/80" />
@@ -489,7 +503,7 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold text-brand-green">{rate}</p>
               <p
                 className={`text-xs ${
-                  status === "locked" || status === "restricted" ? "font-semibold text-brand-amber" : "text-foreground/50"
+                  status === "locked" || status === "limit_reached" ? "font-semibold text-brand-amber" : "text-foreground/50"
                 }`}
               >
                 {status === "ready"
@@ -500,8 +514,8 @@ export default function DashboardPage() {
                       ? "All done"
                       : status === "locked"
                         ? "Activate plan"
-                        : status === "restricted"
-                          ? "Upgrade plan"
+                        : status === "limit_reached"
+                          ? "Daily limit reached"
                         : " "}
               </p>
             </Link>

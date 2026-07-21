@@ -28,18 +28,23 @@ function pickRandom(list: WordGameTask[], excludeId: string | null): WordGameTas
 export default function WordGamePage() {
   const [tasks, setTasks] = useState<WordGameTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
-  const [needsHigherPlan, setNeedsHigherPlan] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [sectionDailyLimit, setSectionDailyLimit] = useState<number | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const lastIdRef = useRef<string | null>(null);
 
   const load = useCallback(() => {
-    return apiFetch<{ tasks: WordGameTask[]; planRequired: boolean; needsHigherPlan: boolean }>(
-      "/api/voice/tasks?category=word_game"
-    ).then((res) => {
+    return apiFetch<{
+      tasks: WordGameTask[];
+      planRequired: boolean;
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
+    }>("/api/voice/tasks?category=word_game").then((res) => {
       setTasks(res.tasks);
       setPlanRequired(res.planRequired);
-      setNeedsHigherPlan(res.needsHigherPlan);
+      setSectionDailyLimit(res.sectionDailyLimit);
+      setLimitReached(res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit);
     });
   }, []);
 
@@ -77,11 +82,15 @@ export default function WordGamePage() {
         </p>
       </div>
 
-      {(planRequired || needsHigherPlan) && (
-        <PlanGateBanner reason={planRequired ? "no_plan" : "plan_restricted"} feature="play Word Game" />
+      {(planRequired || limitReached) && (
+        <PlanGateBanner
+          reason={planRequired ? "no_plan" : "limit_reached"}
+          feature="play Word Game"
+          dailyLimit={sectionDailyLimit ?? undefined}
+        />
       )}
 
-      {!planRequired && !needsHigherPlan && !current && (
+      {!planRequired && !limitReached && !current && (
         <Card className="flex flex-col items-center gap-2 py-10 text-center">
           <PartyPopper className="h-8 w-8 text-brand-green" />
           <p className="font-semibold">
@@ -91,7 +100,7 @@ export default function WordGamePage() {
         </Card>
       )}
 
-      {!planRequired && !needsHigherPlan && current && (
+      {!planRequired && !limitReached && current && (
         <Card>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">

@@ -9,7 +9,7 @@ import { payReferralCommission } from "@/lib/server/referral-commission";
 import { saveUploadedFile } from "@/lib/server/storage";
 import { hashBuffer } from "@/lib/server/file-hash";
 import { XP_CONFIG } from "@/lib/config";
-import { isActivePlanRequired, planAllowsFeature } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 type Tx = Prisma.TransactionClient;
 
@@ -119,8 +119,17 @@ export async function POST(req: NextRequest) {
     if (!plan && (await isActivePlanRequired())) {
       return jsonError("Activate a plan to complete tasks", 403);
     }
-    if (!planAllowsFeature(plan, "taskCenter")) {
-      return jsonError(`Your ${plan!.name} plan doesn't include Task Center - upgrade to unlock it`, 403);
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const sectionDailyLimit = planSectionDailyLimit(plan, "taskCenter");
+    if (sectionDailyLimit !== null) {
+      const sectionCompletedToday = await prisma.userTaskCompletion.count({
+        where: { userId: user.id, createdAt: { gte: startOfDay } },
+      });
+      if (sectionCompletedToday >= sectionDailyLimit) {
+        return jsonError(`You've reached today's plan limit for Task Center (${sectionDailyLimit}/day) - upgrade for more`, 429);
+      }
     }
 
     // A user's active plan re-prices task rewards at a flat rate for the

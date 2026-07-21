@@ -20,7 +20,7 @@ import { upsertDevice, estimateVpnSuspicion } from "@/lib/server/device";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { XP_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
-import { isActivePlanRequired, planAllowsFeature } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 export const runtime = "nodejs";
 
@@ -73,29 +73,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const feature = voiceTask.category === "word_game" ? "wordGame" : "voiceEarn";
+    const section = voiceTask.category === "word_game" ? "wordGame" : "voiceEarn";
     const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
     if (!plan && (await isActivePlanRequired())) {
       return jsonError(
-        feature === "wordGame" ? "Activate a plan to play Word Game" : "Activate a plan to submit voice tasks",
-        403
-      );
-    }
-    if (!planAllowsFeature(plan, feature)) {
-      return jsonError(
-        `Your ${plan!.name} plan doesn't include ${feature === "wordGame" ? "Word Game" : "Voice Earn"} - upgrade to unlock it`,
+        section === "wordGame" ? "Activate a plan to play Word Game" : "Activate a plan to submit voice tasks",
         403
       );
     }
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const todayCount = await prisma.voiceRecording.count({
-      where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay } },
-    });
+    const [todayCount, sectionCompletedToday] = await Promise.all([
+      prisma.voiceRecording.count({
+        where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay } },
+      }),
+      prisma.voiceRecording.count({
+        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: voiceTask.category } },
+      }),
+    ]);
     const effectiveDailyLimit = voiceTask.dailyLimit * TIER_CONFIG[user.tier].dailyLimitMultiplier;
     if (todayCount >= effectiveDailyLimit) {
       return jsonError("You've reached today's limit for this task", 429);
+    }
+    const sectionDailyLimit = planSectionDailyLimit(plan, section);
+    if (sectionDailyLimit !== null && sectionCompletedToday >= sectionDailyLimit) {
+      return jsonError(
+        `You've reached today's plan limit for ${section === "wordGame" ? "Word Game" : "Voice Earn"} (${sectionDailyLimit}/day) - upgrade for more`,
+        429
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();

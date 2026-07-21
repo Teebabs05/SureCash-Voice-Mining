@@ -17,7 +17,6 @@ import {
   Users,
   CheckCircle2,
   PlusCircle,
-  Lock,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,11 +34,13 @@ interface Plan {
   taskReward: string;
   referralCommission: string;
   isPopular: boolean;
-  voiceEarnEnabled: boolean;
-  wordGameEnabled: boolean;
-  taskCenterEnabled: boolean;
-  sponsoredPostsEnabled: boolean;
+  voiceEarnDailyLimit: number;
+  wordGameDailyLimit: number;
+  taskCenterDailyLimit: number;
+  sponsoredPostsDailyLimit: number;
 }
+
+const UNLIMITED_THRESHOLD = 9999;
 
 interface WalletEntry {
   type: string;
@@ -156,30 +157,30 @@ export default function PlansPage() {
                     color="primary"
                     amount={plan.voiceSessionReward}
                     label="per Voice Earn session"
-                    enabled={plan.voiceEarnEnabled}
+                    dailyLimit={plan.voiceEarnDailyLimit}
                   />
                   <RateRow
                     icon={Gamepad2}
                     color="primary"
                     amount={plan.wordGameReward}
                     label="per Word Game"
-                    enabled={plan.wordGameEnabled}
+                    dailyLimit={plan.wordGameDailyLimit}
                   />
                   <RateRow
                     icon={Flag}
                     color="amber"
                     amount={plan.sponsoredPostReward}
                     label="per Sponsored Post"
-                    enabled={plan.sponsoredPostsEnabled}
+                    dailyLimit={plan.sponsoredPostsDailyLimit}
                   />
                   <RateRow
                     icon={CheckSquare}
                     color="amber"
                     amount={plan.taskReward}
                     label="per task"
-                    enabled={plan.taskCenterEnabled}
+                    dailyLimit={plan.taskCenterDailyLimit}
                   />
-                  <RateRow icon={Users} color="green" amount={plan.referralCommission} label="per activated sale" enabled />
+                  <RateRow icon={Users} color="green" amount={plan.referralCommission} label="per activated sale" />
                 </div>
 
                 <div className="mt-4">
@@ -212,31 +213,19 @@ function RateRow({
   color,
   amount,
   label,
-  enabled,
+  dailyLimit,
 }: {
   icon: LucideIcon;
   color: "primary" | "amber" | "green";
   amount: string;
   label: string;
-  enabled: boolean;
+  dailyLimit?: number;
 }) {
   const colorClass = {
     primary: "bg-brand-primary/15 text-brand-primary",
     amber: "bg-brand-amber/15 text-[#a67c00]",
     green: "bg-brand-green/15 text-brand-green",
   }[color];
-
-  if (!enabled) {
-    return (
-      <div className="flex items-center gap-3 py-2.5 opacity-50">
-        <div className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-foreground/10 text-foreground/40">
-          <Lock className="h-3.5 w-3.5" />
-        </div>
-        <span className="text-sm text-foreground/50 line-through">{label}</span>
-        <span className="ml-auto text-xs font-semibold text-foreground/40">Not included</span>
-      </div>
-    );
-  }
 
   return (
     <div className="flex items-center gap-3 py-2.5">
@@ -245,6 +234,11 @@ function RateRow({
       </div>
       <span className="font-bold text-foreground">{formatCurrency(amount)}</span>
       <span className="text-sm text-foreground/50">{label}</span>
+      {dailyLimit !== undefined && (
+        <span className="ml-auto text-xs font-semibold text-foreground/40">
+          {dailyLimit >= UNLIMITED_THRESHOLD ? "Unlimited" : `up to ${dailyLimit}/day`}
+        </span>
+      )}
     </div>
   );
 }

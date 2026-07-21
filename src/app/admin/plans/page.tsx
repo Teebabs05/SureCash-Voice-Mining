@@ -20,10 +20,10 @@ interface Plan {
   sortOrder: number;
   isActive: boolean;
   isPopular: boolean;
-  voiceEarnEnabled: boolean;
-  wordGameEnabled: boolean;
-  taskCenterEnabled: boolean;
-  sponsoredPostsEnabled: boolean;
+  voiceEarnDailyLimit: number;
+  wordGameDailyLimit: number;
+  taskCenterDailyLimit: number;
+  sponsoredPostsDailyLimit: number;
 }
 
 const FIELDS: Array<{ key: keyof Plan; label: string }> = [
@@ -36,11 +36,14 @@ const FIELDS: Array<{ key: keyof Plan; label: string }> = [
   { key: "referralCommission", label: "Referral commission" },
 ];
 
-const FEATURE_FLAGS: Array<{ key: "voiceEarnEnabled" | "wordGameEnabled" | "taskCenterEnabled" | "sponsoredPostsEnabled"; label: string }> = [
-  { key: "voiceEarnEnabled", label: "Voice Earn" },
-  { key: "wordGameEnabled", label: "Word Game" },
-  { key: "taskCenterEnabled", label: "Task Center" },
-  { key: "sponsoredPostsEnabled", label: "Sponsored Posts" },
+const DAILY_LIMIT_FIELDS: Array<{
+  key: "voiceEarnDailyLimit" | "wordGameDailyLimit" | "taskCenterDailyLimit" | "sponsoredPostsDailyLimit";
+  label: string;
+}> = [
+  { key: "voiceEarnDailyLimit", label: "Voice Earn /day" },
+  { key: "wordGameDailyLimit", label: "Word Game /day" },
+  { key: "taskCenterDailyLimit", label: "Task Center /day" },
+  { key: "sponsoredPostsDailyLimit", label: "Sponsored Posts /day" },
 ];
 
 const NEW_PLAN_DEFAULTS = {
@@ -53,10 +56,10 @@ const NEW_PLAN_DEFAULTS = {
   referralCommission: "",
   sortOrder: "0",
   isPopular: false,
-  voiceEarnEnabled: true,
-  wordGameEnabled: true,
-  taskCenterEnabled: true,
-  sponsoredPostsEnabled: true,
+  voiceEarnDailyLimit: "9999",
+  wordGameDailyLimit: "9999",
+  taskCenterDailyLimit: "9999",
+  sponsoredPostsDailyLimit: "9999",
 };
 
 export default function AdminPlansPage() {
@@ -81,6 +84,10 @@ export default function AdminPlansPage() {
               sponsoredPostReward: p.sponsoredPostReward,
               taskReward: p.taskReward,
               referralCommission: p.referralCommission,
+              voiceEarnDailyLimit: String(p.voiceEarnDailyLimit),
+              wordGameDailyLimit: String(p.wordGameDailyLimit),
+              taskCenterDailyLimit: String(p.taskCenterDailyLimit),
+              sponsoredPostsDailyLimit: String(p.sponsoredPostsDailyLimit),
             },
           ])
         )
@@ -106,6 +113,10 @@ export default function AdminPlansPage() {
           sponsoredPostReward: Number(values.sponsoredPostReward),
           taskReward: Number(values.taskReward),
           referralCommission: Number(values.referralCommission),
+          voiceEarnDailyLimit: Number(values.voiceEarnDailyLimit),
+          wordGameDailyLimit: Number(values.wordGameDailyLimit),
+          taskCenterDailyLimit: Number(values.taskCenterDailyLimit),
+          sponsoredPostsDailyLimit: Number(values.sponsoredPostsDailyLimit),
         }),
       });
       toast.success("Plan updated");
@@ -141,18 +152,6 @@ export default function AdminPlansPage() {
     }
   }
 
-  async function toggleFeature(plan: Plan, key: (typeof FEATURE_FLAGS)[number]["key"]) {
-    setBusyId(plan.id);
-    try {
-      await apiFetch(`/api/admin/plans/${plan.id}`, { method: "PATCH", body: JSON.stringify({ [key]: !plan[key] }) });
-      load();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Action failed");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   async function createPlan() {
     try {
       await apiFetch("/api/admin/plans", {
@@ -167,10 +166,10 @@ export default function AdminPlansPage() {
           referralCommission: Number(form.referralCommission),
           sortOrder: Number(form.sortOrder),
           isPopular: form.isPopular,
-          voiceEarnEnabled: form.voiceEarnEnabled,
-          wordGameEnabled: form.wordGameEnabled,
-          taskCenterEnabled: form.taskCenterEnabled,
-          sponsoredPostsEnabled: form.sponsoredPostsEnabled,
+          voiceEarnDailyLimit: Number(form.voiceEarnDailyLimit),
+          wordGameDailyLimit: Number(form.wordGameDailyLimit),
+          taskCenterDailyLimit: Number(form.taskCenterDailyLimit),
+          sponsoredPostsDailyLimit: Number(form.sponsoredPostsDailyLimit),
         }),
       });
       toast.success("Plan created");
@@ -187,7 +186,8 @@ export default function AdminPlansPage() {
       <h1 className="text-2xl font-bold">Plans</h1>
       <p className="-mt-4 text-sm text-foreground/60">
         Edit price and per-activity rewards live - changes apply to new activations and future task rewards
-        immediately.
+        immediately. Every plan can access every activity; the daily limit fields control how many completions
+        per day each plan allows in that section (use 9999 for effectively unlimited).
       </p>
 
       {plans.map((plan) => (
@@ -210,18 +210,16 @@ export default function AdminPlansPage() {
           </div>
 
           <div className="mt-3">
-            <p className="mb-1.5 text-xs font-semibold text-foreground/50">Features unlocked by this plan</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-              {FEATURE_FLAGS.map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={plan[key]}
-                    disabled={busyId === plan.id}
-                    onChange={() => toggleFeature(plan, key)}
-                  />
-                  {label}
-                </label>
+            <p className="mb-1.5 text-xs font-semibold text-foreground/50">Daily completion limits per section</p>
+            <div className="grid grid-cols-2 gap-3">
+              {DAILY_LIMIT_FIELDS.map(({ key, label }) => (
+                <Input
+                  key={key}
+                  label={label}
+                  type="number"
+                  value={editing[plan.id]?.[key] ?? ""}
+                  onChange={(e) => setEditing({ ...editing, [plan.id]: { ...editing[plan.id], [key]: e.target.value } })}
+                />
               ))}
             </div>
           </div>
@@ -303,17 +301,18 @@ export default function AdminPlansPage() {
               Mark as popular
             </label>
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-foreground/50">Features unlocked by this plan</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                {FEATURE_FLAGS.map(({ key, label }) => (
-                  <label key={key} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={form[key]}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
-                    />
-                    {label}
-                  </label>
+              <p className="mb-1.5 text-xs font-semibold text-foreground/50">
+                Daily completion limits per section (9999 = effectively unlimited)
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {DAILY_LIMIT_FIELDS.map(({ key, label }) => (
+                  <Input
+                    key={key}
+                    placeholder={label}
+                    type="number"
+                    value={form[key]}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  />
                 ))}
               </div>
             </div>

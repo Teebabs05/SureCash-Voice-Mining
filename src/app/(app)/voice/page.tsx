@@ -23,18 +23,23 @@ interface VoiceTask {
 export default function VoicePage() {
   const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
-  const [needsHigherPlan, setNeedsHigherPlan] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [sectionDailyLimit, setSectionDailyLimit] = useState<number | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: VoiceTask[]; planRequired: boolean; needsHigherPlan: boolean }>(
-      "/api/voice/tasks?category=session"
-    )
+    apiFetch<{
+      tasks: VoiceTask[];
+      planRequired: boolean;
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
+    }>("/api/voice/tasks?category=session")
       .then((res) => {
         setTasks(res.tasks);
         setPlanRequired(res.planRequired);
-        setNeedsHigherPlan(res.needsHigherPlan);
+        setSectionDailyLimit(res.sectionDailyLimit);
+        setLimitReached(res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -52,8 +57,12 @@ export default function VoicePage() {
         <p className="text-sm text-foreground/60">Record short voice samples to earn instantly.</p>
       </div>
 
-      {(planRequired || needsHigherPlan) && (
-        <PlanGateBanner reason={planRequired ? "no_plan" : "plan_restricted"} feature="submit voice tasks" />
+      {(planRequired || limitReached) && (
+        <PlanGateBanner
+          reason={planRequired ? "no_plan" : "limit_reached"}
+          feature="submit voice tasks"
+          dailyLimit={sectionDailyLimit ?? undefined}
+        />
       )}
 
       {tasks.length === 0 && (
@@ -92,7 +101,7 @@ export default function VoicePage() {
             ) : (
               <button
                 onClick={() => setActiveTaskId(task.id)}
-                disabled={planRequired || needsHigherPlan}
+                disabled={planRequired || limitReached}
                 className={cn(
                   "mt-3 w-full rounded-xl gradient-brand py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 )}

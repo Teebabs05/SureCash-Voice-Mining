@@ -30,7 +30,8 @@ interface PlatformStatus {
 
 interface CampaignResponse {
   planRequired: boolean;
-  needsHigherPlan: boolean;
+  sectionDailyLimit: number | null;
+  sectionCompletedToday: number;
   configured: boolean;
   caption: string;
   bannerUrl: string;
@@ -80,9 +81,13 @@ export default function SponsoredPostsPage() {
 
   function openShare(platform: Platform) {
     if (!data) return;
-    if (data.planRequired || data.needsHigherPlan) {
+    const limitReached =
+      data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
+    if (data.planRequired || limitReached) {
       toast.error(
-        data.planRequired ? "Activate a plan to submit sponsored posts" : "Upgrade your plan to submit sponsored posts"
+        data.planRequired
+          ? "Activate a plan to submit sponsored posts"
+          : `You've reached today's plan limit for Sponsored Posts (${data.sectionDailyLimit}/day)`
       );
       return;
     }
@@ -141,17 +146,25 @@ export default function SponsoredPostsPage() {
     );
   }
 
+  const limitReached =
+    data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
+
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold">Sponsored Posts</h1>
         <p className="text-sm text-foreground/60">
-          Share the post below to earn {formatCurrency(data.rewardAmount)} per platform, up to 4 shares a day.
+          Share the post below to earn {formatCurrency(data.rewardAmount)} per platform
+          {data.sectionDailyLimit !== null ? `, up to ${data.sectionDailyLimit} shares a day` : ""}.
         </p>
       </div>
 
-      {(data.planRequired || data.needsHigherPlan) && (
-        <PlanGateBanner reason={data.planRequired ? "no_plan" : "plan_restricted"} feature="submit sponsored posts" />
+      {(data.planRequired || limitReached) && (
+        <PlanGateBanner
+          reason={data.planRequired ? "no_plan" : "limit_reached"}
+          feature="submit sponsored posts"
+          dailyLimit={data.sectionDailyLimit ?? undefined}
+        />
       )}
 
       <Card className="flex flex-col gap-3">
@@ -192,7 +205,7 @@ export default function SponsoredPostsPage() {
                     <XCircle className="h-4 w-4" /> Rejected
                   </span>
                 ) : (
-                  <Button size="sm" disabled={data.planRequired || data.needsHigherPlan} onClick={() => openShare(platform)}>
+                  <Button size="sm" disabled={data.planRequired || limitReached} onClick={() => openShare(platform)}>
                     {meta.mode === "copy" ? <Copy className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                     Share
                   </Button>

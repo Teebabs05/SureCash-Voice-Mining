@@ -11,7 +11,7 @@ import { saveUploadedFile } from "@/lib/server/storage";
 import { hashBuffer } from "@/lib/server/file-hash";
 import { getSetting } from "@/lib/server/settings";
 import { XP_CONFIG } from "@/lib/config";
-import { checkFeatureAccess } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 const schema = z.object({ platform: z.nativeEnum(SponsoredPlatform) });
 
@@ -21,14 +21,23 @@ export async function POST(req: NextRequest) {
     if (!user.emailVerified) {
       return jsonError("Please verify your email before submitting sponsored posts", 403);
     }
-    const access = await checkFeatureAccess(user, "sponsoredPosts");
-    if (!access.allowed) {
-      return jsonError(
-        access.reason === "no_plan"
-          ? "Activate a plan to submit sponsored posts"
-          : "Your plan doesn't include Sponsored Posts - upgrade to unlock it",
-        403
-      );
+
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    if (!plan && (await isActivePlanRequired())) {
+      return jsonError("Activate a plan to submit sponsored posts", 403);
+    }
+
+    const sectionDailyLimit = planSectionDailyLimit(plan, "sponsoredPosts");
+    if (sectionDailyLimit !== null) {
+      const sectionCompletedToday = await prisma.sponsoredShare.count({
+        where: { userId: user.id, date: dateOnlyKey(), status: "APPROVED" },
+      });
+      if (sectionCompletedToday >= sectionDailyLimit) {
+        return jsonError(
+          `You've reached today's plan limit for Sponsored Posts (${sectionDailyLimit}/day) - upgrade for more`,
+          429
+        );
+      }
     }
 
     const form = await req.formData();

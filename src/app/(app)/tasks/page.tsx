@@ -26,7 +26,8 @@ interface TaskCenterTask {
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskCenterTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
-  const [needsHigherPlan, setNeedsHigherPlan] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [sectionDailyLimit, setSectionDailyLimit] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [proofTaskId, setProofTaskId] = useState<string | null>(null);
@@ -34,11 +35,17 @@ export default function TasksPage() {
   const [proofImage, setProofImage] = useState<File | null>(null);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: TaskCenterTask[]; planRequired: boolean; needsHigherPlan: boolean }>("/api/tasks")
+    apiFetch<{
+      tasks: TaskCenterTask[];
+      planRequired: boolean;
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
+    }>("/api/tasks")
       .then((res) => {
         setTasks(res.tasks);
         setPlanRequired(res.planRequired);
-        setNeedsHigherPlan(res.needsHigherPlan);
+        setSectionDailyLimit(res.sectionDailyLimit);
+        setLimitReached(res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -110,8 +117,12 @@ export default function TasksPage() {
         <p className="text-sm text-foreground/60">Complete simple tasks for extra rewards.</p>
       </div>
 
-      {(planRequired || needsHigherPlan) && (
-        <PlanGateBanner reason={planRequired ? "no_plan" : "plan_restricted"} feature="complete tasks" />
+      {(planRequired || limitReached) && (
+        <PlanGateBanner
+          reason={planRequired ? "no_plan" : "limit_reached"}
+          feature="complete tasks"
+          dailyLimit={sectionDailyLimit ?? undefined}
+        />
       )}
 
       {tasks.length === 0 && (
@@ -143,7 +154,7 @@ export default function TasksPage() {
             ) : (
               <Button
                 size="sm"
-                disabled={planRequired || needsHigherPlan}
+                disabled={planRequired || limitReached}
                 loading={completingId === task.id}
                 onClick={() => complete(task)}
               >

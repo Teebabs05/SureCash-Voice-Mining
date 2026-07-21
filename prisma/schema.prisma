@@ -537,14 +537,14 @@ model Plan {
   isActive            Boolean  @default(true)
   isPopular           Boolean  @default(false)
 
-  // Per-plan feature access - which earning activities this plan actually
-  // unlocks, independent of its reward rates above. All default to true so
-  // existing plans keep working exactly as before until an admin
-  // deliberately restricts a cheaper tier.
-  voiceEarnEnabled      Boolean @default(true)
-  wordGameEnabled       Boolean @default(true)
-  taskCenterEnabled     Boolean @default(true)
-  sponsoredPostsEnabled Boolean @default(true)
+  // Per-plan daily quantity caps - every plan can access every activity;
+  // what differs per plan is how many times per day each section can be
+  // used. 9999 is the "effectively unlimited" convention used by the top
+  // tier and by any newly created plan until an admin dials it in.
+  voiceEarnDailyLimit      Int @default(9999)
+  wordGameDailyLimit       Int @default(9999)
+  taskCenterDailyLimit     Int @default(9999)
+  sponsoredPostsDailyLimit Int @default(9999)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

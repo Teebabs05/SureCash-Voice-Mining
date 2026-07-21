@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { TIER_CONFIG } from "@/lib/config";
-import { checkFeatureAccess } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 /** Fisher-Yates shuffle — randomizes sentence order per request so users
  * don't always record the same prompts in the same sequence. */
@@ -23,33 +23,44 @@ export async function GET(req: NextRequest) {
     startOfDay.setHours(0, 0, 0, 0);
 
     const category = req.nextUrl.searchParams.get("category");
-    const feature = category === "word_game" ? "wordGame" : "voiceEarn";
+    const resolvedCategory = category === "word_game" ? "word_game" : "session";
+    const section = resolvedCategory === "word_game" ? "wordGame" : "voiceEarn";
     const tasks = await prisma.voiceTask.findMany({
-      where: { isActive: true, ...(category === "session" || category === "word_game" ? { category } : {}) },
+      where: { isActive: true, category: resolvedCategory },
       orderBy: { createdAt: "desc" },
     });
 
-    const todayCounts = await prisma.voiceRecording.groupBy({
-      by: ["voiceTaskId"],
-      where: { userId: user.id, createdAt: { gte: startOfDay } },
-      _count: { _all: true },
-    });
+    const [todayCounts, plan, sectionCompletedToday] = await Promise.all([
+      prisma.voiceRecording.groupBy({
+        by: ["voiceTaskId"],
+        where: { userId: user.id, createdAt: { gte: startOfDay } },
+        _count: { _all: true },
+      }),
+      user.planId ? prisma.plan.findUnique({ where: { id: user.planId } }) : null,
+      prisma.voiceRecording.count({
+        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: resolvedCategory } },
+      }),
+    ]);
     const countMap = new Map(todayCounts.map((c) => [c.voiceTaskId, c._count._all]));
     const multiplier = TIER_CONFIG[user.tier].dailyLimitMultiplier;
-    const access = await checkFeatureAccess(user, feature);
+    const planRequired = (await isActivePlanRequired()) && !user.planId;
+    const sectionDailyLimit = planSectionDailyLimit(plan, section);
+    const sectionLimitReached = sectionDailyLimit !== null && sectionCompletedToday >= sectionDailyLimit;
 
     return NextResponse.json({
-      planRequired: access.reason === "no_plan",
-      needsHigherPlan: access.reason === "plan_restricted",
-      tasks: access.allowed
-        ? shuffle(
-            tasks.map((t) => ({
-              ...t,
-              dailyLimit: t.dailyLimit * multiplier,
-              completedToday: countMap.get(t.id) ?? 0,
-            }))
-          )
-        : [],
+      planRequired,
+      sectionDailyLimit,
+      sectionCompletedToday,
+      tasks:
+        planRequired || sectionLimitReached
+          ? []
+          : shuffle(
+              tasks.map((t) => ({
+                ...t,
+                dailyLimit: t.dailyLimit * multiplier,
+                completedToday: countMap.get(t.id) ?? 0,
+              }))
+            ),
     });
   } catch (error) {
     return handleApiError(error);

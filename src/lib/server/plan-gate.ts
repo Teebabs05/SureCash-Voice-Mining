@@ -1,6 +1,5 @@
 import "server-only";
 import type { Plan } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
 import { getSetting } from "@/lib/server/settings";
 
 /** Global switch (Admin > Settings > "Require active plan to earn") that
@@ -11,37 +10,20 @@ export async function isActivePlanRequired(): Promise<boolean> {
   return getSetting("require_active_plan", false);
 }
 
-export type PlanFeature = "voiceEarn" | "wordGame" | "taskCenter" | "sponsoredPosts";
+export type PlanSection = "voiceEarn" | "wordGame" | "taskCenter" | "sponsoredPosts";
 
-const FEATURE_FLAG: Record<PlanFeature, keyof Plan> = {
-  voiceEarn: "voiceEarnEnabled",
-  wordGame: "wordGameEnabled",
-  taskCenter: "taskCenterEnabled",
-  sponsoredPosts: "sponsoredPostsEnabled",
+const SECTION_LIMIT_FIELD: Record<PlanSection, keyof Plan> = {
+  voiceEarn: "voiceEarnDailyLimit",
+  wordGame: "wordGameDailyLimit",
+  taskCenter: "taskCenterDailyLimit",
+  sponsoredPosts: "sponsoredPostsDailyLimit",
 };
 
-export type FeatureAccessReason = "ok" | "no_plan" | "plan_restricted";
-
-/** Pure check against an already-fetched plan (or null) - use this when the
- * caller already loaded the plan for reward-rate purposes, to avoid a
- * second query. */
-export function planAllowsFeature(plan: Plan | null, feature: PlanFeature): boolean {
-  if (!plan) return true; // no per-plan restriction applies when there's no plan at all
-  return Boolean(plan[FEATURE_FLAG[feature]]);
-}
-
-/** Full access check for a feature: is a plan required at all, and if the
- * user has one, does it include this specific feature. Fetches the plan
- * itself, so prefer `planAllowsFeature` if the caller already has it. */
-export async function checkFeatureAccess(
-  user: { planId: string | null },
-  feature: PlanFeature
-): Promise<{ allowed: boolean; reason: FeatureAccessReason }> {
-  const required = await isActivePlanRequired();
-  if (!user.planId) {
-    return required ? { allowed: false, reason: "no_plan" } : { allowed: true, reason: "ok" };
-  }
-  const plan = await prisma.plan.findUnique({ where: { id: user.planId } });
-  if (!plan) return required ? { allowed: false, reason: "no_plan" } : { allowed: true, reason: "ok" };
-  return planAllowsFeature(plan, feature) ? { allowed: true, reason: "ok" } : { allowed: false, reason: "plan_restricted" };
+/** Every plan can access every section - what differs per plan is how many
+ * times per day that section can be used. Returns null for users with no
+ * plan, meaning "no plan-level cap" (existing per-task/per-type limits
+ * still apply as before; plans only ever add an extra ceiling on top). */
+export function planSectionDailyLimit(plan: Plan | null, section: PlanSection): number | null {
+  if (!plan) return null;
+  return plan[SECTION_LIMIT_FIELD[section]] as number;
 }
