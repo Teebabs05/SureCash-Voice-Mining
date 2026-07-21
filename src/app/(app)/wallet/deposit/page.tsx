@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Copy, ArrowRight, Landmark } from "lucide-react";
+import { ArrowLeft, Upload, Copy, ArrowRight, Landmark, ShieldCheck, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,28 @@ const GATEWAYS = [
   { method: "FLUTTERWAVE", label: "Flutterwave" },
 ] as const;
 
+type GatewayMethod = (typeof GATEWAYS)[number]["method"];
+
+type ResolvedMethod =
+  | { kind: "gateway"; method: GatewayMethod }
+  | { kind: "virtual" }
+  | { kind: "manual" };
+
+/** Picks the single method "Pay now" should actually use, in priority
+ * order, when the admin has more than one deposit method switched on at
+ * once: an online gateway first (using the highest-priority gateway that's
+ * enabled), then the dedicated virtual account, then manual bank transfer. */
+function resolveMethod(methods: DepositMethods | null): ResolvedMethod | null {
+  if (!methods) return null;
+  if (methods.gatewayEnabled) {
+    const gateway = GATEWAYS.find((g) => methods.gateways[g.method]);
+    if (gateway) return { kind: "gateway", method: gateway.method };
+  }
+  if (methods.virtualAccountEnabled) return { kind: "virtual" };
+  if (methods.manual.enabled) return { kind: "manual" };
+  return null;
+}
+
 interface Deposit {
   id: string;
   amount: string;
@@ -43,12 +65,17 @@ interface Deposit {
   createdAt: string;
 }
 
+interface PlanLite {
+  price: string;
+}
+
 export default function DepositPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"gateway" | "transfer" | "manual">("gateway");
+  const [step, setStep] = useState<"amount" | "virtual" | "manual">("amount");
+  const [manualStep, setManualStep] = useState<"transfer" | "upload">("transfer");
   const [amount, setAmount] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
   const [receipt, setReceipt] = useState<File | null>(null);
-  const [manualStep, setManualStep] = useState<"amount" | "transfer" | "upload">("amount");
   const [loading, setLoading] = useState(false);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
@@ -56,19 +83,18 @@ export default function DepositPage() {
   const [virtualAccountLoading, setVirtualAccountLoading] = useState(false);
   const [virtualAccountAttempted, setVirtualAccountAttempted] = useState(false);
   const [methods, setMethods] = useState<DepositMethods | null>(null);
+  const [chips, setChips] = useState<number[]>([]);
 
   useEffect(() => {
     apiFetch<{ deposits: Deposit[] }>("/api/deposits").then((res) => setDeposits(res.deposits));
-    apiFetch<DepositMethods>("/api/deposits/methods").then((res) => {
-      setMethods(res);
-      if (!res.gatewayEnabled) {
-        setTab(res.virtualAccountEnabled ? "transfer" : "manual");
-      }
-    });
+    apiFetch<DepositMethods>("/api/deposits/methods").then(setMethods);
+    apiFetch<{ plans: PlanLite[] }>("/api/plans")
+      .then((res) => setChips([...new Set(res.plans.map((p) => Number(p.price)))].sort((a, b) => a - b)))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (tab !== "transfer" || virtualAccountAttempted) return;
+    if (step !== "virtual" || virtualAccountAttempted) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVirtualAccountAttempted(true);
     setVirtualAccountLoading(true);
@@ -76,7 +102,9 @@ export default function DepositPage() {
       .then((res) => setVirtualAccount(res.account))
       .catch((err) => setVirtualAccountError(err instanceof ApiError ? err.message : "Could not load your account"))
       .finally(() => setVirtualAccountLoading(false));
-  }, [tab, virtualAccountAttempted]);
+  }, [step, virtualAccountAttempted]);
+
+  const resolved = useMemo(() => resolveMethod(methods), [methods]);
 
   function copyAccountNumber() {
     if (!virtualAccount) return;
@@ -84,8 +112,7 @@ export default function DepositPage() {
     toast.success("Account number copied");
   }
 
-  async function payWithGateway(method: (typeof GATEWAYS)[number]["method"]) {
-    if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
+  async function payWithGateway(method: GatewayMethod) {
     setLoading(true);
     try {
       const res = await apiFetch<{ authorizationUrl: string }>("/api/deposits/initialize", {
@@ -95,13 +122,11 @@ export default function DepositPage() {
       window.location.assign(res.authorizationUrl);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not start payment");
-    } finally {
       setLoading(false);
     }
   }
 
   async function submitManual() {
-    if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
     if (!receipt) return toast.error("Attach your deposit receipt");
     setLoading(true);
     try {
@@ -112,7 +137,8 @@ export default function DepositPage() {
       toast.success("Deposit submitted for review");
       setAmount("");
       setReceipt(null);
-      setManualStep("amount");
+      setManualStep("transfer");
+      setStep("amount");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not submit deposit");
@@ -121,6 +147,30 @@ export default function DepositPage() {
     }
   }
 
+  function openConfirm() {
+    if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
+    if (!resolved) return toast.error("Deposits are temporarily unavailable. Please check back later.");
+    setShowConfirm(true);
+  }
+
+  function payNow() {
+    if (!resolved) return;
+    if (resolved.kind === "gateway") {
+      payWithGateway(resolved.method);
+      return;
+    }
+    setShowConfirm(false);
+    if (resolved.kind === "virtual") setStep("virtual");
+    if (resolved.kind === "manual") setStep("manual");
+  }
+
+  function backToAmount() {
+    setStep("amount");
+    setManualStep("transfer");
+  }
+
+  const noMethodsActive = methods && !resolved;
+
   return (
     <div className="flex flex-col gap-4">
       <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-foreground/60">
@@ -128,67 +178,56 @@ export default function DepositPage() {
       </button>
       <h1 className="text-xl font-bold">Fund Wallet</h1>
 
-      {methods && !methods.gatewayEnabled && !methods.virtualAccountEnabled && !methods.manual.enabled && (
+      {noMethodsActive && (
         <p className="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-500">
           Deposits are temporarily unavailable. Please check back later.
         </p>
       )}
 
-      {methods && (methods.gatewayEnabled || methods.virtualAccountEnabled || methods.manual.enabled) && (
-        <div className="flex gap-2 rounded-xl bg-surface-muted p-1">
-          {(["gateway", "transfer", "manual"] as const)
-            .filter(
-              (t) =>
-                (t === "gateway" && methods.gatewayEnabled) ||
-                (t === "transfer" && methods.virtualAccountEnabled) ||
-                (t === "manual" && methods.manual.enabled)
-            )
-            .map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={cn(
-                  "flex-1 rounded-lg py-2 text-sm font-medium capitalize transition-colors",
-                  tab === t ? "bg-surface shadow" : "text-foreground/50"
-                )}
-              >
-                {t === "gateway" ? "Instant" : t === "transfer" ? "Bank transfer" : "Manual"}
-              </button>
-            ))}
-        </div>
-      )}
-
-      {tab === "gateway" && (
-        <Input
-          label="Amount"
-          type="number"
-          min={1}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-        />
-      )}
-
-      {tab === "gateway" && (
-        <div className="grid grid-cols-2 gap-3">
-          {GATEWAYS.filter((g) => methods?.gateways[g.method] !== false).map((g) => (
-            <button
-              key={g.method}
-              disabled={loading}
-              onClick={() => payWithGateway(g.method)}
-              className="card py-4 text-sm font-semibold disabled:opacity-60"
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {tab === "transfer" && (
+      {step === "amount" && (
         <Card>
+          <p className="font-semibold">How much do you want to add?</p>
+          <Input
+            className="mt-3"
+            label="Amount"
+            type="number"
+            min={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+          />
+          {chips.length > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {chips.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => setAmount(String(chip))}
+                  className={cn(
+                    "rounded-xl border py-3 text-sm font-bold transition-colors",
+                    Number(amount) === chip
+                      ? "border-brand-primary bg-brand-primary text-white"
+                      : "border-border bg-surface text-brand-primary"
+                  )}
+                >
+                  {formatCurrency(chip).replace(".00", "")}
+                </button>
+              ))}
+            </div>
+          )}
+          <Button className="mt-4 w-full" onClick={openConfirm} disabled={!resolved}>
+            Continue
+          </Button>
+        </Card>
+      )}
+
+      {step === "virtual" && (
+        <Card>
+          <button onClick={backToAmount} className="mb-2 flex items-center gap-1 text-xs text-foreground/50">
+            <ArrowLeft className="h-3.5 w-3.5" /> Change amount
+          </button>
           <p className="text-sm text-foreground/70">
-            Transfer any amount to this dedicated account number — it&apos;s credited to your Main wallet
-            automatically, no receipt needed.
+            Transfer <span className="font-bold text-foreground">{formatCurrency(amount)}</span> to this dedicated
+            account number — it&apos;s credited to your Main wallet automatically, no receipt needed.
           </p>
           {virtualAccountLoading && <p className="mt-3 text-sm text-foreground/50">Setting up your account…</p>}
           {virtualAccountError && <p className="mt-3 text-sm text-red-500">{virtualAccountError}</p>}
@@ -207,35 +246,11 @@ export default function DepositPage() {
         </Card>
       )}
 
-      {tab === "manual" && manualStep === "amount" && (
+      {step === "manual" && manualStep === "transfer" && methods?.manual.enabled && (
         <Card>
-          <p className="text-sm text-foreground/70">
-            A fallback for when instant payment gateways are down. Enter the amount you&apos;re sending, then
-            transfer to our bank account and upload your receipt for admin review.
-          </p>
-          <Input
-            className="mt-3"
-            label="Amount"
-            type="number"
-            min={1}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-          />
-          <Button
-            className="mt-3 w-full"
-            onClick={() => {
-              if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
-              setManualStep("transfer");
-            }}
-          >
-            Continue
-          </Button>
-        </Card>
-      )}
-
-      {tab === "manual" && manualStep === "transfer" && methods?.manual.enabled && (
-        <Card>
+          <button onClick={backToAmount} className="mb-2 flex items-center gap-1 text-xs text-foreground/50">
+            <ArrowLeft className="h-3.5 w-3.5" /> Change amount
+          </button>
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted">
               <Landmark className="h-6 w-6 text-foreground/60" />
@@ -264,16 +279,10 @@ export default function DepositPage() {
           <Button className="mt-4 w-full" variant="secondary" onClick={() => setManualStep("upload")}>
             I have completed the transfer <ArrowRight className="h-4 w-4" />
           </Button>
-          <button
-            onClick={() => setManualStep("amount")}
-            className="mt-2 w-full text-center text-xs text-foreground/50"
-          >
-            Change amount
-          </button>
         </Card>
       )}
 
-      {tab === "manual" && manualStep === "upload" && (
+      {step === "manual" && manualStep === "upload" && (
         <Card>
           <p className="text-sm text-foreground/70">
             Upload your receipt for {formatCurrency(amount)} so an admin can verify and credit your wallet.
@@ -291,10 +300,7 @@ export default function DepositPage() {
           <Button className="mt-3 w-full" loading={loading} onClick={submitManual}>
             Submit for review
           </Button>
-          <button
-            onClick={() => setManualStep("transfer")}
-            className="mt-2 w-full text-center text-xs text-foreground/50"
-          >
+          <button onClick={() => setManualStep("transfer")} className="mt-2 w-full text-center text-xs text-foreground/50">
             Back
           </button>
         </Card>
@@ -322,6 +328,43 @@ export default function DepositPage() {
                 </span>
               </Card>
             ))}
+          </div>
+        </div>
+      )}
+
+      {showConfirm && resolved && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowConfirm(false)} />
+          <div className="relative w-full rounded-t-3xl bg-surface px-6 pb-8 pt-3 shadow-xl">
+            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border" />
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-primary/15 text-brand-primary">
+                <ShieldCheck className="h-7 w-7" />
+              </div>
+              <h2 className="mt-4 text-lg font-bold">Fund your wallet</h2>
+              <p className="mt-1 text-sm text-foreground/60">
+                {resolved.kind === "gateway" && "You'll pay securely via card, bank transfer or USSD"}
+                {resolved.kind === "virtual" && "You'll pay securely via bank transfer to your dedicated account"}
+                {resolved.kind === "manual" && "You'll pay via bank transfer and upload your receipt for review"}
+              </p>
+              <p className="mt-3 text-3xl font-extrabold text-brand-primary">{formatCurrency(amount)}</p>
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-foreground/50">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {resolved.kind === "gateway"
+                  ? "Card · Bank transfer · USSD - encrypted & secure"
+                  : "Encrypted & secure"}
+              </p>
+
+              <Button className="mt-6 w-full" loading={loading} onClick={payNow}>
+                <CreditCard className="h-4 w-4" /> Pay now
+              </Button>
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="mt-2 flex h-11 w-full items-center justify-center rounded-xl border border-border text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
