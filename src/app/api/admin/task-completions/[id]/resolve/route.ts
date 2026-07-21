@@ -9,6 +9,7 @@ import { payReferralCommission } from "@/lib/server/referral-commission";
 import { notifyUser } from "@/lib/server/notifications";
 import { XP_CONFIG } from "@/lib/config";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 const schema = z.object({ action: z.enum(["approve", "reject"]) });
 
@@ -35,11 +36,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const completingUser = await prisma.user.findUniqueOrThrow({ where: { id: completion.userId } });
     const plan = completingUser.planId ? await prisma.plan.findUnique({ where: { id: completingUser.planId } }) : null;
-    const effectiveReward = plan
-      ? completion.task.type === "sponsored_post"
-        ? plan.sponsoredPostReward
-        : plan.taskReward
-      : completion.task.rewardAmount;
+    const planRequired = !plan && (await isActivePlanRequired());
+    const effectiveReward = planRequired
+      ? 0
+      : plan
+        ? completion.task.type === "sponsored_post"
+          ? plan.sponsoredPostReward
+          : plan.taskReward
+        : completion.task.rewardAmount;
 
     await prisma.$transaction(async (tx) => {
       await tx.userTaskCompletion.update({

@@ -39,18 +39,19 @@ export async function GET() {
       bannerUrl,
       linkUrl,
       shareUrl,
-      rewardAmount,
-      platforms:
-        planRequired || sectionLimitReached
-          ? []
-          : PLATFORMS.map((platform) => {
-              const share = shareByPlatform.get(platform);
-              return {
-                platform,
-                status: share ? share.status : "AVAILABLE",
-                reviewNote: share?.reviewNote ?? null,
-              };
-            }),
+      // Sponsored Posts stays browsable with no active plan - a user can
+      // try it for free, they just earn nothing until they activate a plan.
+      rewardAmount: planRequired ? 0 : rewardAmount,
+      platforms: sectionLimitReached
+        ? []
+        : PLATFORMS.map((platform) => {
+            const share = shareByPlatform.get(platform);
+            return {
+              platform,
+              status: share ? share.status : "AVAILABLE",
+              reviewNote: share?.reviewNote ?? null,
+            };
+          }),
     });
   } catch (error) {
     return handleApiError(error);

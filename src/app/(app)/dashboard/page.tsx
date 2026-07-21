@@ -256,8 +256,11 @@ export default function DashboardPage() {
   const nextStep = data.setupSteps.find((s) => !s.done);
   const doneSteps = data.setupSteps.filter((s) => s.done).length;
 
-  function earnNowStatus(activityStatus: "ready" | "cooldown" | "done" | "limit_reached" | null) {
-    if (data!.planRequired) return "locked";
+  // Voice Earn and Word Game are fully locked without a plan; Tasks and
+  // Sponsored Posts stay browsable for free (just paying nothing) so they
+  // keep showing their real ready/done status instead of "locked".
+  function earnNowStatus(key: "voice" | "wordgame" | "tasks" | "sponsored", activityStatus: "ready" | "cooldown" | "done" | "limit_reached" | null) {
+    if (data!.planRequired && (key === "voice" || key === "wordgame")) return "locked";
     return activityStatus;
   }
 
@@ -272,7 +275,7 @@ export default function DashboardPage() {
         : data.plan
           ? `+${formatCurrency(data.plan.voiceSessionReward)}/session`
           : "Base rate",
-      status: earnNowStatus(voiceStatus),
+      status: earnNowStatus("voice", voiceStatus),
     },
     {
       key: "wordgame",
@@ -284,7 +287,7 @@ export default function DashboardPage() {
         : data.plan
           ? `+${formatCurrency(data.plan.wordGameReward)}/word`
           : "Base rate",
-      status: earnNowStatus(wordGameStatus),
+      status: earnNowStatus("wordgame", wordGameStatus),
     },
     {
       key: "tasks",
@@ -296,7 +299,7 @@ export default function DashboardPage() {
         : data.plan
           ? `+${formatCurrency(data.plan.taskReward)}/task`
           : "Base rate",
-      status: earnNowStatus(tasksStatus),
+      status: earnNowStatus("tasks", tasksStatus),
     },
     {
       key: "sponsored",
@@ -304,7 +307,7 @@ export default function DashboardPage() {
       label: "Sponsored",
       icon: Flag,
       rate: data.planRequired ? `+${formatCurrency(0)}/post` : `+${formatCurrency(sponsoredRate)}/post`,
-      status: earnNowStatus(sponsoredStatus),
+      status: earnNowStatus("sponsored", sponsoredStatus),
     },
   ] as const;
 

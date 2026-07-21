@@ -22,10 +22,11 @@ export async function POST(req: NextRequest) {
       return jsonError("Please verify your email before submitting sponsored posts", 403);
     }
 
+    // Sponsored Posts stays submittable with no active plan - the user just
+    // earns nothing (below) until they activate one, rather than being
+    // blocked outright.
     const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
-    if (!plan && (await isActivePlanRequired())) {
-      return jsonError("Activate a plan to submit sponsored posts", 403);
-    }
+    const planRequired = !plan && (await isActivePlanRequired());
 
     const sectionDailyLimit = planSectionDailyLimit(plan, "sponsoredPosts");
     if (sectionDailyLimit !== null) {
@@ -55,6 +56,8 @@ export async function POST(req: NextRequest) {
     if (!caption || !linkUrl) {
       return jsonError("Sponsored posts aren't configured right now. Please check back later.", 422);
     }
+
+    const effectiveReward = planRequired ? 0 : rewardAmount;
 
     const buffer = Buffer.from(await proofImage.arrayBuffer());
     const proofImageHash = hashBuffer(buffer);
@@ -96,31 +99,33 @@ export async function POST(req: NextRequest) {
             status: "APPROVED",
             proofImageUrl,
             proofImageHash,
-            rewardPaid: rewardAmount,
+            rewardPaid: effectiveReward,
           },
         });
 
-        await creditWallet({
-          userId: user.id,
-          type: "ENGAGEMENT",
-          amount: rewardAmount,
-          reason: "SPONSORED_POST_REWARD",
-          description: `Sponsored post shared on ${platform}`,
-          client: tx,
-        });
+        if (effectiveReward > 0) {
+          await creditWallet({
+            userId: user.id,
+            type: "ENGAGEMENT",
+            amount: effectiveReward,
+            reason: "SPONSORED_POST_REWARD",
+            description: `Sponsored post shared on ${platform}`,
+            client: tx,
+          });
+          await payReferralCommission({
+            earnerId: user.id,
+            earnedAmount: effectiveReward,
+            sourceReason: "SPONSORED_POST_REWARD",
+            client: tx,
+          });
+        }
         await addXp(user.id, XP_CONFIG.perTaskCenter, tx);
         await incrementMissionProgress(user.id, "TASK_CENTER", 1, tx);
-        await payReferralCommission({
-          earnerId: user.id,
-          earnedAmount: rewardAmount,
-          sourceReason: "SPONSORED_POST_REWARD",
-          client: tx,
-        });
 
         return share;
       });
 
-      return NextResponse.json({ share: result, reward: rewardAmount });
+      return NextResponse.json({ share: result, reward: effectiveReward });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         return jsonError("You've already shared this platform today. Come back tomorrow.", 409);

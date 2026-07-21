@@ -22,13 +22,15 @@ export async function GET(req: NextRequest) {
     const category = req.nextUrl.searchParams.get("category");
     const typeFilter =
       category === "sponsored" ? { type: "sponsored_post" } : { type: { not: "sponsored_post" } };
-    const tasks =
-      planRequired || sectionLimitReached
-        ? []
-        : await prisma.taskCenterTask.findMany({
-            where: { isActive: true, ...typeFilter },
-            orderBy: { createdAt: "desc" },
-          });
+    // Tasks stay browsable with no active plan - a user can try them for
+    // free, they just earn nothing until they activate a plan (below). Only
+    // a plan-holder's own daily quota actually hides the list.
+    const tasks = sectionLimitReached
+      ? []
+      : await prisma.taskCenterTask.findMany({
+          where: { isActive: true, ...typeFilter },
+          orderBy: { createdAt: "desc" },
+        });
     const completions = await prisma.userTaskCompletion.findMany({ where: { userId: user.id } });
     const statusByTask = new Map(completions.map((c) => [c.taskId, c.status]));
     const checkedInToday = Boolean(
@@ -43,6 +45,7 @@ export async function GET(req: NextRequest) {
         const status = statusByTask.get(t.id);
         return {
           ...t,
+          rewardAmount: planRequired ? "0" : t.rewardAmount,
           isCompleted:
             t.type === "checkin" ? checkedInToday : !t.isRepeatable && status !== undefined && status !== "REJECTED",
           isPending: status === "PENDING_REVIEW",

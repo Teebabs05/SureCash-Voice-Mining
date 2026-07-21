@@ -6,7 +6,6 @@ import {
   Clock,
   Copy,
   Image as ImageIcon,
-  Megaphone,
   MessageCircle,
   Music2,
   ThumbsUp,
@@ -16,7 +15,6 @@ import {
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { PlanGateBanner } from "@/components/plan-gate-banner";
-import { PlanLockScreen } from "@/components/plan-lock-screen";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
@@ -85,12 +83,8 @@ export default function SponsoredPostsPage() {
     if (!data) return;
     const limitReached =
       data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
-    if (data.planRequired || limitReached) {
-      toast.error(
-        data.planRequired
-          ? "Activate a plan to submit sponsored posts"
-          : `You've reached today's plan limit for Sponsored Posts (${data.sectionDailyLimit}/day)`
-      );
+    if (limitReached) {
+      toast.error(`You've reached today's plan limit for Sponsored Posts (${data.sectionDailyLimit}/day)`);
       return;
     }
     const meta = PLATFORM_META[platform];
@@ -136,19 +130,6 @@ export default function SponsoredPostsPage() {
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading…</p>;
 
-  if (data?.planRequired) {
-    return (
-      <div className="flex flex-col gap-4">
-        <h1 className="text-xl font-bold">Sponsored Posts</h1>
-        <PlanLockScreen
-          icon={Megaphone}
-          title="Sponsored Posts"
-          description="Share sponsored content on your social media and get paid for each post. Activate a plan to start earning from sponsored campaigns."
-        />
-      </div>
-    );
-  }
-
   if (!data?.configured) {
     return (
       <div className="flex flex-col gap-4">
@@ -174,7 +155,8 @@ export default function SponsoredPostsPage() {
         </p>
       </div>
 
-      {limitReached && (
+      {data.planRequired && <PlanGateBanner reason="free_trial" feature="sponsored posts" />}
+      {!data.planRequired && limitReached && (
         <PlanGateBanner reason="limit_reached" feature="submit sponsored posts" dailyLimit={data.sectionDailyLimit ?? undefined} />
       )}
 

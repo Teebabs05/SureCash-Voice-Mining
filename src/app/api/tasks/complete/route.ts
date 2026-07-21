@@ -115,10 +115,11 @@ export async function POST(req: NextRequest) {
       if (existing) return jsonError("You've already completed this task", 409);
     }
 
+    // Tasks stay completable with no active plan - the user just earns
+    // nothing (below) until they activate one, rather than being blocked
+    // outright.
     const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
-    if (!plan && (await isActivePlanRequired())) {
-      return jsonError("Activate a plan to complete tasks", 403);
-    }
+    const planRequired = !plan && (await isActivePlanRequired());
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -134,11 +135,11 @@ export async function POST(req: NextRequest) {
 
     // A user's active plan re-prices task rewards at a flat rate for the
     // task's type (sponsored post vs general task), overriding the
-    // individual task's own rewardAmount. Users with no active plan keep
-    // today's per-task reward.
-    const effectiveReward = Number(
-      plan ? (task.type === "sponsored_post" ? plan.sponsoredPostReward : plan.taskReward) : task.rewardAmount
-    );
+    // individual task's own rewardAmount. A user with no plan (while one is
+    // required) can still complete the task, but earns nothing.
+    const effectiveReward = planRequired
+      ? 0
+      : Number(plan ? (task.type === "sponsored_post" ? plan.sponsoredPostReward : plan.taskReward) : task.rewardAmount);
 
     if (task.requiresProof) {
       if (!(proofImage instanceof Blob) && !proofUrl && !proofText) {
