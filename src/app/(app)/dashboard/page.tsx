@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { BillPaymentsArc } from "@/components/dashboard/bill-payments-arc";
+import { TopEarnerFab } from "@/components/dashboard/top-earner-fab";
 import { MissionsCard } from "@/components/dashboard/missions-card";
 import { ActivityTicker } from "@/components/dashboard/activity-ticker";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,10 +85,38 @@ interface ReferralData {
 }
 
 const BILL_PAYMENTS = [
-  { label: "Airtime", icon: Smartphone, iconClass: "bg-brand-primary/15 text-brand-primary", raised: true },
-  { label: "Data", icon: Wifi, iconClass: "bg-brand-green/15 text-brand-green", raised: false },
-  { label: "Electricity", icon: Zap, iconClass: "bg-brand-amber/15 text-[#a67c00]", raised: false },
-  { label: "TV", icon: Tv, iconClass: "bg-red-500/15 text-red-500", raised: true },
+  {
+    label: "Airtime",
+    icon: Smartphone,
+    iconClass: "bg-brand-primary/15 text-brand-primary",
+    color: "primary" as const,
+    description: "Buy airtime straight from your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
+    raised: true,
+  },
+  {
+    label: "Data",
+    icon: Wifi,
+    iconClass: "bg-brand-green/15 text-brand-green",
+    color: "green" as const,
+    description: "Buy data bundles straight from your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
+    raised: false,
+  },
+  {
+    label: "Electricity",
+    icon: Zap,
+    iconClass: "bg-brand-amber/15 text-[#a67c00]",
+    color: "amber" as const,
+    description: "Pay electricity bills straight from your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
+    raised: false,
+  },
+  {
+    label: "TV",
+    icon: Tv,
+    iconClass: "bg-red-500/15 text-red-500",
+    color: "red" as const,
+    description: "Renew TV subscriptions straight from your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
+    raised: true,
+  },
 ];
 
 const QUICK_ACTIONS = [
@@ -496,6 +525,8 @@ export default function DashboardPage() {
           <ChevronRight className="h-4 w-4 text-foreground/40" />
         </Link>
       </div>
+
+      <TopEarnerFab />
     </div>
   );
 }
