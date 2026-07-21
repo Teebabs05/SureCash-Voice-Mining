@@ -12,6 +12,7 @@ import { stripInstructionalPrefix } from "@/lib/voice-ai/match";
 interface WordGameTaskLite {
   id: string;
   promptText: string;
+  syllables?: string | null;
   minDuration: number;
   maxDuration: number;
   rewardAmount: string;
@@ -21,10 +22,12 @@ export function WordGameRecorder({
   task,
   onDone,
   onSkip,
+  canSkip = true,
 }: {
   task: WordGameTaskLite;
   onDone: () => void;
   onSkip: () => void;
+  canSkip?: boolean;
 }) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -113,6 +116,7 @@ export function WordGameRecorder({
       <p className="text-center text-2xl font-bold tracking-wide text-foreground">
         {stripInstructionalPrefix(task.promptText)}
       </p>
+      {task.syllables && <p className="text-center text-sm text-foreground/50">{task.syllables}</p>}
 
       {!blob && (
         <>
@@ -125,7 +129,7 @@ export function WordGameRecorder({
             >
               {recording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
             </button>
-            {!recording && (
+            {!recording && canSkip && (
               <button
                 onClick={onSkip}
                 title="Can't pronounce it? Get another word"
@@ -138,7 +142,9 @@ export function WordGameRecorder({
           {recording ? (
             <p className="font-mono text-sm text-foreground/60">{seconds}s</p>
           ) : (
-            <p className="text-xs text-foreground/50">No timer, no pressure - just say it right · tap the circle to skip</p>
+            <p className="text-xs text-foreground/50">
+              No timer, no pressure - just say it right{canSkip ? " · tap the circle to skip" : ""}
+            </p>
           )}
         </>
       )}
@@ -153,9 +159,11 @@ export function WordGameRecorder({
             <Button size="sm" loading={submitting} onClick={submit}>
               <Send className="h-4 w-4" /> Submit
             </Button>
-            <Button variant="outline" size="sm" onClick={onSkip}>
-              <RotateCw className="h-4 w-4" /> Skip
-            </Button>
+            {canSkip && (
+              <Button variant="outline" size="sm" onClick={onSkip}>
+                <RotateCw className="h-4 w-4" /> Skip
+              </Button>
+            )}
           </div>
         </div>
       )}

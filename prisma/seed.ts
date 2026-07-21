@@ -66,10 +66,19 @@ async function main() {
     { title: "Yoruba sentence", promptText: "SureCash Mining a maa san ẹ ni owo lojoojumọ.", language: "yo", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
     { title: "Hausa sentence", promptText: "SureCash Mining na biyan ku kudi kowace rana.", language: "ha", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
     { title: "Igbo sentence", promptText: "SureCash Mining na-akwụ gị ụgwọ kwa ụbọchị.", language: "ig", rewardAmount: 25, dailyLimit: 5, minDuration: 6, maxDuration: 20 },
-    { title: "Word game: pronounce", promptText: "Pronounce the word: opportunity", language: "en", category: "word_game", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: opportunity", language: "en", category: "word_game", syllables: "Op-por-tu-ni-ty", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: beautiful", language: "en", category: "word_game", syllables: "Beau-ti-ful", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: celebration", language: "en", category: "word_game", syllables: "Cel-e-bra-tion", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: community", language: "en", category: "word_game", syllables: "Com-mu-ni-ty", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: generation", language: "en", category: "word_game", syllables: "Gen-er-a-tion", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: important", language: "en", category: "word_game", syllables: "Im-por-tant", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: technology", language: "en", category: "word_game", syllables: "Tech-nol-o-gy", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: consistency", language: "en", category: "word_game", syllables: "Con-sis-ten-cy", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: entertainment", language: "en", category: "word_game", syllables: "En-ter-tain-ment", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
+    { title: "Word game: pronounce", promptText: "Pronounce the word: responsibility", language: "en", category: "word_game", syllables: "Re-spon-si-bil-i-ty", rewardAmount: 10, dailyLimit: 10, minDuration: 2, maxDuration: 8 },
   ];
   for (const task of voiceTasks) {
-    await findOrCreate(prisma.voiceTask, { title: task.title, language: task.language }, task);
+    await findOrCreate(prisma.voiceTask, { title: task.title, language: task.language, promptText: task.promptText }, task);
   }
 
   // ---------------------------------------------------------------------

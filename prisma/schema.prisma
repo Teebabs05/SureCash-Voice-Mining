@@ -470,6 +470,7 @@ model VoiceTask {
   promptText   String
   language     String   @default("en")
   category     String   @default("session") // "session" | "word_game" - selects which Plan reward field applies
+  syllables    String? // e.g. "Op-por-tu-ni-ty" - shown under the word in Word Game to help pronunciation
   rewardAmount Decimal  @db.Decimal(18, 2)
   dailyLimit   Int      @default(5)
   minDuration  Int      @default(3)

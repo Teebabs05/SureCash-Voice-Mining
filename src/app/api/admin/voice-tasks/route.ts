@@ -9,6 +9,7 @@ const schema = z.object({
   promptText: z.string().min(2),
   language: z.string().default("en"),
   category: z.enum(["session", "word_game"]).default("session"),
+  syllables: z.string().optional(),
   rewardAmount: z.number().positive(),
   dailyLimit: z.number().int().positive().default(5),
   minDuration: z.number().int().positive().default(3),

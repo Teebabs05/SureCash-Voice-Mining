@@ -14,6 +14,7 @@ interface VoiceTask {
   title: string;
   promptText: string;
   category: string;
+  syllables: string | null;
   rewardAmount: string;
   dailyLimit: number;
   minDuration: number;
@@ -46,6 +47,7 @@ export default function AdminVoiceTasksPage() {
     title: "",
     promptText: "",
     category: "session",
+    syllables: "",
     rewardAmount: "",
     dailyLimit: "5",
     minDuration: "3",
@@ -56,6 +58,7 @@ export default function AdminVoiceTasksPage() {
     title: "",
     promptText: "",
     category: "session",
+    syllables: "",
     rewardAmount: "",
     dailyLimit: "",
     minDuration: "",
@@ -84,6 +87,7 @@ export default function AdminVoiceTasksPage() {
           title: form.title,
           promptText: form.promptText,
           category: form.category,
+          syllables: form.syllables || undefined,
           rewardAmount: Number(form.rewardAmount),
           dailyLimit: Number(form.dailyLimit),
           minDuration: Number(form.minDuration),
@@ -95,6 +99,7 @@ export default function AdminVoiceTasksPage() {
         title: "",
         promptText: "",
         category: "session",
+        syllables: "",
         rewardAmount: "",
         dailyLimit: "5",
         minDuration: "3",
@@ -113,6 +118,7 @@ export default function AdminVoiceTasksPage() {
       title: task.title,
       promptText: task.promptText,
       category: task.category,
+      syllables: task.syllables ?? "",
       rewardAmount: task.rewardAmount,
       dailyLimit: String(task.dailyLimit),
       minDuration: String(task.minDuration),
@@ -129,6 +135,7 @@ export default function AdminVoiceTasksPage() {
           title: editForm.title,
           promptText: editForm.promptText,
           category: editForm.category,
+          syllables: editForm.syllables,
           rewardAmount: Number(editForm.rewardAmount),
           dailyLimit: Number(editForm.dailyLimit),
           minDuration: Number(editForm.minDuration),
@@ -218,6 +225,13 @@ export default function AdminVoiceTasksPage() {
                   <option value="session">Voice Earn session</option>
                   <option value="word_game">Word Game</option>
                 </select>
+                {editForm.category === "word_game" && (
+                  <Input
+                    placeholder="Syllables, e.g. Op-por-tu-ni-ty"
+                    value={editForm.syllables}
+                    onChange={(e) => setEditForm({ ...editForm, syllables: e.target.value })}
+                  />
+                )}
                 <div className="flex gap-2">
                   <Input
                     placeholder="Reward amount"
@@ -262,6 +276,7 @@ export default function AdminVoiceTasksPage() {
                     {t.title} {t.category === "word_game" && <span className="text-xs text-brand-primary">(Word Game)</span>}
                   </p>
                   <p className="text-xs text-foreground/50">{t.promptText}</p>
+                  {t.syllables && <p className="text-xs text-foreground/40">Syllables: {t.syllables}</p>}
                   <p className="text-xs font-medium text-brand-green">
                     {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day · {t.minDuration}-{t.maxDuration}s
                   </p>
@@ -303,6 +318,13 @@ export default function AdminVoiceTasksPage() {
               <option value="session">Voice Earn session</option>
               <option value="word_game">Word Game</option>
             </select>
+            {form.category === "word_game" && (
+              <Input
+                placeholder="Syllables, e.g. Op-por-tu-ni-ty"
+                value={form.syllables}
+                onChange={(e) => setForm({ ...form, syllables: e.target.value })}
+              />
+            )}
             <div className="flex gap-2">
               <Input
                 placeholder="Reward amount"

@@ -8,6 +8,7 @@ const schema = z.object({
   title: z.string().min(2).optional(),
   promptText: z.string().min(2).optional(),
   category: z.enum(["session", "word_game"]).optional(),
+  syllables: z.string().optional(),
   rewardAmount: z.number().positive().optional(),
   dailyLimit: z.number().int().positive().optional(),
   minDuration: z.number().int().positive().optional(),

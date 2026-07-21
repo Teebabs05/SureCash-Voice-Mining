@@ -13,6 +13,7 @@ interface WordGameTask {
   id: string;
   title: string;
   promptText: string;
+  syllables: string | null;
   rewardAmount: string;
   dailyLimit: number;
   minDuration: number;
@@ -128,6 +129,7 @@ export default function WordGamePage() {
             <WordGameRecorder
               key={current.id}
               task={current}
+              canSkip={pool.length > 1}
               onSkip={skip}
               onDone={() => {
                 lastIdRef.current = current.id;
