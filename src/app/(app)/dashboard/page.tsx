@@ -526,7 +526,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <TopEarnerFab />
+      <TopEarnerFab fullName={data.user.fullName} lifetimeEarnings={data.earnings.lifetime} />
     </div>
   );
 }

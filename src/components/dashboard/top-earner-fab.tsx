@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Crown, Lock, PartyPopper, X } from "lucide-react";
+import { toast } from "sonner";
+import { Crown, Download, Lock, PartyPopper, Share2, X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import { generateTopEarnerFlyer, shareFlyer, downloadFlyer } from "@/lib/flyer-canvas";
 
 const UNLOCK_RANK = 15;
 
@@ -11,9 +13,10 @@ interface MyReferralRank {
   referralCount: number;
 }
 
-export function TopEarnerFab() {
+export function TopEarnerFab({ fullName, lifetimeEarnings }: { fullName: string; lifetimeEarnings: number }) {
   const [open, setOpen] = useState(false);
   const [myRank, setMyRank] = useState<MyReferralRank | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     if (!open || myRank) return;
@@ -23,6 +26,19 @@ export function TopEarnerFab() {
   }, [open, myRank]);
 
   const unlocked = Boolean(myRank?.rank && myRank.rank <= UNLOCK_RANK);
+
+  async function withFlyer(action: (blob: Blob) => void | Promise<void>) {
+    if (!myRank?.rank) return;
+    setGenerating(true);
+    try {
+      const blob = await generateTopEarnerFlyer({ fullName, rank: myRank.rank, totalEarned: lifetimeEarnings });
+      await action(blob);
+    } catch {
+      toast.error("Could not generate your flyer - please try again");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <>
@@ -69,12 +85,35 @@ export function TopEarnerFab() {
                 : `Reach the Top ${UNLOCK_RANK} and unlock a premium gold flyer made just for you, with your name and your total.`}
             </p>
 
-            <div className="mt-4 rounded-xl border border-brand-amber/40 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Your special flyer</p>
-              <p className={`font-bold ${unlocked ? "text-brand-amber" : "text-brand-amber/80"}`}>
-                {unlocked ? "Unlocked — coming soon" : "Locked"}
-              </p>
-            </div>
+            {unlocked ? (
+              <div className="mt-4 flex flex-col gap-2">
+                <button
+                  onClick={() => withFlyer(shareFlyer)}
+                  disabled={generating}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-amber text-sm font-bold text-[#3a2c00] disabled:opacity-60"
+                >
+                  {generating ? (
+                    "Generating…"
+                  ) : (
+                    <>
+                      <Share2 className="h-4 w-4" /> Share your flyer
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => withFlyer(downloadFlyer)}
+                  disabled={generating}
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-brand-amber/40 text-xs font-semibold text-brand-amber disabled:opacity-60"
+                >
+                  <Download className="h-3.5 w-3.5" /> Or download the image
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-xl border border-brand-amber/40 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">Your special flyer</p>
+                <p className="font-bold text-brand-amber/80">Locked</p>
+              </div>
+            )}
 
             {myRank && (
               <p className="mt-3 text-xs text-white/50">
