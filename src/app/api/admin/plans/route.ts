@@ -13,6 +13,7 @@ const schema = z.object({
   taskReward: z.number().nonnegative(),
   referralCommission: z.number().nonnegative(),
   sortOrder: z.number().int().default(0),
+  isPopular: z.boolean().default(false),
 });
 
 export async function GET() {

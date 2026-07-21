@@ -19,6 +19,7 @@ interface Plan {
   referralCommission: string;
   sortOrder: number;
   isActive: boolean;
+  isPopular: boolean;
 }
 
 const FIELDS: Array<{ key: keyof Plan; label: string }> = [
@@ -40,6 +41,7 @@ const NEW_PLAN_DEFAULTS = {
   taskReward: "",
   referralCommission: "",
   sortOrder: "0",
+  isPopular: false,
 };
 
 export default function AdminPlansPage() {
@@ -112,6 +114,18 @@ export default function AdminPlansPage() {
     }
   }
 
+  async function togglePopular(plan: Plan) {
+    setBusyId(plan.id);
+    try {
+      await apiFetch(`/api/admin/plans/${plan.id}`, { method: "PATCH", body: JSON.stringify({ isPopular: !plan.isPopular }) });
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function createPlan() {
     try {
       await apiFetch("/api/admin/plans", {
@@ -125,6 +139,7 @@ export default function AdminPlansPage() {
           taskReward: Number(form.taskReward),
           referralCommission: Number(form.referralCommission),
           sortOrder: Number(form.sortOrder),
+          isPopular: form.isPopular,
         }),
       });
       toast.success("Plan created");
@@ -148,7 +163,8 @@ export default function AdminPlansPage() {
         <Card key={plan.id}>
           <CardHeader>
             <CardTitle>
-              {plan.name} {!plan.isActive && <span className="text-xs text-red-500">(inactive)</span>}
+              {plan.name} {!plan.isActive && <span className="text-xs text-red-500">(inactive)</span>}{" "}
+              {plan.isPopular && <span className="text-xs text-brand-primary">(popular)</span>}
             </CardTitle>
           </CardHeader>
           <div className="grid grid-cols-2 gap-3">
@@ -167,6 +183,14 @@ export default function AdminPlansPage() {
             </Button>
             <Button size="sm" variant="outline" loading={busyId === plan.id} onClick={() => toggleActive(plan)}>
               {plan.isActive ? "Deactivate" : "Activate"}
+            </Button>
+            <Button
+              size="sm"
+              variant={plan.isPopular ? "primary" : "outline"}
+              loading={busyId === plan.id}
+              onClick={() => togglePopular(plan)}
+            >
+              {plan.isPopular ? "Popular ✓" : "Mark popular"}
             </Button>
           </div>
         </Card>
@@ -221,6 +245,14 @@ export default function AdminPlansPage() {
               value={form.sortOrder}
               onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
             />
+            <label className="flex items-center gap-2.5 text-sm">
+              <input
+                type="checkbox"
+                checked={form.isPopular}
+                onChange={(e) => setForm({ ...form, isPopular: e.target.checked })}
+              />
+              Mark as popular
+            </label>
             <Button onClick={createPlan}>Create plan</Button>
           </div>
         ) : (

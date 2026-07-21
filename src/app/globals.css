@@ -129,6 +129,21 @@ body {
     background-image: linear-gradient(135deg, #f5a623 0%, #c97f00 100%);
   }
 
+  /* Standard (non-popular) plan card header on Plans & Pricing - dark,
+     teal-tinted, deliberately quieter than gradient-brand so the popular
+     tier's vivid header stands out by contrast. */
+  .gradient-plan-dark {
+    background-image:
+      repeating-linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.04) 0px,
+        rgba(255, 255, 255, 0.04) 2px,
+        transparent 2px,
+        transparent 14px
+      ),
+      linear-gradient(135deg, #10201e 0%, #05100e 100%);
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

@@ -14,6 +14,7 @@ const schema = z.object({
   referralCommission: z.number().nonnegative().optional(),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
+  isPopular: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
