@@ -11,12 +11,15 @@ export async function GET() {
     const referrals = await prisma.referral.findMany({
       where: { referrerId: user.id },
       orderBy: { createdAt: "desc" },
-      include: { referred: { select: { fullName: true, email: true, emailVerified: true, createdAt: true } } },
+      include: {
+        referred: { select: { fullName: true, email: true, emailVerified: true, createdAt: true, planId: true } },
+      },
     });
 
     const totalEarned = referrals
       .filter((r) => r.rewardCredited)
       .reduce((sum, r) => sum + Number(r.rewardAmount), 0);
+    const activatedReferrals = referrals.filter((r) => r.referred.planId).length;
 
     const network = await getReferralNetwork(user.id);
 
@@ -24,6 +27,8 @@ export async function GET() {
       referralCode: user.referralCode,
       referralUrl: `${process.env.NEXT_PUBLIC_APP_URL}/register?ref=${user.referralCode}`,
       totalReferrals: referrals.length,
+      activatedReferrals,
+      pendingReferrals: referrals.length - activatedReferrals,
       totalEarned,
       referrals,
       network,

@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/server/current-user";
 import { getWalletSummary } from "@/lib/server/wallet";
 import { handleApiError } from "@/lib/server/api-response";
 import { getSetting } from "@/lib/server/settings";
+import { dateOnlyKey } from "@/lib/server/gamification";
 
 function startOfToday() {
   const d = new Date();
@@ -25,37 +26,66 @@ export async function GET() {
     const user = await requireUser();
     const { wallets, total } = await getWalletSummary(user.id);
 
-    const [today, week, month, lifetime, pendingVoice, currentLevel, nextLevel, socials, bankAccountCount, announcement] =
-      await Promise.all([
-        prisma.walletTransaction.aggregate({
-          where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfToday() } },
-          _sum: { amount: true },
-        }),
-        prisma.walletTransaction.aggregate({
-          where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfWeek() } },
-          _sum: { amount: true },
-        }),
-        prisma.walletTransaction.aggregate({
-          where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfMonth() } },
-          _sum: { amount: true },
-        }),
-        prisma.walletTransaction.aggregate({
-          where: { userId: user.id, type: "CREDIT" },
-          _sum: { amount: true },
-        }),
-        prisma.voiceRecording.findMany({
-          where: { userId: user.id, status: { in: ["PENDING", "PROCESSING"] } },
-          include: { voiceTask: { select: { rewardAmount: true } } },
-        }),
-        prisma.level.findUnique({ where: { level: user.level } }),
-        prisma.level.findFirst({ where: { level: { gt: user.level } }, orderBy: { level: "asc" } }),
-        prisma.user.findUniqueOrThrow({
-          where: { id: user.id },
-          select: { facebookUrl: true, instagramHandle: true, tiktokHandle: true },
-        }),
-        prisma.bankAccount.count({ where: { userId: user.id } }),
-        getSetting("pinned_announcement", ""),
-      ]);
+    const [
+      today,
+      week,
+      month,
+      lifetime,
+      pendingVoice,
+      currentLevel,
+      nextLevel,
+      socials,
+      bankAccountCount,
+      announcement,
+      plan,
+      withdrawnLifetime,
+      voiceDoneToday,
+      taskDoneToday,
+      sponsoredDoneToday,
+    ] = await Promise.all([
+      prisma.walletTransaction.aggregate({
+        where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfToday() } },
+        _sum: { amount: true },
+      }),
+      prisma.walletTransaction.aggregate({
+        where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfWeek() } },
+        _sum: { amount: true },
+      }),
+      prisma.walletTransaction.aggregate({
+        where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfMonth() } },
+        _sum: { amount: true },
+      }),
+      prisma.walletTransaction.aggregate({
+        where: { userId: user.id, type: "CREDIT" },
+        _sum: { amount: true },
+      }),
+      prisma.voiceRecording.findMany({
+        where: { userId: user.id, status: { in: ["PENDING", "PROCESSING"] } },
+        include: { voiceTask: { select: { rewardAmount: true } } },
+      }),
+      prisma.level.findUnique({ where: { level: user.level } }),
+      prisma.level.findFirst({ where: { level: { gt: user.level } }, orderBy: { level: "asc" } }),
+      prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { facebookUrl: true, instagramHandle: true, tiktokHandle: true, avatarUrl: true },
+      }),
+      prisma.bankAccount.count({ where: { userId: user.id } }),
+      getSetting("pinned_announcement", ""),
+      user.planId ? prisma.plan.findUnique({ where: { id: user.planId } }) : null,
+      prisma.withdrawal.aggregate({
+        where: { userId: user.id, status: "PAID" },
+        _sum: { amount: true },
+      }),
+      prisma.voiceRecording.count({
+        where: { userId: user.id, status: "APPROVED", createdAt: { gte: startOfToday() } },
+      }),
+      prisma.userTaskCompletion.count({
+        where: { userId: user.id, status: "completed", createdAt: { gte: startOfToday() } },
+      }),
+      prisma.sponsoredShare.count({
+        where: { userId: user.id, status: "APPROVED", date: dateOnlyKey() },
+      }),
+    ]);
 
     const pendingRewards = pendingVoice.reduce((sum, r) => sum + Number(r.voiceTask.rewardAmount), 0);
 
@@ -80,12 +110,22 @@ export async function GET() {
     return NextResponse.json({
       user: {
         fullName: user.fullName,
+        handle: `@${user.fullName.split(" ")[0]}`,
+        avatarUrl: socials.avatarUrl,
         level: user.level,
         levelTitle: currentLevel?.title ?? "Newcomer",
         xp: user.xp,
         streakCount: user.streakCount,
         emailVerified: user.emailVerified,
       },
+      plan: plan
+        ? {
+            name: plan.name,
+            voiceSessionReward: Number(plan.voiceSessionReward),
+            wordGameReward: Number(plan.wordGameReward),
+            taskReward: Number(plan.taskReward),
+          }
+        : null,
       wallets,
       totalBalance: total,
       earnings: {
@@ -95,6 +135,8 @@ export async function GET() {
         lifetime: Number(lifetime._sum.amount ?? 0),
         pending: pendingRewards,
       },
+      withdrawnLifetime: Number(withdrawnLifetime._sum.amount ?? 0),
+      activitiesToday: voiceDoneToday + taskDoneToday + sponsoredDoneToday,
       levelProgress: {
         percent: levelProgressPercent,
         nextLevelTitle: nextLevel?.title ?? null,
