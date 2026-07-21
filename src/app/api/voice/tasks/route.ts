@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { TIER_CONFIG } from "@/lib/config";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { checkFeatureAccess } from "@/lib/server/plan-gate";
 
 /** Fisher-Yates shuffle — randomizes sentence order per request so users
  * don't always record the same prompts in the same sequence. */
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     startOfDay.setHours(0, 0, 0, 0);
 
     const category = req.nextUrl.searchParams.get("category");
+    const feature = category === "word_game" ? "wordGame" : "voiceEarn";
     const tasks = await prisma.voiceTask.findMany({
       where: { isActive: true, ...(category === "session" || category === "word_game" ? { category } : {}) },
       orderBy: { createdAt: "desc" },
@@ -35,17 +36,20 @@ export async function GET(req: NextRequest) {
     });
     const countMap = new Map(todayCounts.map((c) => [c.voiceTaskId, c._count._all]));
     const multiplier = TIER_CONFIG[user.tier].dailyLimitMultiplier;
-    const planRequired = (await isActivePlanRequired()) && !user.planId;
+    const access = await checkFeatureAccess(user, feature);
 
     return NextResponse.json({
-      planRequired,
-      tasks: shuffle(
-        tasks.map((t) => ({
-          ...t,
-          dailyLimit: t.dailyLimit * multiplier,
-          completedToday: countMap.get(t.id) ?? 0,
-        }))
-      ),
+      planRequired: access.reason === "no_plan",
+      needsHigherPlan: access.reason === "plan_restricted",
+      tasks: access.allowed
+        ? shuffle(
+            tasks.map((t) => ({
+              ...t,
+              dailyLimit: t.dailyLimit * multiplier,
+              completedToday: countMap.get(t.id) ?? 0,
+            }))
+          )
+        : [],
     });
   } catch (error) {
     return handleApiError(error);

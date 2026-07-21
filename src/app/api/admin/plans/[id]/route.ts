@@ -15,6 +15,10 @@ const schema = z.object({
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
   isPopular: z.boolean().optional(),
+  voiceEarnEnabled: z.boolean().optional(),
+  wordGameEnabled: z.boolean().optional(),
+  taskCenterEnabled: z.boolean().optional(),
+  sponsoredPostsEnabled: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -11,7 +11,7 @@ import { saveUploadedFile } from "@/lib/server/storage";
 import { hashBuffer } from "@/lib/server/file-hash";
 import { getSetting } from "@/lib/server/settings";
 import { XP_CONFIG } from "@/lib/config";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { checkFeatureAccess } from "@/lib/server/plan-gate";
 
 const schema = z.object({ platform: z.nativeEnum(SponsoredPlatform) });
 
@@ -21,8 +21,14 @@ export async function POST(req: NextRequest) {
     if (!user.emailVerified) {
       return jsonError("Please verify your email before submitting sponsored posts", 403);
     }
-    if ((await isActivePlanRequired()) && !user.planId) {
-      return jsonError("Activate a plan to submit sponsored posts", 403);
+    const access = await checkFeatureAccess(user, "sponsoredPosts");
+    if (!access.allowed) {
+      return jsonError(
+        access.reason === "no_plan"
+          ? "Activate a plan to submit sponsored posts"
+          : "Your plan doesn't include Sponsored Posts - upgrade to unlock it",
+        403
+      );
     }
 
     const form = await req.formData();

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
-import { Mic, Crown } from "lucide-react";
+import { Mic } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { VoiceRecorder } from "@/components/voice/recorder";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
@@ -23,14 +23,18 @@ interface VoiceTask {
 export default function VoicePage() {
   const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
+  const [needsHigherPlan, setNeedsHigherPlan] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: VoiceTask[]; planRequired: boolean }>("/api/voice/tasks?category=session")
+    apiFetch<{ tasks: VoiceTask[]; planRequired: boolean; needsHigherPlan: boolean }>(
+      "/api/voice/tasks?category=session"
+    )
       .then((res) => {
         setTasks(res.tasks);
         setPlanRequired(res.planRequired);
+        setNeedsHigherPlan(res.needsHigherPlan);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -48,17 +52,8 @@ export default function VoicePage() {
         <p className="text-sm text-foreground/60">Record short voice samples to earn instantly.</p>
       </div>
 
-      {planRequired && (
-        <Card className="flex items-center gap-3 border border-brand-amber/30 bg-brand-amber/10 p-4">
-          <Crown className="h-5 w-5 flex-none text-brand-amber" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold">Activate a plan to submit voice tasks</p>
-            <p className="text-xs text-foreground/60">Voice Tasks are only available to members with an active plan.</p>
-          </div>
-          <Link href="/plans" className="flex-none rounded-lg bg-brand-amber px-3 py-1.5 text-xs font-bold text-[#3a2c00]">
-            View plans
-          </Link>
-        </Card>
+      {(planRequired || needsHigherPlan) && (
+        <PlanGateBanner reason={planRequired ? "no_plan" : "plan_restricted"} feature="submit voice tasks" />
       )}
 
       {tasks.length === 0 && (
@@ -97,7 +92,7 @@ export default function VoicePage() {
             ) : (
               <button
                 onClick={() => setActiveTaskId(task.id)}
-                disabled={planRequired}
+                disabled={planRequired || needsHigherPlan}
                 className={cn(
                   "mt-3 w-full rounded-xl gradient-brand py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 )}

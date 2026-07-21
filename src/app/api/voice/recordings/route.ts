@@ -20,7 +20,7 @@ import { upsertDevice, estimateVpnSuspicion } from "@/lib/server/device";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { XP_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planAllowsFeature } from "@/lib/server/plan-gate";
 
 export const runtime = "nodejs";
 
@@ -44,9 +44,6 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user.emailVerified) {
       return jsonError("Please verify your email before submitting voice tasks", 403);
-    }
-    if ((await isActivePlanRequired()) && !user.planId) {
-      return jsonError("Activate a plan to submit voice tasks", 403);
     }
 
     const { ipAddress, userAgent } = getRequestMeta(req);
@@ -73,6 +70,21 @@ export async function POST(req: NextRequest) {
       return jsonError(
         `Recording must be between ${voiceTask.minDuration}s and ${voiceTask.maxDuration}s`,
         422
+      );
+    }
+
+    const feature = voiceTask.category === "word_game" ? "wordGame" : "voiceEarn";
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    if (!plan && (await isActivePlanRequired())) {
+      return jsonError(
+        feature === "wordGame" ? "Activate a plan to play Word Game" : "Activate a plan to submit voice tasks",
+        403
+      );
+    }
+    if (!planAllowsFeature(plan, feature)) {
+      return jsonError(
+        `Your ${plan!.name} plan doesn't include ${feature === "wordGame" ? "Word Game" : "Voice Earn"} - upgrade to unlock it`,
+        403
       );
     }
 
@@ -169,8 +181,7 @@ export async function POST(req: NextRequest) {
     // A user's active plan re-prices every voice activity at a flat rate for
     // that activity type (session vs word game), overriding the individual
     // task's own rewardAmount. Users with no active plan keep today's
-    // per-task reward.
-    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    // per-task reward. (plan was already fetched above for the feature gate.)
     const effectiveReward = plan
       ? voiceTask.category === "word_game"
         ? plan.wordGameReward

@@ -131,9 +131,12 @@ export default function ProfilePage() {
         <p className="mt-4 text-lg font-bold text-white">{me.fullName}</p>
         <p className="text-sm text-white/60">@{handle}</p>
 
-        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#10201d]">
+        <Link
+          href="/plans"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#10201d]"
+        >
           <Crown className="h-3.5 w-3.5 text-brand-amber" /> {membershipLabel}
-        </span>
+        </Link>
       </div>
 
       {!me.emailVerified && (
@@ -168,6 +171,19 @@ export default function ProfilePage() {
       })()}
 
       <div className="flex flex-col gap-3">
+        <Link href="/plans" className="card flex items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-amber/15 text-[#a67c00]">
+              <Crown className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">My Plan</p>
+              <p className="text-xs text-foreground/50">{membershipLabel} · tap to upgrade</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-foreground/30" />
+        </Link>
+
         <Link href="/profile/personal-info" className="card flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">

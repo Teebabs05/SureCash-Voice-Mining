@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { checkFeatureAccess } from "@/lib/server/plan-gate";
 import { dateOnlyKey } from "@/lib/server/gamification";
 
 export async function GET(req: NextRequest) {
   try {
     const user = await requireUser();
-    const planRequired = (await isActivePlanRequired()) && !user.planId;
+    const access = await checkFeatureAccess(user, "taskCenter");
     const category = req.nextUrl.searchParams.get("category");
     const typeFilter =
       category === "sponsored" ? { type: "sponsored_post" } : { type: { not: "sponsored_post" } };
-    const tasks = await prisma.taskCenterTask.findMany({
-      where: { isActive: true, ...typeFilter },
-      orderBy: { createdAt: "desc" },
-    });
+    const tasks = access.allowed
+      ? await prisma.taskCenterTask.findMany({
+          where: { isActive: true, ...typeFilter },
+          orderBy: { createdAt: "desc" },
+        })
+      : [];
     const completions = await prisma.userTaskCompletion.findMany({ where: { userId: user.id } });
     const statusByTask = new Map(completions.map((c) => [c.taskId, c.status]));
     const checkedInToday = Boolean(
@@ -23,7 +25,8 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({
-      planRequired,
+      planRequired: access.reason === "no_plan",
+      needsHigherPlan: access.reason === "plan_restricted",
       tasks: tasks.map((t) => {
         const status = statusByTask.get(t.id);
         return {

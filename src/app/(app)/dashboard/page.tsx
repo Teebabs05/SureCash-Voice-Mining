@@ -159,33 +159,55 @@ function CircularProgress({ percent }: { percent: number }) {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
-  const [voiceStatus, setVoiceStatus] = useState<"ready" | "cooldown" | null>(null);
-  const [wordGameStatus, setWordGameStatus] = useState<"ready" | "cooldown" | null>(null);
-  const [tasksStatus, setTasksStatus] = useState<"ready" | "done" | null>(null);
-  const [sponsoredStatus, setSponsoredStatus] = useState<"ready" | "done" | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<"ready" | "cooldown" | "restricted" | null>(null);
+  const [wordGameStatus, setWordGameStatus] = useState<"ready" | "cooldown" | "restricted" | null>(null);
+  const [tasksStatus, setTasksStatus] = useState<"ready" | "done" | "restricted" | null>(null);
+  const [sponsoredStatus, setSponsoredStatus] = useState<"ready" | "done" | "restricted" | null>(null);
   const [sponsoredRate, setSponsoredRate] = useState(50);
   const [resending, setResending] = useState(false);
 
   useEffect(() => {
     apiFetch<DashboardData>("/api/dashboard").then(setData);
     apiFetch<ReferralData>("/api/referrals").then(setReferral).catch(() => {});
-    apiFetch<{ tasks: VoiceTaskLite[] }>("/api/voice/tasks?category=session")
+    apiFetch<{ tasks: VoiceTaskLite[]; needsHigherPlan: boolean }>("/api/voice/tasks?category=session")
       .then((res) =>
-        setVoiceStatus(res.tasks.length === 0 ? null : res.tasks.some((t) => t.completedToday < t.dailyLimit) ? "ready" : "cooldown")
+        setVoiceStatus(
+          res.needsHigherPlan
+            ? "restricted"
+            : res.tasks.length === 0
+              ? null
+              : res.tasks.some((t) => t.completedToday < t.dailyLimit)
+                ? "ready"
+                : "cooldown"
+        )
       )
       .catch(() => {});
-    apiFetch<{ tasks: VoiceTaskLite[] }>("/api/voice/tasks?category=word_game")
+    apiFetch<{ tasks: VoiceTaskLite[]; needsHigherPlan: boolean }>("/api/voice/tasks?category=word_game")
       .then((res) =>
-        setWordGameStatus(res.tasks.length === 0 ? null : res.tasks.some((t) => t.completedToday < t.dailyLimit) ? "ready" : "cooldown")
+        setWordGameStatus(
+          res.needsHigherPlan
+            ? "restricted"
+            : res.tasks.length === 0
+              ? null
+              : res.tasks.some((t) => t.completedToday < t.dailyLimit)
+                ? "ready"
+                : "cooldown"
+        )
       )
       .catch(() => {});
-    apiFetch<{ tasks: TaskCenterTaskLite[] }>("/api/tasks")
-      .then((res) => setTasksStatus(res.tasks.length === 0 ? null : res.tasks.some((t) => !t.isCompleted) ? "ready" : "done"))
+    apiFetch<{ tasks: TaskCenterTaskLite[]; needsHigherPlan: boolean }>("/api/tasks")
+      .then((res) =>
+        setTasksStatus(
+          res.needsHigherPlan ? "restricted" : res.tasks.length === 0 ? null : res.tasks.some((t) => !t.isCompleted) ? "ready" : "done"
+        )
+      )
       .catch(() => {});
-    apiFetch<{ platforms: { status: string }[]; rewardAmount: number }>("/api/sponsored-posts")
+    apiFetch<{ platforms: { status: string }[]; rewardAmount: number; needsHigherPlan: boolean }>("/api/sponsored-posts")
       .then((res) => {
         setSponsoredRate(res.rewardAmount);
-        setSponsoredStatus(res.platforms.some((p) => p.status === "AVAILABLE") ? "ready" : "done");
+        setSponsoredStatus(
+          res.needsHigherPlan ? "restricted" : res.platforms.some((p) => p.status === "AVAILABLE") ? "ready" : "done"
+        );
       })
       .catch(() => {});
   }, []);
@@ -213,38 +235,62 @@ export default function DashboardPage() {
   const nextStep = data.setupSteps.find((s) => !s.done);
   const doneSteps = data.setupSteps.filter((s) => s.done).length;
 
+  function earnNowStatus(activityStatus: "ready" | "cooldown" | "done" | "restricted" | null) {
+    if (data!.planRequired) return "locked";
+    if (activityStatus === "restricted") return "restricted";
+    return activityStatus;
+  }
+
   const earnNow = [
     {
       key: "voice",
       href: "/voice",
       label: "Voice Earn",
       icon: Mic,
-      rate: data.planRequired ? `+${formatCurrency(0)}/session` : data.plan ? `+${formatCurrency(data.plan.voiceSessionReward)}/session` : "Base rate",
-      status: data.planRequired ? "locked" : voiceStatus,
+      rate:
+        data.planRequired || voiceStatus === "restricted"
+          ? `+${formatCurrency(0)}/session`
+          : data.plan
+            ? `+${formatCurrency(data.plan.voiceSessionReward)}/session`
+            : "Base rate",
+      status: earnNowStatus(voiceStatus),
     },
     {
       key: "wordgame",
       href: "/word-game",
       label: "Word Game",
       icon: Gamepad2,
-      rate: data.planRequired ? `+${formatCurrency(0)}/word` : data.plan ? `+${formatCurrency(data.plan.wordGameReward)}/word` : "Base rate",
-      status: data.planRequired ? "locked" : wordGameStatus,
+      rate:
+        data.planRequired || wordGameStatus === "restricted"
+          ? `+${formatCurrency(0)}/word`
+          : data.plan
+            ? `+${formatCurrency(data.plan.wordGameReward)}/word`
+            : "Base rate",
+      status: earnNowStatus(wordGameStatus),
     },
     {
       key: "tasks",
       href: "/tasks",
       label: "Tasks",
       icon: CheckSquare,
-      rate: data.planRequired ? `+${formatCurrency(0)}/task` : data.plan ? `+${formatCurrency(data.plan.taskReward)}/task` : "Base rate",
-      status: data.planRequired ? "locked" : tasksStatus,
+      rate:
+        data.planRequired || tasksStatus === "restricted"
+          ? `+${formatCurrency(0)}/task`
+          : data.plan
+            ? `+${formatCurrency(data.plan.taskReward)}/task`
+            : "Base rate",
+      status: earnNowStatus(tasksStatus),
     },
     {
       key: "sponsored",
       href: "/tasks/sponsored",
       label: "Sponsored",
       icon: Flag,
-      rate: data.planRequired ? `+${formatCurrency(0)}/post` : `+${formatCurrency(sponsoredRate)}/post`,
-      status: data.planRequired ? "locked" : sponsoredStatus,
+      rate:
+        data.planRequired || sponsoredStatus === "restricted"
+          ? `+${formatCurrency(0)}/post`
+          : `+${formatCurrency(sponsoredRate)}/post`,
+      status: earnNowStatus(sponsoredStatus),
     },
   ] as const;
 
@@ -435,13 +481,17 @@ export default function DashboardPage() {
           {earnNow.map(({ key, href, label, icon: Icon, rate, status }) => (
             <Link
               key={key}
-              href={status === "locked" ? "/plans" : href}
+              href={status === "locked" || status === "restricted" ? "/plans" : href}
               className="card flex flex-col items-center gap-1.5 py-5 text-center"
             >
               <Icon className="h-5 w-5 text-foreground/80" />
               <p className="text-sm font-bold">{label}</p>
               <p className="text-xs font-semibold text-brand-green">{rate}</p>
-              <p className={`text-xs ${status === "locked" ? "font-semibold text-brand-amber" : "text-foreground/50"}`}>
+              <p
+                className={`text-xs ${
+                  status === "locked" || status === "restricted" ? "font-semibold text-brand-amber" : "text-foreground/50"
+                }`}
+              >
                 {status === "ready"
                   ? "Ready"
                   : status === "cooldown"
@@ -450,6 +500,8 @@ export default function DashboardPage() {
                       ? "All done"
                       : status === "locked"
                         ? "Activate plan"
+                        : status === "restricted"
+                          ? "Upgrade plan"
                         : " "}
               </p>
             </Link>

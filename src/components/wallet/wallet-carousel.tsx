@@ -26,6 +26,7 @@ const FLY_OUT_DISTANCE = 420;
 function CardFace({ wallet }: { wallet: WalletCardData }) {
   const meta = WALLET_META[wallet.type];
   const Icon = meta.icon;
+  const SecondaryIcon = meta.secondaryAction.icon;
   return (
     <div
       className={cn(
@@ -55,15 +56,15 @@ function CardFace({ wallet }: { wallet: WalletCardData }) {
       <div className="flex gap-2">
         <Link
           href="/wallet/withdraw"
-          className="flex-1 rounded-xl bg-white/15 py-2 text-center text-xs font-semibold backdrop-blur transition-colors hover:bg-white/25"
+          className="flex-1 rounded-xl bg-white py-2 text-center text-xs font-semibold text-[#1a1330] transition-colors hover:bg-white/90"
         >
           Withdraw
         </Link>
         <Link
-          href="/wallet/deposit"
-          className="flex-1 rounded-xl bg-white py-2 text-center text-xs font-semibold text-[#1a1330] transition-colors hover:bg-white/90"
+          href={meta.secondaryAction.href}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/15 py-2 text-center text-xs font-semibold backdrop-blur transition-colors hover:bg-white/25"
         >
-          Fund Wallet
+          <SecondaryIcon className="h-3.5 w-3.5" /> {meta.secondaryAction.label}
         </Link>
       </div>
     </div>

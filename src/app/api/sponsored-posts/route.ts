@@ -4,14 +4,14 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
 import { getSetting } from "@/lib/server/settings";
 import { dateOnlyKey } from "@/lib/server/gamification";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { checkFeatureAccess } from "@/lib/server/plan-gate";
 
 const PLATFORMS = ["FACEBOOK", "INSTAGRAM", "TIKTOK", "WHATSAPP"] as const;
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const planRequired = (await isActivePlanRequired()) && !user.planId;
+    const access = await checkFeatureAccess(user, "sponsoredPosts");
 
     const [caption, bannerUrl, linkUrl, rewardAmount] = await Promise.all([
       getSetting("sponsored_post_caption", ""),
@@ -27,21 +27,24 @@ export async function GET() {
     const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/share`;
 
     return NextResponse.json({
-      planRequired,
+      planRequired: access.reason === "no_plan",
+      needsHigherPlan: access.reason === "plan_restricted",
       configured: Boolean(caption && linkUrl),
       caption,
       bannerUrl,
       linkUrl,
       shareUrl,
       rewardAmount,
-      platforms: PLATFORMS.map((platform) => {
-        const share = shareByPlatform.get(platform);
-        return {
-          platform,
-          status: share ? share.status : "AVAILABLE",
-          reviewNote: share?.reviewNote ?? null,
-        };
-      }),
+      platforms: access.allowed
+        ? PLATFORMS.map((platform) => {
+            const share = shareByPlatform.get(platform);
+            return {
+              platform,
+              status: share ? share.status : "AVAILABLE",
+              reviewNote: share?.reviewNote ?? null,
+            };
+          })
+        : [],
     });
   } catch (error) {
     return handleApiError(error);

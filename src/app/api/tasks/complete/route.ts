@@ -9,7 +9,7 @@ import { payReferralCommission } from "@/lib/server/referral-commission";
 import { saveUploadedFile } from "@/lib/server/storage";
 import { hashBuffer } from "@/lib/server/file-hash";
 import { XP_CONFIG } from "@/lib/config";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planAllowsFeature } from "@/lib/server/plan-gate";
 
 type Tx = Prisma.TransactionClient;
 
@@ -82,9 +82,6 @@ export async function POST(req: NextRequest) {
     if (!user.emailVerified) {
       return jsonError("Please verify your email before completing tasks", 403);
     }
-    if ((await isActivePlanRequired()) && !user.planId) {
-      return jsonError("Activate a plan to complete tasks", 403);
-    }
 
     const form = await req.formData();
     const taskId = String(form.get("taskId") ?? "");
@@ -118,11 +115,18 @@ export async function POST(req: NextRequest) {
       if (existing) return jsonError("You've already completed this task", 409);
     }
 
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    if (!plan && (await isActivePlanRequired())) {
+      return jsonError("Activate a plan to complete tasks", 403);
+    }
+    if (!planAllowsFeature(plan, "taskCenter")) {
+      return jsonError(`Your ${plan!.name} plan doesn't include Task Center - upgrade to unlock it`, 403);
+    }
+
     // A user's active plan re-prices task rewards at a flat rate for the
     // task's type (sponsored post vs general task), overriding the
     // individual task's own rewardAmount. Users with no active plan keep
     // today's per-task reward.
-    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
     const effectiveReward = Number(
       plan ? (task.type === "sponsored_post" ? plan.sponsoredPostReward : plan.taskReward) : task.rewardAmount
     );

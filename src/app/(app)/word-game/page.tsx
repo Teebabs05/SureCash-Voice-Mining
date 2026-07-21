@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import Link from "next/link";
-import { BookOpen, Crown, PartyPopper } from "lucide-react";
+import { BookOpen, PartyPopper } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { WordGameRecorder } from "@/components/word-game/recorder";
 import { apiFetch } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
@@ -28,17 +28,19 @@ function pickRandom(list: WordGameTask[], excludeId: string | null): WordGameTas
 export default function WordGamePage() {
   const [tasks, setTasks] = useState<WordGameTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
+  const [needsHigherPlan, setNeedsHigherPlan] = useState(false);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const lastIdRef = useRef<string | null>(null);
 
   const load = useCallback(() => {
-    return apiFetch<{ tasks: WordGameTask[]; planRequired: boolean }>("/api/voice/tasks?category=word_game").then(
-      (res) => {
-        setTasks(res.tasks);
-        setPlanRequired(res.planRequired);
-      }
-    );
+    return apiFetch<{ tasks: WordGameTask[]; planRequired: boolean; needsHigherPlan: boolean }>(
+      "/api/voice/tasks?category=word_game"
+    ).then((res) => {
+      setTasks(res.tasks);
+      setPlanRequired(res.planRequired);
+      setNeedsHigherPlan(res.needsHigherPlan);
+    });
   }, []);
 
   useEffect(() => {
@@ -75,20 +77,11 @@ export default function WordGamePage() {
         </p>
       </div>
 
-      {planRequired && (
-        <Card className="flex items-center gap-3 border border-brand-amber/30 bg-brand-amber/10 p-4">
-          <Crown className="h-5 w-5 flex-none text-brand-amber" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold">Activate a plan to play Word Game</p>
-            <p className="text-xs text-foreground/60">Word Game is only available to members with an active plan.</p>
-          </div>
-          <Link href="/plans" className="flex-none rounded-lg bg-brand-amber px-3 py-1.5 text-xs font-bold text-[#3a2c00]">
-            View plans
-          </Link>
-        </Card>
+      {(planRequired || needsHigherPlan) && (
+        <PlanGateBanner reason={planRequired ? "no_plan" : "plan_restricted"} feature="play Word Game" />
       )}
 
-      {!planRequired && !current && (
+      {!planRequired && !needsHigherPlan && !current && (
         <Card className="flex flex-col items-center gap-2 py-10 text-center">
           <PartyPopper className="h-8 w-8 text-brand-green" />
           <p className="font-semibold">
@@ -98,7 +91,7 @@ export default function WordGamePage() {
         </Card>
       )}
 
-      {!planRequired && current && (
+      {!planRequired && !needsHigherPlan && current && (
         <Card>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">

@@ -536,8 +536,18 @@ model Plan {
   sortOrder           Int      @default(0)
   isActive            Boolean  @default(true)
   isPopular           Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+
+  // Per-plan feature access - which earning activities this plan actually
+  // unlocks, independent of its reward rates above. All default to true so
+  // existing plans keep working exactly as before until an admin
+  // deliberately restricts a cheaper tier.
+  voiceEarnEnabled      Boolean @default(true)
+  wordGameEnabled       Boolean @default(true)
+  taskCenterEnabled     Boolean @default(true)
+  sponsoredPostsEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   users User[]
 }

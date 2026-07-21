@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   Clock,
   Copy,
-  Crown,
   Image as ImageIcon,
   MessageCircle,
   Music2,
@@ -16,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
@@ -31,6 +30,7 @@ interface PlatformStatus {
 
 interface CampaignResponse {
   planRequired: boolean;
+  needsHigherPlan: boolean;
   configured: boolean;
   caption: string;
   bannerUrl: string;
@@ -80,8 +80,10 @@ export default function SponsoredPostsPage() {
 
   function openShare(platform: Platform) {
     if (!data) return;
-    if (data.planRequired) {
-      toast.error("Activate a plan to submit sponsored posts");
+    if (data.planRequired || data.needsHigherPlan) {
+      toast.error(
+        data.planRequired ? "Activate a plan to submit sponsored posts" : "Upgrade your plan to submit sponsored posts"
+      );
       return;
     }
     const meta = PLATFORM_META[platform];
@@ -148,17 +150,8 @@ export default function SponsoredPostsPage() {
         </p>
       </div>
 
-      {data.planRequired && (
-        <Card className="flex items-center gap-3 border border-brand-amber/30 bg-brand-amber/10 p-4">
-          <Crown className="h-5 w-5 flex-none text-brand-amber" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold">Activate a plan to submit sponsored posts</p>
-            <p className="text-xs text-foreground/60">Sponsored Posts are only available to members with an active plan.</p>
-          </div>
-          <Link href="/plans" className="flex-none rounded-lg bg-brand-amber px-3 py-1.5 text-xs font-bold text-[#3a2c00]">
-            View plans
-          </Link>
-        </Card>
+      {(data.planRequired || data.needsHigherPlan) && (
+        <PlanGateBanner reason={data.planRequired ? "no_plan" : "plan_restricted"} feature="submit sponsored posts" />
       )}
 
       <Card className="flex flex-col gap-3">
@@ -199,7 +192,7 @@ export default function SponsoredPostsPage() {
                     <XCircle className="h-4 w-4" /> Rejected
                   </span>
                 ) : (
-                  <Button size="sm" disabled={data.planRequired} onClick={() => openShare(platform)}>
+                  <Button size="sm" disabled={data.planRequired || data.needsHigherPlan} onClick={() => openShare(platform)}>
                     {meta.mode === "copy" ? <Copy className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                     Share
                   </Button>

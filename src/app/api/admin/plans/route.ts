@@ -14,6 +14,10 @@ const schema = z.object({
   referralCommission: z.number().nonnegative(),
   sortOrder: z.number().int().default(0),
   isPopular: z.boolean().default(false),
+  voiceEarnEnabled: z.boolean().default(true),
+  wordGameEnabled: z.boolean().default(true),
+  taskCenterEnabled: z.boolean().default(true),
+  sponsoredPostsEnabled: z.boolean().default(true),
 });
 
 export async function GET() {

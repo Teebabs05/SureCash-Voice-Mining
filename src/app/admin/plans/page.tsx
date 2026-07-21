@@ -20,6 +20,10 @@ interface Plan {
   sortOrder: number;
   isActive: boolean;
   isPopular: boolean;
+  voiceEarnEnabled: boolean;
+  wordGameEnabled: boolean;
+  taskCenterEnabled: boolean;
+  sponsoredPostsEnabled: boolean;
 }
 
 const FIELDS: Array<{ key: keyof Plan; label: string }> = [
@@ -32,6 +36,13 @@ const FIELDS: Array<{ key: keyof Plan; label: string }> = [
   { key: "referralCommission", label: "Referral commission" },
 ];
 
+const FEATURE_FLAGS: Array<{ key: "voiceEarnEnabled" | "wordGameEnabled" | "taskCenterEnabled" | "sponsoredPostsEnabled"; label: string }> = [
+  { key: "voiceEarnEnabled", label: "Voice Earn" },
+  { key: "wordGameEnabled", label: "Word Game" },
+  { key: "taskCenterEnabled", label: "Task Center" },
+  { key: "sponsoredPostsEnabled", label: "Sponsored Posts" },
+];
+
 const NEW_PLAN_DEFAULTS = {
   name: "",
   price: "",
@@ -42,6 +53,10 @@ const NEW_PLAN_DEFAULTS = {
   referralCommission: "",
   sortOrder: "0",
   isPopular: false,
+  voiceEarnEnabled: true,
+  wordGameEnabled: true,
+  taskCenterEnabled: true,
+  sponsoredPostsEnabled: true,
 };
 
 export default function AdminPlansPage() {
@@ -126,6 +141,18 @@ export default function AdminPlansPage() {
     }
   }
 
+  async function toggleFeature(plan: Plan, key: (typeof FEATURE_FLAGS)[number]["key"]) {
+    setBusyId(plan.id);
+    try {
+      await apiFetch(`/api/admin/plans/${plan.id}`, { method: "PATCH", body: JSON.stringify({ [key]: !plan[key] }) });
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function createPlan() {
     try {
       await apiFetch("/api/admin/plans", {
@@ -140,6 +167,10 @@ export default function AdminPlansPage() {
           referralCommission: Number(form.referralCommission),
           sortOrder: Number(form.sortOrder),
           isPopular: form.isPopular,
+          voiceEarnEnabled: form.voiceEarnEnabled,
+          wordGameEnabled: form.wordGameEnabled,
+          taskCenterEnabled: form.taskCenterEnabled,
+          sponsoredPostsEnabled: form.sponsoredPostsEnabled,
         }),
       });
       toast.success("Plan created");
@@ -177,6 +208,24 @@ export default function AdminPlansPage() {
               />
             ))}
           </div>
+
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs font-semibold text-foreground/50">Features unlocked by this plan</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {FEATURE_FLAGS.map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={plan[key]}
+                    disabled={busyId === plan.id}
+                    onChange={() => toggleFeature(plan, key)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-3 flex gap-2">
             <Button size="sm" loading={busyId === plan.id} onClick={() => save(plan)}>
               Save changes
@@ -253,6 +302,21 @@ export default function AdminPlansPage() {
               />
               Mark as popular
             </label>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-foreground/50">Features unlocked by this plan</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                {FEATURE_FLAGS.map(({ key, label }) => (
+                  <label key={key} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form[key]}
+                      onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
             <Button onClick={createPlan}>Create plan</Button>
           </div>
         ) : (
