@@ -270,8 +270,9 @@ export default function AdminSettingsPage() {
           <CardTitle>Plan requirement</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
-          Off by default: anyone can mine, do Voice Tasks, and Task Center at base rates, and activating a plan
-          just boosts their rate. Turn this on to block all three until a user activates a plan.
+          Off by default: anyone can mine, do Voice Tasks (incl. Word Game), Task Center, and Sponsored Posts at
+          base rates, and activating a plan just boosts their rate. Turn this on to block all four until a user
+          activates a plan - the dashboard, Ways to Earn, and each activity page will prompt them to upgrade.
         </p>
         <label className="flex items-center gap-2.5 text-sm">
           <input
@@ -280,7 +281,7 @@ export default function AdminSettingsPage() {
             disabled={loading === "require_active_plan"}
             onChange={(e) => saveBool("require_active_plan", e.target.checked)}
           />
-          Require an active plan to mine, do Voice Tasks, and Task Center
+          Require an active plan to mine, do Voice Tasks, Task Center &amp; Sponsored Posts
         </label>
       </Card>
 

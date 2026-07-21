@@ -58,6 +58,7 @@ interface DashboardData {
     emailVerified: boolean;
   };
   plan: { name: string; voiceSessionReward: number; wordGameReward: number; taskReward: number } | null;
+  planRequired: boolean;
   wallets: WalletCardData[];
   totalBalance: number;
   earnings: { today: number; week: number; month: number; lifetime: number; pending: number };
@@ -218,32 +219,32 @@ export default function DashboardPage() {
       href: "/voice",
       label: "Voice Earn",
       icon: Mic,
-      rate: data.plan ? `+${formatCurrency(data.plan.voiceSessionReward)}/session` : "Base rate",
-      status: voiceStatus,
+      rate: data.planRequired ? `+${formatCurrency(0)}/session` : data.plan ? `+${formatCurrency(data.plan.voiceSessionReward)}/session` : "Base rate",
+      status: data.planRequired ? "locked" : voiceStatus,
     },
     {
       key: "wordgame",
       href: "/word-game",
       label: "Word Game",
       icon: Gamepad2,
-      rate: data.plan ? `+${formatCurrency(data.plan.wordGameReward)}/word` : "Base rate",
-      status: wordGameStatus,
+      rate: data.planRequired ? `+${formatCurrency(0)}/word` : data.plan ? `+${formatCurrency(data.plan.wordGameReward)}/word` : "Base rate",
+      status: data.planRequired ? "locked" : wordGameStatus,
     },
     {
       key: "tasks",
       href: "/tasks",
       label: "Tasks",
       icon: CheckSquare,
-      rate: data.plan ? `+${formatCurrency(data.plan.taskReward)}/task` : "Base rate",
-      status: tasksStatus,
+      rate: data.planRequired ? `+${formatCurrency(0)}/task` : data.plan ? `+${formatCurrency(data.plan.taskReward)}/task` : "Base rate",
+      status: data.planRequired ? "locked" : tasksStatus,
     },
     {
       key: "sponsored",
       href: "/tasks/sponsored",
       label: "Sponsored",
       icon: Flag,
-      rate: `+${formatCurrency(sponsoredRate)}/post`,
-      status: sponsoredStatus,
+      rate: data.planRequired ? `+${formatCurrency(0)}/post` : `+${formatCurrency(sponsoredRate)}/post`,
+      status: data.planRequired ? "locked" : sponsoredStatus,
     },
   ] as const;
 
@@ -344,11 +345,9 @@ export default function DashboardPage() {
                 <p className="text-xs text-foreground/50">Earn a commission when friends activate a plan</p>
               </div>
             </div>
-            {data.plan && (
-              <span className="flex flex-none items-center gap-1 whitespace-nowrap rounded-full bg-brand-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase text-brand-primary">
-                <Crown className="h-3 w-3" /> {data.plan.name}
-              </span>
-            )}
+            <span className="flex flex-none items-center gap-1 whitespace-nowrap rounded-full bg-brand-primary/10 px-2.5 py-1 text-[10px] font-bold uppercase text-brand-primary">
+              <Crown className="h-3 w-3" /> {data.plan ? data.plan.name : "Free Plan"}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-2.5 text-sm">
@@ -412,23 +411,46 @@ export default function DashboardPage() {
             <Rocket className="h-5 w-5" />
           </div>
           <div className="relative flex-1">
-            <p className="text-sm font-bold">Move to a higher plan</p>
-            <p className="text-xs text-white/80">Bigger rewards per session, task &amp; referral - upgrade anytime</p>
+            <p className="text-sm font-bold">{data.plan ? "Move to a higher plan" : "Upgrade your account"}</p>
+            <p className="text-xs text-white/80">
+              {data.plan
+                ? "Bigger rewards per session, task & referral - upgrade anytime"
+                : "Unlock Voice Earn, Word Game, Tasks & Sponsored Posts with higher rewards"}
+            </p>
           </div>
           <ChevronRight className="relative h-4 w-4 flex-none" />
         </div>
       </Link>
 
       <div>
-        <h2 className="mb-2 text-base font-bold">Earn now</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-base font-bold">Earn now</h2>
+          {data.planRequired && (
+            <Link href="/plans" className="text-xs font-semibold text-brand-primary">
+              Activate plan
+            </Link>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {earnNow.map(({ key, href, label, icon: Icon, rate, status }) => (
-            <Link key={key} href={href} className="card flex flex-col items-center gap-1.5 py-5 text-center">
+            <Link
+              key={key}
+              href={status === "locked" ? "/plans" : href}
+              className="card flex flex-col items-center gap-1.5 py-5 text-center"
+            >
               <Icon className="h-5 w-5 text-foreground/80" />
               <p className="text-sm font-bold">{label}</p>
               <p className="text-xs font-semibold text-brand-green">{rate}</p>
-              <p className="text-xs text-foreground/50">
-                {status === "ready" ? "Ready" : status === "cooldown" ? "On cooldown" : status === "done" ? "All done" : " "}
+              <p className={`text-xs ${status === "locked" ? "font-semibold text-brand-amber" : "text-foreground/50"}`}>
+                {status === "ready"
+                  ? "Ready"
+                  : status === "cooldown"
+                    ? "On cooldown"
+                    : status === "done"
+                      ? "All done"
+                      : status === "locked"
+                        ? "Activate plan"
+                        : " "}
               </p>
             </Link>
           ))}

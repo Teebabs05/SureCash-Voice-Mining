@@ -5,6 +5,7 @@ import { getWalletSummary } from "@/lib/server/wallet";
 import { handleApiError } from "@/lib/server/api-response";
 import { getSetting } from "@/lib/server/settings";
 import { dateOnlyKey } from "@/lib/server/gamification";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 function startOfToday() {
   const d = new Date();
@@ -25,6 +26,8 @@ export async function GET() {
   try {
     const user = await requireUser();
     const { wallets, total } = await getWalletSummary(user.id);
+    const planRequiredSetting = await isActivePlanRequired();
+    const planRequired = planRequiredSetting && !user.planId;
 
     const [
       today,
@@ -97,6 +100,9 @@ export async function GET() {
       Boolean
     ).length;
     const setupSteps = [
+      ...(planRequiredSetting
+        ? [{ key: "activate_plan", label: "Activate a plan", done: Boolean(user.planId), href: "/plans" }]
+        : []),
       { key: "verify_email", label: "Verify your email", done: user.emailVerified, href: "/profile" },
       {
         key: "link_socials",
@@ -135,6 +141,7 @@ export async function GET() {
         lifetime: Number(lifetime._sum.amount ?? 0),
         pending: pendingRewards,
       },
+      planRequired,
       withdrawnLifetime: Number(withdrawnLifetime._sum.amount ?? 0),
       activitiesToday: voiceDoneToday + taskDoneToday + sponsoredDoneToday,
       levelProgress: {

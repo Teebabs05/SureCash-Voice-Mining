@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
   CheckCircle2,
   Clock,
   Copy,
+  Crown,
   Image as ImageIcon,
   MessageCircle,
   Music2,
@@ -28,6 +30,7 @@ interface PlatformStatus {
 }
 
 interface CampaignResponse {
+  planRequired: boolean;
   configured: boolean;
   caption: string;
   bannerUrl: string;
@@ -77,6 +80,10 @@ export default function SponsoredPostsPage() {
 
   function openShare(platform: Platform) {
     if (!data) return;
+    if (data.planRequired) {
+      toast.error("Activate a plan to submit sponsored posts");
+      return;
+    }
     const meta = PLATFORM_META[platform];
     if (meta.mode === "intent") {
       window.open(shareIntentUrl(platform, data.caption, data.shareUrl), "_blank", "noopener,noreferrer");
@@ -141,6 +148,19 @@ export default function SponsoredPostsPage() {
         </p>
       </div>
 
+      {data.planRequired && (
+        <Card className="flex items-center gap-3 border border-brand-amber/30 bg-brand-amber/10 p-4">
+          <Crown className="h-5 w-5 flex-none text-brand-amber" />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Activate a plan to submit sponsored posts</p>
+            <p className="text-xs text-foreground/60">Sponsored Posts are only available to members with an active plan.</p>
+          </div>
+          <Link href="/plans" className="flex-none rounded-lg bg-brand-amber px-3 py-1.5 text-xs font-bold text-[#3a2c00]">
+            View plans
+          </Link>
+        </Card>
+      )}
+
       <Card className="flex flex-col gap-3">
         {data.bannerUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded campaign banner preview
@@ -179,7 +199,7 @@ export default function SponsoredPostsPage() {
                     <XCircle className="h-4 w-4" /> Rejected
                   </span>
                 ) : (
-                  <Button size="sm" onClick={() => openShare(platform)}>
+                  <Button size="sm" disabled={data.planRequired} onClick={() => openShare(platform)}>
                     {meta.mode === "copy" ? <Copy className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                     Share
                   </Button>
