@@ -26,10 +26,8 @@ export function WordGameRecorder({
   onDone: () => void;
   onSkip: () => void;
 }) {
-  const timeLimit = Math.min(task.maxDuration, 10);
   const [recording, setRecording] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(timeLimit);
-  const [secondsElapsed, setSecondsElapsed] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -45,10 +43,6 @@ export function WordGameRecorder({
     };
   }, []);
 
-  useEffect(() => {
-    if (recording && secondsLeft === 0) stopRecording();
-  }, [recording, secondsLeft]);
-
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -61,13 +55,9 @@ export function WordGameRecorder({
       };
       recorder.start();
       mediaRecorderRef.current = recorder;
-      setSecondsLeft(timeLimit);
-      setSecondsElapsed(0);
+      setSeconds(0);
       setRecording(true);
-      timerRef.current = setInterval(() => {
-        setSecondsElapsed((s) => s + 1);
-        setSecondsLeft((s) => Math.max(s - 1, 0));
-      }, 1000);
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch {
       toast.error("Microphone access is required to record");
     }
@@ -81,13 +71,12 @@ export function WordGameRecorder({
 
   function discard() {
     setBlob(null);
-    setSecondsElapsed(0);
-    setSecondsLeft(timeLimit);
+    setSeconds(0);
   }
 
   async function submit() {
     if (!blob) return;
-    if (secondsElapsed < task.minDuration) {
+    if (seconds < task.minDuration) {
       toast.error(`Recording must be at least ${task.minDuration}s`);
       return;
     }
@@ -97,7 +86,7 @@ export function WordGameRecorder({
       const form = new FormData();
       form.append("audio", blob, "recording.webm");
       form.append("voiceTaskId", task.id);
-      form.append("durationSec", String(secondsElapsed));
+      form.append("durationSec", String(seconds));
       form.append("fingerprint", fingerprint);
 
       const res = await apiFetch<{ passed: boolean; reward: number; reason: string | null }>(
@@ -147,9 +136,9 @@ export function WordGameRecorder({
             )}
           </div>
           {recording ? (
-            <p className="font-mono text-lg font-bold text-red-500">{secondsLeft}s left</p>
+            <p className="font-mono text-sm text-foreground/60">{seconds}s</p>
           ) : (
-            <p className="text-xs text-foreground/50">You have {timeLimit}s to say the word · tap the circle to skip</p>
+            <p className="text-xs text-foreground/50">No timer, no pressure - just say it right · tap the circle to skip</p>
           )}
         </>
       )}

@@ -40,7 +40,7 @@ const WAYS = [
     key: "wordgame",
     href: "/word-game",
     title: "Word Game",
-    description: "Pronounce long words within 10 seconds",
+    description: "No timer, no pressure - just say it right",
     icon: BookOpen,
     iconClass: "bg-brand-green/15 text-brand-green",
   },

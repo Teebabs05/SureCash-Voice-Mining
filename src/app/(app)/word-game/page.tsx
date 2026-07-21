@@ -70,7 +70,9 @@ export default function WordGamePage() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold">Word Game</h1>
-        <p className="text-sm text-foreground/60">Pronounce the word before time runs out to earn. Can&apos;t say it? Skip to another.</p>
+        <p className="text-sm text-foreground/60">
+          Pronounce a simple word correctly to win your reward. No timer, no pressure - just say it right.
+        </p>
       </div>
 
       {planRequired && (

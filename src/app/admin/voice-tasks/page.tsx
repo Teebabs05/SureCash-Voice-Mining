@@ -332,7 +332,8 @@ export default function AdminVoiceTasksPage() {
               />
             </div>
             <p className="text-xs text-foreground/50">
-              For Word Game, keep max seconds at 10 or below so the in-app countdown matches the server limit.
+              Word Game is untimed for the user - min/max seconds are only used to reject recordings that are
+              suspiciously short or long.
             </p>
             <Button onClick={createTask}>Create task</Button>
           </div>
