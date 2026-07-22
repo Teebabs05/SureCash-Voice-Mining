@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, BellRing, Mail } from "lucide-react";
+import { ArrowLeft, Bell, BellRing, Mail, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -25,13 +25,18 @@ export default function NotificationsPage() {
   const [pushLoading, setPushLoading] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [emailLoading, setEmailLoading] = useState(false);
+  const [loginAlertsEnabled, setLoginAlertsEnabled] = useState(true);
+  const [loginAlertsLoading, setLoginAlertsLoading] = useState(false);
 
   useEffect(() => {
     apiFetch<{ notifications: Notification[] }>("/api/notifications").then((res) => setNotifications(res.notifications));
     apiFetch("/api/notifications/read-all", { method: "POST" }).catch(() => {});
     getPushSubscriptionState().then(setPushState);
-    apiFetch<{ emailNotificationsEnabled: boolean }>("/api/profile/notification-settings")
-      .then((res) => setEmailEnabled(res.emailNotificationsEnabled))
+    apiFetch<{ emailNotificationsEnabled: boolean; loginAlertsEnabled: boolean }>("/api/profile/notification-settings")
+      .then((res) => {
+        setEmailEnabled(res.emailNotificationsEnabled);
+        setLoginAlertsEnabled(res.loginAlertsEnabled);
+      })
       .catch(() => {});
   }, []);
 
@@ -44,11 +49,28 @@ export default function NotificationsPage() {
         body: JSON.stringify({ emailNotificationsEnabled: next }),
       });
       setEmailEnabled(next);
-      toast.success(next ? "Email notifications enabled" : "Email notifications disabled");
+      toast.success(next ? "Wallet activity emails enabled" : "Wallet activity emails disabled");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not update email notifications");
+      toast.error(err instanceof Error ? err.message : "Could not update wallet activity emails");
     } finally {
       setEmailLoading(false);
+    }
+  }
+
+  async function toggleLoginAlerts() {
+    const next = !loginAlertsEnabled;
+    setLoginAlertsLoading(true);
+    try {
+      await apiFetch("/api/profile/notification-settings", {
+        method: "PATCH",
+        body: JSON.stringify({ loginAlertsEnabled: next }),
+      });
+      setLoginAlertsEnabled(next);
+      toast.success(next ? "Login alerts enabled" : "Login alerts disabled");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update login alerts");
+    } finally {
+      setLoginAlertsLoading(false);
     }
   }
 
@@ -84,10 +106,8 @@ export default function NotificationsPage() {
             <Mail className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold">Email notifications</p>
-            <p className="text-xs text-foreground/60">
-              Get emailed for wallet activity (deposits, withdrawals, earnings) and new logins.
-            </p>
+            <p className="text-sm font-semibold">Wallet activity emails</p>
+            <p className="text-xs text-foreground/60">Get emailed for deposits, withdrawals, and earnings.</p>
           </div>
         </div>
         <Button
@@ -97,6 +117,26 @@ export default function NotificationsPage() {
           onClick={toggleEmail}
         >
           {emailEnabled ? "Disable" : "Enable"}
+        </Button>
+      </div>
+
+      <div className="card flex items-center justify-between gap-3 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+            <LogIn className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Login alerts</p>
+            <p className="text-xs text-foreground/60">Get emailed whenever your account is signed in to.</p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant={loginAlertsEnabled ? "danger" : "primary"}
+          loading={loginAlertsLoading}
+          onClick={toggleLoginAlerts}
+        >
+          {loginAlertsEnabled ? "Disable" : "Enable"}
         </Button>
       </div>
 

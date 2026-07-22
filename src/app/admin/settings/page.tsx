@@ -58,6 +58,8 @@ export default function AdminSettingsPage() {
   const [role, setRole] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [loginAlertsEnabled, setLoginAlertsEnabled] = useState(true);
+  const [loginAlertsLoading, setLoginAlertsLoading] = useState(false);
 
   useEffect(() => {
     apiFetch<{ settings: Setting[] }>("/api/admin/settings").then((res) => {
@@ -66,7 +68,26 @@ export default function AdminSettingsPage() {
       setSettings(map);
     });
     apiFetch<{ user: { role: string } }>("/api/auth/me").then((res) => setRole(res.user.role));
+    apiFetch<{ loginAlertsEnabled: boolean }>("/api/profile/notification-settings")
+      .then((res) => setLoginAlertsEnabled(res.loginAlertsEnabled))
+      .catch(() => {});
   }, []);
+
+  async function toggleLoginAlerts(checked: boolean) {
+    setLoginAlertsLoading(true);
+    try {
+      await apiFetch("/api/profile/notification-settings", {
+        method: "PATCH",
+        body: JSON.stringify({ loginAlertsEnabled: checked }),
+      });
+      setLoginAlertsEnabled(checked);
+      toast.success(checked ? "Login alerts enabled" : "Login alerts disabled");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update login alerts");
+    } finally {
+      setLoginAlertsLoading(false);
+    }
+  }
 
   async function save(key: string) {
     const raw = settings[key] ?? "";
@@ -166,6 +187,24 @@ export default function AdminSettingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>My notifications</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Personal to your own admin account - doesn&apos;t affect other admins or regular users.
+        </p>
+        <label className="flex items-center gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            checked={loginAlertsEnabled}
+            disabled={loginAlertsLoading}
+            onChange={(e) => toggleLoginAlerts(e.target.checked)}
+          />
+          Email me when my account is signed in to
+        </label>
+      </Card>
 
       <Card className="max-w-lg">
         <CardHeader>

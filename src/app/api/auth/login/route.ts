@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     await createSession({ userId: user.id, role: user.role, ipAddress, userAgent });
     await writeAuditLog({ userId: user.id, action: "auth.login", ipAddress, userAgent });
 
-    if (user.emailNotificationsEnabled) {
+    if (user.loginAlertsEnabled) {
       sendEmail({
         to: user.email,
         subject: "New login to your SureCash Mining account",

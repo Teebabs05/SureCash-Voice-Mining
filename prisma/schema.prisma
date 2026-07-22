@@ -183,6 +183,7 @@ model User {
   tier                      UserTier @default(FREE)
   avatarUrl                 String?
   emailNotificationsEnabled Boolean  @default(true)
+  loginAlertsEnabled        Boolean  @default(true)
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
