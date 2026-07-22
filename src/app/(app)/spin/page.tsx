@@ -7,6 +7,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PlanLockScreen } from "@/components/plan-lock-screen";
 
 interface SpinReward {
   id: string;
@@ -24,6 +25,7 @@ interface SpinHistoryEntry {
 
 export default function SpinPage() {
   const [rewards, setRewards] = useState<SpinReward[]>([]);
+  const [planRequired, setPlanRequired] = useState(false);
   const [canSpin, setCanSpin] = useState(false);
   const [extraSpinPrice, setExtraSpinPrice] = useState(50);
   const [history, setHistory] = useState<SpinHistoryEntry[]>([]);
@@ -34,11 +36,13 @@ export default function SpinPage() {
 
   function load() {
     return apiFetch<{
+      planRequired: boolean;
       rewards: SpinReward[];
       canSpin: boolean;
       extraSpinPrice: number;
       history: SpinHistoryEntry[];
     }>("/api/spin").then((res) => {
+      setPlanRequired(res.planRequired);
       setRewards(res.rewards);
       setCanSpin(res.canSpin);
       setExtraSpinPrice(res.extraSpinPrice);
@@ -80,6 +84,19 @@ export default function SpinPage() {
   const segmentAngle = rewards.length ? 360 / rewards.length : 0;
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading spin wheel…</p>;
+
+  if (planRequired) {
+    return (
+      <div className="flex flex-col gap-4 py-6">
+        <h1 className="text-center text-xl font-bold">Daily Spin Wheel</h1>
+        <PlanLockScreen
+          icon={Gift}
+          title="Lucky Spin"
+          description="Spin daily for a chance at instant cash prizes. Activate a plan to start spinning and winning."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 py-6">

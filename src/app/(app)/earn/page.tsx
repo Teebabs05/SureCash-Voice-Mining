@@ -11,7 +11,7 @@ interface MiningStatus {
   canMine: boolean;
 }
 
-const LOCKED_WHEN_NO_PLAN = new Set(["voice", "wordgame"]);
+const LOCKED_WHEN_NO_PLAN = new Set(["voice", "wordgame", "spin"]);
 
 interface VoiceTask {
   completedToday: number;

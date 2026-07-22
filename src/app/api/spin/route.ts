@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { creditWallet, debitWallet } from "@/lib/server/wallet";
 import { getSetting } from "@/lib/server/settings";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 
 export async function GET() {
   try {
@@ -11,7 +12,8 @@ export async function GET() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [rewards, spinsToday, history, extraSpinPrice] = await Promise.all([
+    const [planRequired, rewards, spinsToday, history, extraSpinPrice] = await Promise.all([
+      isActivePlanRequired().then((required) => required && !user.planId),
       prisma.spinReward.findMany({ where: { isActive: true } }),
       prisma.spinHistory.count({ where: { userId: user.id, createdAt: { gte: startOfDay } } }),
       prisma.spinHistory.findMany({
@@ -24,6 +26,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({
+      planRequired,
       rewards,
       canSpin: spinsToday === 0,
       spinsToday,
@@ -43,6 +46,10 @@ export async function GET() {
 export async function POST() {
   try {
     const user = await requireUser();
+    if (!user.planId && (await isActivePlanRequired())) {
+      return jsonError("Activate a plan to use the Spin Wheel", 403);
+    }
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
