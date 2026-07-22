@@ -41,7 +41,7 @@ const DAILY_LIMIT_FIELDS: Array<{
   key: "voiceEarnDailyLimit" | "wordGameDailyLimit" | "taskCenterDailyLimit" | "sponsoredPostsDailyLimit" | "spinDailyLimit";
   label: string;
 }> = [
-  { key: "voiceEarnDailyLimit", label: "Voice Earn /day" },
+  { key: "voiceEarnDailyLimit", label: "Voice Earn /day (per language)" },
   { key: "wordGameDailyLimit", label: "Word Game /day" },
   { key: "taskCenterDailyLimit", label: "Task Center /day" },
   { key: "sponsoredPostsDailyLimit", label: "Sponsored Posts /day" },

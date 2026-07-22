@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Mic, PartyPopper } from "lucide-react";
+import { ArrowLeft, ChevronRight, Mic, PartyPopper } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { PlanLockScreen } from "@/components/plan-lock-screen";
 import { VoiceRecorder } from "@/components/voice/recorder";
 import { apiFetch } from "@/lib/api-client";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 
 interface VoiceTask {
   id: string;
@@ -21,14 +21,13 @@ interface VoiceTask {
   completedToday: number;
 }
 
-const LANGUAGE_LABELS: Record<string, string> = {
-  en: "English",
-  pcm: "Pidgin",
-  fr: "French",
-  yo: "Yoruba",
-  ha: "Hausa",
-  ig: "Igbo",
-};
+interface LanguageSummary {
+  code: string;
+  label: string;
+  sectionDailyLimit: number | null;
+  completedToday: number;
+  limitReached: boolean;
+}
 
 function pickRandom(list: VoiceTask[], excludeId: string | null): VoiceTask | null {
   const candidates = list.length > 1 ? list.filter((t) => t.id !== excludeId) : list;
@@ -37,41 +36,56 @@ function pickRandom(list: VoiceTask[], excludeId: string | null): VoiceTask | nu
 }
 
 export default function VoicePage() {
-  const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
+  const [languages, setLanguages] = useState<LanguageSummary[]>([]);
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<VoiceTask[]>([]);
   const [limitReached, setLimitReached] = useState(false);
   const [sectionDailyLimit, setSectionDailyLimit] = useState<number | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const lastIdRef = useRef<string | null>(null);
 
-  const load = useCallback(() => {
-    return apiFetch<{
-      tasks: VoiceTask[];
-      planRequired: boolean;
-      sectionDailyLimit: number | null;
-      sectionCompletedToday: number;
-    }>("/api/voice/tasks?category=session").then((res) => {
-      setTasks(res.tasks);
-      setPlanRequired(res.planRequired);
-      setSectionDailyLimit(res.sectionDailyLimit);
-      setLimitReached(res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit);
-    });
+  const loadLanguages = useCallback(() => {
+    return apiFetch<{ planRequired: boolean; languages: LanguageSummary[] }>("/api/voice/tasks?category=session").then(
+      (res) => {
+        setPlanRequired(res.planRequired);
+        setLanguages(res.languages);
+      }
+    );
   }, []);
 
   useEffect(() => {
-    load().finally(() => setLoading(false));
-  }, [load]);
+    loadLanguages().finally(() => setLoading(false));
+  }, [loadLanguages]);
+
+  const loadTasks = useCallback(() => {
+    if (!selectedLanguage) return Promise.resolve();
+    return apiFetch<{
+      tasks: VoiceTask[];
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
+    }>(`/api/voice/tasks?category=session&language=${selectedLanguage}`).then((res) => {
+      setTasks(res.tasks);
+      setSectionDailyLimit(res.sectionDailyLimit);
+      setLimitReached(res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit);
+    });
+  }, [selectedLanguage]);
+
+  useEffect(() => {
+    if (selectedLanguage) loadTasks();
+  }, [selectedLanguage, loadTasks]);
 
   const pool = tasks.filter((t) => t.completedToday < t.dailyLimit);
 
   useEffect(() => {
+    if (!selectedLanguage) return;
     if (currentId && pool.some((t) => t.id === currentId)) return;
     const next = pickRandom(pool, lastIdRef.current);
     lastIdRef.current = next?.id ?? null;
     setCurrentId(next?.id ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when the pool composition or the active task actually changes
-  }, [currentId, pool.map((t) => t.id).join(",")]);
+  }, [selectedLanguage, currentId, pool.map((t) => t.id).join(",")]);
 
   function skip() {
     lastIdRef.current = currentId;
@@ -79,8 +93,17 @@ export default function VoicePage() {
     setCurrentId(next?.id ?? null);
   }
 
+  function backToLanguages() {
+    setSelectedLanguage(null);
+    setCurrentId(null);
+    setTasks([]);
+    lastIdRef.current = null;
+    loadLanguages();
+  }
+
   const current = tasks.find((t) => t.id === currentId) ?? null;
   const totalRemaining = pool.reduce((sum, t) => sum + Math.max(t.dailyLimit - t.completedToday, 0), 0);
+  const currentLanguageLabel = languages.find((l) => l.code === selectedLanguage)?.label ?? selectedLanguage;
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading voice tasks…</p>;
 
@@ -97,10 +120,55 @@ export default function VoicePage() {
     );
   }
 
+  if (!selectedLanguage) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="text-xl font-bold">Voice Tasks</h1>
+          <p className="text-sm text-foreground/60">Record short voice samples to earn instantly.</p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {languages.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => setSelectedLanguage(lang.code)}
+              className="card flex items-center justify-between gap-3 text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-full gradient-wallet-voice p-2.5 text-white">
+                  <Mic className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-semibold">{lang.label}</p>
+                  <p className="text-xs text-foreground/50">
+                    {lang.sectionDailyLimit !== null
+                      ? `${lang.completedToday}/${lang.sectionDailyLimit} today`
+                      : "No daily cap"}
+                  </p>
+                </div>
+              </div>
+              {lang.limitReached ? (
+                <span className="whitespace-nowrap rounded-full bg-surface-muted px-2 py-0.5 text-xs font-semibold text-foreground/50">
+                  Done for today
+                </span>
+              ) : (
+                <ChevronRight className="h-4 w-4 text-foreground/30" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      <button onClick={backToLanguages} className="flex items-center gap-1 text-sm text-foreground/60">
+        <ArrowLeft className="h-4 w-4" /> Languages
+      </button>
       <div>
-        <h1 className="text-xl font-bold">Voice Tasks</h1>
+        <h1 className="text-xl font-bold">{currentLanguageLabel}</h1>
         <p className="text-sm text-foreground/60">Record short voice samples to earn instantly.</p>
       </div>
 
@@ -122,17 +190,12 @@ export default function VoicePage() {
         <Card>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="rounded-full gradient-wallet-voice p-2.5 text-white">
+              <div className={cn("rounded-full gradient-wallet-voice p-2.5 text-white")}>
                 <Mic className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-xs font-semibold text-brand-primary">
-                  {LANGUAGE_LABELS[current.language] ?? current.language}
-                </p>
-                <p className="text-xs text-foreground/50">
-                  {totalRemaining} session{totalRemaining === 1 ? "" : "s"} left today
-                </p>
-              </div>
+              <p className="text-xs text-foreground/50">
+                {totalRemaining} session{totalRemaining === 1 ? "" : "s"} left today
+              </p>
             </div>
             <span className="whitespace-nowrap text-sm font-bold text-brand-green">
               {formatCurrency(current.rewardAmount)}
@@ -147,7 +210,7 @@ export default function VoicePage() {
               onSkip={skip}
               onDone={() => {
                 lastIdRef.current = current.id;
-                load().then(() => setCurrentId(null));
+                loadTasks().then(() => setCurrentId(null));
               }}
             />
           </div>

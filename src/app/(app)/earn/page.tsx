@@ -84,10 +84,10 @@ export default function EarnPage() {
     apiFetch<MiningStatus>("/api/mining/status")
       .then((res) => setStatus((s) => ({ ...s, mine: res.canMine ? "Ready" : "Claimed" })))
       .catch(() => {});
-    apiFetch<{ tasks: VoiceTask[] }>("/api/voice/tasks?category=session")
+    apiFetch<{ languages: { limitReached: boolean }[] }>("/api/voice/tasks?category=session")
       .then((res) => {
-        const remaining = res.tasks.reduce((sum, t) => sum + Math.max(t.dailyLimit - t.completedToday, 0), 0);
-        setStatus((s) => ({ ...s, voice: remaining > 0 ? "Ready" : "All done" }));
+        const anyReady = res.languages.some((l) => !l.limitReached);
+        setStatus((s) => ({ ...s, voice: anyReady ? "Ready" : "All done" }));
       })
       .catch(() => {});
     apiFetch<{ tasks: VoiceTask[] }>("/api/voice/tasks?category=word_game")

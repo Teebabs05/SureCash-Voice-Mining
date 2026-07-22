@@ -16,6 +16,15 @@ function shuffle<T>(items: T[]): T[] {
   return arr;
 }
 
+const SESSION_LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "pcm", label: "Pidgin" },
+  { code: "fr", label: "French" },
+  { code: "yo", label: "Yoruba" },
+  { code: "ha", label: "Hausa" },
+  { code: "ig", label: "Igbo" },
+];
+
 export async function GET(req: NextRequest) {
   try {
     const user = await requireUser();
@@ -24,26 +33,62 @@ export async function GET(req: NextRequest) {
 
     const category = req.nextUrl.searchParams.get("category");
     const resolvedCategory = category === "word_game" ? "word_game" : "session";
+    const language = req.nextUrl.searchParams.get("language");
+
+    const [planRequired, plan] = await Promise.all([
+      isActivePlanRequired().then((required) => required && !user.planId),
+      user.planId ? prisma.plan.findUnique({ where: { id: user.planId } }) : null,
+    ]);
+
+    // Voice Earn (session) is per-language: its daily plan limit applies
+    // separately to each of the 6 languages, not as one shared total. With
+    // no language chosen yet, return a per-language summary so the frontend
+    // can show a language picker instead of a flat cross-language list.
+    if (resolvedCategory === "session" && !language) {
+      const sectionDailyLimit = planSectionDailyLimit(plan, "voiceEarn");
+      const todayRecordings = await prisma.voiceRecording.findMany({
+        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: "session" } },
+        select: { voiceTask: { select: { language: true } } },
+      });
+      const completedByLanguage = new Map<string, number>();
+      for (const r of todayRecordings) {
+        completedByLanguage.set(r.voiceTask.language, (completedByLanguage.get(r.voiceTask.language) ?? 0) + 1);
+      }
+
+      return NextResponse.json({
+        planRequired,
+        languages: SESSION_LANGUAGES.map(({ code, label }) => {
+          const completedToday = completedByLanguage.get(code) ?? 0;
+          return {
+            code,
+            label,
+            sectionDailyLimit,
+            completedToday,
+            limitReached: sectionDailyLimit !== null && completedToday >= sectionDailyLimit,
+          };
+        }),
+      });
+    }
+
     const section = resolvedCategory === "word_game" ? "wordGame" : "voiceEarn";
+    const languageFilter = resolvedCategory === "session" && language ? { language } : {};
     const tasks = await prisma.voiceTask.findMany({
-      where: { isActive: true, category: resolvedCategory },
+      where: { isActive: true, category: resolvedCategory, ...languageFilter },
       orderBy: { createdAt: "desc" },
     });
 
-    const [todayCounts, plan, sectionCompletedToday] = await Promise.all([
+    const [todayCounts, sectionCompletedToday] = await Promise.all([
       prisma.voiceRecording.groupBy({
         by: ["voiceTaskId"],
         where: { userId: user.id, createdAt: { gte: startOfDay } },
         _count: { _all: true },
       }),
-      user.planId ? prisma.plan.findUnique({ where: { id: user.planId } }) : null,
       prisma.voiceRecording.count({
-        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: resolvedCategory } },
+        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: resolvedCategory, ...languageFilter } },
       }),
     ]);
     const countMap = new Map(todayCounts.map((c) => [c.voiceTaskId, c._count._all]));
     const multiplier = TIER_CONFIG[user.tier].dailyLimitMultiplier;
-    const planRequired = (await isActivePlanRequired()) && !user.planId;
     const sectionDailyLimit = planSectionDailyLimit(plan, section);
     const sectionLimitReached = sectionDailyLimit !== null && sectionCompletedToday >= sectionDailyLimit;
 

@@ -169,19 +169,9 @@ export default function DashboardPage() {
   useEffect(() => {
     apiFetch<DashboardData>("/api/dashboard").then(setData);
     apiFetch<ReferralData>("/api/referrals").then(setReferral).catch(() => {});
-    apiFetch<{ tasks: VoiceTaskLite[]; sectionDailyLimit: number | null; sectionCompletedToday: number }>(
-      "/api/voice/tasks?category=session"
-    )
+    apiFetch<{ languages: { limitReached: boolean }[] }>("/api/voice/tasks?category=session")
       .then((res) =>
-        setVoiceStatus(
-          res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit
-            ? "limit_reached"
-            : res.tasks.length === 0
-              ? null
-              : res.tasks.some((t) => t.completedToday < t.dailyLimit)
-                ? "ready"
-                : "cooldown"
-        )
+        setVoiceStatus(res.languages.every((l) => l.limitReached) ? "limit_reached" : "ready")
       )
       .catch(() => {});
     apiFetch<{ tasks: VoiceTaskLite[]; sectionDailyLimit: number | null; sectionCompletedToday: number }>(

@@ -89,7 +89,16 @@ export async function POST(req: NextRequest) {
         where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay } },
       }),
       prisma.voiceRecording.count({
-        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: voiceTask.category } },
+        where: {
+          userId: user.id,
+          createdAt: { gte: startOfDay },
+          // Voice Earn's plan limit is per language - Word Game is a single
+          // language so this is equivalent to a category-wide count there.
+          voiceTask:
+            section === "voiceEarn"
+              ? { category: voiceTask.category, language: voiceTask.language }
+              : { category: voiceTask.category },
+        },
       }),
     ]);
     const effectiveDailyLimit = voiceTask.dailyLimit * TIER_CONFIG[user.tier].dailyLimitMultiplier;
@@ -99,7 +108,9 @@ export async function POST(req: NextRequest) {
     const sectionDailyLimit = planSectionDailyLimit(plan, section);
     if (sectionDailyLimit !== null && sectionCompletedToday >= sectionDailyLimit) {
       return jsonError(
-        `You've reached today's plan limit for ${section === "wordGame" ? "Word Game" : "Voice Earn"} (${sectionDailyLimit}/day) - upgrade for more`,
+        section === "wordGame"
+          ? `You've reached today's plan limit for Word Game (${sectionDailyLimit}/day) - upgrade for more`
+          : `You've reached today's plan limit for this language (${sectionDailyLimit}/day) - try another language or upgrade for more`,
         429
       );
     }

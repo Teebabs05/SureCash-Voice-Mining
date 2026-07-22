@@ -158,6 +158,7 @@ export default function PlansPage() {
                     amount={plan.voiceSessionReward}
                     label="per Voice Earn session"
                     dailyLimit={plan.voiceEarnDailyLimit}
+                    perLanguage
                   />
                   <RateRow
                     icon={Gamepad2}
@@ -214,12 +215,14 @@ function RateRow({
   amount,
   label,
   dailyLimit,
+  perLanguage,
 }: {
   icon: LucideIcon;
   color: "primary" | "amber" | "green";
   amount: string;
   label: string;
   dailyLimit?: number;
+  perLanguage?: boolean;
 }) {
   const colorClass = {
     primary: "bg-brand-primary/15 text-brand-primary",
@@ -236,7 +239,9 @@ function RateRow({
       <span className="text-sm text-foreground/50">{label}</span>
       {dailyLimit !== undefined && (
         <span className="ml-auto text-xs font-semibold text-foreground/40">
-          {dailyLimit >= UNLIMITED_THRESHOLD ? "Unlimited" : `up to ${dailyLimit}/day`}
+          {dailyLimit >= UNLIMITED_THRESHOLD
+            ? "Unlimited"
+            : `up to ${dailyLimit}/day${perLanguage ? " per language" : ""}`}
         </span>
       )}
     </div>
