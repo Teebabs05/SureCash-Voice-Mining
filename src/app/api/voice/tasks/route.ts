@@ -47,7 +47,12 @@ export async function GET(req: NextRequest) {
     if (resolvedCategory === "session" && !language) {
       const sectionDailyLimit = planSectionDailyLimit(plan, "voiceEarn");
       const todayRecordings = await prisma.voiceRecording.findMany({
-        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: "session" } },
+        where: {
+          userId: user.id,
+          createdAt: { gte: startOfDay },
+          status: "APPROVED",
+          voiceTask: { category: "session" },
+        },
         select: { voiceTask: { select: { language: true } } },
       });
       const completedByLanguage = new Map<string, number>();
@@ -80,11 +85,16 @@ export async function GET(req: NextRequest) {
     const [todayCounts, sectionCompletedToday] = await Promise.all([
       prisma.voiceRecording.groupBy({
         by: ["voiceTaskId"],
-        where: { userId: user.id, createdAt: { gte: startOfDay } },
+        where: { userId: user.id, createdAt: { gte: startOfDay }, status: "APPROVED" },
         _count: { _all: true },
       }),
       prisma.voiceRecording.count({
-        where: { userId: user.id, createdAt: { gte: startOfDay }, voiceTask: { category: resolvedCategory, ...languageFilter } },
+        where: {
+          userId: user.id,
+          createdAt: { gte: startOfDay },
+          status: "APPROVED",
+          voiceTask: { category: resolvedCategory, ...languageFilter },
+        },
       }),
     ]);
     const countMap = new Map(todayCounts.map((c) => [c.voiceTaskId, c._count._all]));

@@ -84,14 +84,18 @@ export async function POST(req: NextRequest) {
 
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
+    // Only count APPROVED recordings against daily limits - a rejected/
+    // mismatched attempt didn't earn anything, so it shouldn't cost the
+    // user one of their limited daily tries.
     const [todayCount, sectionCompletedToday] = await Promise.all([
       prisma.voiceRecording.count({
-        where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay } },
+        where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay }, status: "APPROVED" },
       }),
       prisma.voiceRecording.count({
         where: {
           userId: user.id,
           createdAt: { gte: startOfDay },
+          status: "APPROVED",
           // Voice Earn's plan limit is per language - Word Game is a single
           // language so this is equivalent to a category-wide count there.
           voiceTask:
