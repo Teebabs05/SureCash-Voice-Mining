@@ -7,7 +7,7 @@ import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { PlanLockScreen } from "@/components/plan-lock-screen";
 import { VoiceRecorder } from "@/components/voice/recorder";
 import { apiFetch } from "@/lib/api-client";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 interface VoiceTask {
   id: string;
@@ -136,7 +136,7 @@ export default function VoicePage() {
               className="card flex items-center justify-between gap-3 p-5 text-left"
             >
               <div className="flex items-center gap-3">
-                <div className="rounded-full gradient-wallet-voice p-2.5 text-white">
+                <div className="rounded-full bg-brand-primary/15 p-2.5 text-brand-primary">
                   <Mic className="h-4 w-4" />
                 </div>
                 <div>
@@ -190,7 +190,7 @@ export default function VoicePage() {
         <Card>
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className={cn("rounded-full gradient-wallet-voice p-2.5 text-white")}>
+              <div className="rounded-full bg-brand-primary/15 p-2.5 text-brand-primary">
                 <Mic className="h-4 w-4" />
               </div>
               <p className="text-xs text-foreground/50">
