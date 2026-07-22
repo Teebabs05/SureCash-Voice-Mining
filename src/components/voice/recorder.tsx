@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Mic, Square, Send, Trash2 } from "lucide-react";
+import { Mic, Square, Send, Trash2, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -16,7 +16,17 @@ interface VoiceTaskLite {
   rewardAmount: string;
 }
 
-export function VoiceRecorder({ task, onDone }: { task: VoiceTaskLite; onDone: () => void }) {
+export function VoiceRecorder({
+  task,
+  onDone,
+  onSkip,
+  canSkip = false,
+}: {
+  task: VoiceTaskLite;
+  onDone: () => void;
+  onSkip?: () => void;
+  canSkip?: boolean;
+}) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
@@ -94,17 +104,29 @@ export function VoiceRecorder({ task, onDone }: { task: VoiceTaskLite; onDone: (
       <p className="text-center text-sm font-medium text-foreground/80">&ldquo;{task.promptText}&rdquo;</p>
 
       {!blob && (
-        <button
-          onClick={recording ? stopRecording : startRecording}
-          className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95 ${
-            recording ? "bg-red-500 animate-pulse-glow" : "gradient-brand"
-          }`}
-        >
-          {recording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-        </button>
+        <>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={recording ? stopRecording : startRecording}
+              className={`flex h-16 w-16 items-center justify-center rounded-full text-white shadow-lg transition-transform active:scale-95 ${
+                recording ? "bg-red-500 animate-pulse-glow" : "gradient-brand"
+              }`}
+            >
+              {recording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+            </button>
+            {!recording && canSkip && onSkip && (
+              <button
+                onClick={onSkip}
+                title="Too hard? Get another sentence"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-foreground/60 shadow-md transition-transform active:scale-95 hover:text-foreground"
+              >
+                <RotateCw className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+          {recording && <p className="font-mono text-sm text-foreground/60">{seconds}s</p>}
+        </>
       )}
-
-      {recording && <p className="font-mono text-sm text-foreground/60">{seconds}s</p>}
 
       {blob && !recording && (
         <div className="flex w-full flex-col items-center gap-3">
@@ -116,6 +138,11 @@ export function VoiceRecorder({ task, onDone }: { task: VoiceTaskLite; onDone: (
             <Button size="sm" loading={submitting} onClick={submit}>
               <Send className="h-4 w-4" /> Submit
             </Button>
+            {canSkip && onSkip && (
+              <Button variant="outline" size="sm" onClick={onSkip}>
+                <RotateCw className="h-4 w-4" /> Skip
+              </Button>
+            )}
           </div>
         </div>
       )}
