@@ -133,7 +133,7 @@ export default function VoicePage() {
             <button
               key={lang.code}
               onClick={() => setSelectedLanguage(lang.code)}
-              className="card flex items-center justify-between gap-3 text-left"
+              className="card flex items-center justify-between gap-3 p-5 text-left"
             >
               <div className="flex items-center gap-3">
                 <div className="rounded-full gradient-wallet-voice p-2.5 text-white">
