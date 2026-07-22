@@ -5,7 +5,7 @@ import { createSession, verifyPassword, generateOtpCode, hashToken } from "@/lib
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { rateLimit } from "@/lib/server/rate-limit";
-import { sendEmail, otpEmailHtml } from "@/lib/notifications/email";
+import { sendEmail, otpEmailHtml, loginAlertEmailHtml } from "@/lib/notifications/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,6 +60,19 @@ export async function POST(req: NextRequest) {
 
     await createSession({ userId: user.id, role: user.role, ipAddress, userAgent });
     await writeAuditLog({ userId: user.id, action: "auth.login", ipAddress, userAgent });
+
+    if (user.emailNotificationsEnabled) {
+      sendEmail({
+        to: user.email,
+        subject: "New login to your SureCash Mining account",
+        html: loginAlertEmailHtml({
+          fullName: user.fullName,
+          ipAddress,
+          userAgent,
+          time: new Date().toLocaleString("en-NG", { timeZone: "Africa/Lagos" }),
+        }),
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       user: {

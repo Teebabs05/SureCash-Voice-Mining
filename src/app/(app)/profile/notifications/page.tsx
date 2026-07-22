@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bell, BellRing } from "lucide-react";
+import { ArrowLeft, Bell, BellRing, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -23,12 +23,34 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [pushState, setPushState] = useState<"unsupported" | "subscribed" | "unsubscribed">("unsubscribed");
   const [pushLoading, setPushLoading] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [emailLoading, setEmailLoading] = useState(false);
 
   useEffect(() => {
     apiFetch<{ notifications: Notification[] }>("/api/notifications").then((res) => setNotifications(res.notifications));
     apiFetch("/api/notifications/read-all", { method: "POST" }).catch(() => {});
     getPushSubscriptionState().then(setPushState);
+    apiFetch<{ emailNotificationsEnabled: boolean }>("/api/profile/notification-settings")
+      .then((res) => setEmailEnabled(res.emailNotificationsEnabled))
+      .catch(() => {});
   }, []);
+
+  async function toggleEmail() {
+    const next = !emailEnabled;
+    setEmailLoading(true);
+    try {
+      await apiFetch("/api/profile/notification-settings", {
+        method: "PATCH",
+        body: JSON.stringify({ emailNotificationsEnabled: next }),
+      });
+      setEmailEnabled(next);
+      toast.success(next ? "Email notifications enabled" : "Email notifications disabled");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update email notifications");
+    } finally {
+      setEmailLoading(false);
+    }
+  }
 
   async function togglePush() {
     setPushLoading(true);
@@ -55,6 +77,28 @@ export default function NotificationsPage() {
         <ArrowLeft className="h-4 w-4" /> Back
       </button>
       <h1 className="text-xl font-bold">Notifications</h1>
+
+      <div className="card flex items-center justify-between gap-3 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+            <Mail className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Email notifications</p>
+            <p className="text-xs text-foreground/60">
+              Get emailed for wallet activity (deposits, withdrawals, earnings) and new logins.
+            </p>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant={emailEnabled ? "danger" : "primary"}
+          loading={emailLoading}
+          onClick={toggleEmail}
+        >
+          {emailEnabled ? "Disable" : "Enable"}
+        </Button>
+      </div>
 
       {pushState !== "unsupported" && (
         <div className="card flex items-center justify-between gap-3 p-4">

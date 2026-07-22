@@ -192,6 +192,52 @@ export function withdrawalPendingReviewEmailHtml(params: {
   `);
 }
 
+export function walletActivityEmailHtml(params: {
+  fullName: string;
+  direction: "CREDIT" | "DEBIT";
+  reasonLabel: string;
+  amount: string;
+  balanceAfter: string;
+  description?: string | null;
+}) {
+  const isCredit = params.direction === "CREDIT";
+  return emailLayout(`
+    ${emailHeading(isCredit ? "Wallet credited" : "Wallet debited")}
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(params.fullName)},</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+      ${escapeHtml(params.reasonLabel)}${params.description ? ` - ${escapeHtml(params.description)}` : ""}.
+    </p>
+    <div style="background:#eef3f2;border-radius:12px;padding:16px;font-size:14px;line-height:1.8;">
+      <strong>${isCredit ? "Amount credited" : "Amount debited"}:</strong>
+      <span style="color:${isCredit ? "#0D8A82" : "#c0392b"};font-weight:bold;">
+        ${isCredit ? "+" : "-"}${escapeHtml(params.amount)}
+      </span><br/>
+      <strong>New balance:</strong> ${escapeHtml(params.balanceAfter)}
+    </div>
+    <p style="color:#8a9c98;font-size:13px;margin-top:20px;">
+      Didn't recognize this activity? Reset your password and contact support right away.
+    </p>
+  `);
+}
+
+export function loginAlertEmailHtml(params: { fullName: string; ipAddress: string; userAgent: string; time: string }) {
+  return emailLayout(`
+    ${emailHeading("New login to your account")}
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(params.fullName)},</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
+      Your account was just signed in to. If this was you, no action is needed.
+    </p>
+    <div style="background:#eef3f2;border-radius:12px;padding:16px;font-size:14px;line-height:1.8;">
+      <strong>Time:</strong> ${escapeHtml(params.time)}<br/>
+      <strong>IP address:</strong> ${escapeHtml(params.ipAddress)}<br/>
+      <strong>Device:</strong> ${escapeHtml(params.userAgent)}
+    </div>
+    <p style="color:#8a9c98;font-size:13px;margin-top:20px;">
+      Didn't recognize this login? Reset your password immediately and contact support.
+    </p>
+  `);
+}
+
 export function otpEmailHtml(purpose: string, code: string) {
   return emailLayout(`
     ${emailHeading("Your verification code")}

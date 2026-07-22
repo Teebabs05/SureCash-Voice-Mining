@@ -174,14 +174,15 @@ model User {
   fullName     String
   role         UserRole @default(USER)
 
-  emailVerified      Boolean  @default(false)
-  phoneVerified      Boolean  @default(false)
-  isBanned           Boolean  @default(false)
-  banReason          String?
-  withdrawalsLocked  Boolean  @default(false)
-  withdrawalLockNote String?
-  tier               UserTier @default(FREE)
-  avatarUrl          String?
+  emailVerified             Boolean  @default(false)
+  phoneVerified             Boolean  @default(false)
+  isBanned                  Boolean  @default(false)
+  banReason                 String?
+  withdrawalsLocked         Boolean  @default(false)
+  withdrawalLockNote        String?
+  tier                      UserTier @default(FREE)
+  avatarUrl                 String?
+  emailNotificationsEnabled Boolean  @default(true)
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
@@ -368,9 +369,9 @@ model Deposit {
 }
 
 model BankAccount {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   userId                String
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bankName              String
   bankCode              String
   accountNumber         String
@@ -398,9 +399,11 @@ model BankAccount {
   @@unique([userId, accountNumber, bankCode])
 }
 
-/** A permanent dedicated bank account number (NUBAN) tied to one user for
+/**
+ * A permanent dedicated bank account number (NUBAN) tied to one user for
  * wallet funding — any bank transfer into it is credited automatically via
- * the provider's webhook, no checkout redirect involved. */
+ * the provider's webhook, no checkout redirect involved.
+ */
 model VirtualAccount {
   id            String   @id @default(cuid())
   userId        String   @unique
@@ -526,17 +529,17 @@ model AiResult {
 // ---------------------------------------------------------------------------
 
 model Plan {
-  id                  String   @id @default(cuid())
+  id                  String  @id @default(cuid())
   name                String
-  price               Decimal  @db.Decimal(18, 2)
-  voiceSessionReward  Decimal  @db.Decimal(18, 2)
-  wordGameReward      Decimal  @db.Decimal(18, 2)
-  sponsoredPostReward Decimal  @db.Decimal(18, 2)
-  taskReward          Decimal  @db.Decimal(18, 2)
-  referralCommission  Decimal  @db.Decimal(18, 2)
-  sortOrder           Int      @default(0)
-  isActive            Boolean  @default(true)
-  isPopular           Boolean  @default(false)
+  price               Decimal @db.Decimal(18, 2)
+  voiceSessionReward  Decimal @db.Decimal(18, 2)
+  wordGameReward      Decimal @db.Decimal(18, 2)
+  sponsoredPostReward Decimal @db.Decimal(18, 2)
+  taskReward          Decimal @db.Decimal(18, 2)
+  referralCommission  Decimal @db.Decimal(18, 2)
+  sortOrder           Int     @default(0)
+  isActive            Boolean @default(true)
+  isPopular           Boolean @default(false)
 
   // Per-plan daily quantity caps - every plan can access every activity;
   // what differs per plan is how many times per day each section can be
@@ -696,17 +699,17 @@ model UserTaskCompletion {
 // (sponsored_post_*) — this table only tracks individual share attempts, one
 // per user per platform per day.
 model SponsoredShare {
-  id             String                @id @default(cuid())
+  id             String               @id @default(cuid())
   userId         String
-  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   platform       SponsoredPlatform
   date           DateTime
   status         SponsoredShareStatus
   proofImageUrl  String
   proofImageHash String
-  rewardPaid     Decimal               @db.Decimal(18, 2)
+  rewardPaid     Decimal              @db.Decimal(18, 2)
   reviewNote     String?
-  createdAt      DateTime              @default(now())
+  createdAt      DateTime             @default(now())
 
   @@unique([userId, platform, date])
   @@index([proofImageHash])
