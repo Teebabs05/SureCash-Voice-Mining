@@ -19,6 +19,7 @@ const schema = z.object({
   wordGameDailyLimit: z.number().int().positive().optional(),
   taskCenterDailyLimit: z.number().int().positive().optional(),
   sponsoredPostsDailyLimit: z.number().int().positive().optional(),
+  spinDailyLimit: z.number().int().positive().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -10,13 +10,14 @@ export async function isActivePlanRequired(): Promise<boolean> {
   return getSetting("require_active_plan", false);
 }
 
-export type PlanSection = "voiceEarn" | "wordGame" | "taskCenter" | "sponsoredPosts";
+export type PlanSection = "voiceEarn" | "wordGame" | "taskCenter" | "sponsoredPosts" | "spin";
 
 const SECTION_LIMIT_FIELD: Record<PlanSection, keyof Plan> = {
   voiceEarn: "voiceEarnDailyLimit",
   wordGame: "wordGameDailyLimit",
   taskCenter: "taskCenterDailyLimit",
   sponsoredPosts: "sponsoredPostsDailyLimit",
+  spin: "spinDailyLimit",
 };
 
 /** Every plan can access every section - what differs per plan is how many

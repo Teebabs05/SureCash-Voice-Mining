@@ -24,6 +24,7 @@ interface Plan {
   wordGameDailyLimit: number;
   taskCenterDailyLimit: number;
   sponsoredPostsDailyLimit: number;
+  spinDailyLimit: number;
 }
 
 const FIELDS: Array<{ key: keyof Plan; label: string }> = [
@@ -37,13 +38,14 @@ const FIELDS: Array<{ key: keyof Plan; label: string }> = [
 ];
 
 const DAILY_LIMIT_FIELDS: Array<{
-  key: "voiceEarnDailyLimit" | "wordGameDailyLimit" | "taskCenterDailyLimit" | "sponsoredPostsDailyLimit";
+  key: "voiceEarnDailyLimit" | "wordGameDailyLimit" | "taskCenterDailyLimit" | "sponsoredPostsDailyLimit" | "spinDailyLimit";
   label: string;
 }> = [
   { key: "voiceEarnDailyLimit", label: "Voice Earn /day" },
   { key: "wordGameDailyLimit", label: "Word Game /day" },
   { key: "taskCenterDailyLimit", label: "Task Center /day" },
   { key: "sponsoredPostsDailyLimit", label: "Sponsored Posts /day" },
+  { key: "spinDailyLimit", label: "Lucky Spin /day" },
 ];
 
 const NEW_PLAN_DEFAULTS = {
@@ -60,6 +62,7 @@ const NEW_PLAN_DEFAULTS = {
   wordGameDailyLimit: "9999",
   taskCenterDailyLimit: "9999",
   sponsoredPostsDailyLimit: "9999",
+  spinDailyLimit: "9999",
 };
 
 export default function AdminPlansPage() {
@@ -88,6 +91,7 @@ export default function AdminPlansPage() {
               wordGameDailyLimit: String(p.wordGameDailyLimit),
               taskCenterDailyLimit: String(p.taskCenterDailyLimit),
               sponsoredPostsDailyLimit: String(p.sponsoredPostsDailyLimit),
+              spinDailyLimit: String(p.spinDailyLimit),
             },
           ])
         )
@@ -117,6 +121,7 @@ export default function AdminPlansPage() {
           wordGameDailyLimit: Number(values.wordGameDailyLimit),
           taskCenterDailyLimit: Number(values.taskCenterDailyLimit),
           sponsoredPostsDailyLimit: Number(values.sponsoredPostsDailyLimit),
+          spinDailyLimit: Number(values.spinDailyLimit),
         }),
       });
       toast.success("Plan updated");
@@ -170,6 +175,7 @@ export default function AdminPlansPage() {
           wordGameDailyLimit: Number(form.wordGameDailyLimit),
           taskCenterDailyLimit: Number(form.taskCenterDailyLimit),
           sponsoredPostsDailyLimit: Number(form.sponsoredPostsDailyLimit),
+          spinDailyLimit: Number(form.spinDailyLimit),
         }),
       });
       toast.success("Plan created");

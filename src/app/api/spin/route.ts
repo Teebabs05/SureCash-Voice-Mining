@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { creditWallet, debitWallet } from "@/lib/server/wallet";
 import { getSetting } from "@/lib/server/settings";
-import { isActivePlanRequired } from "@/lib/server/plan-gate";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 export async function GET() {
   try {
@@ -12,8 +12,9 @@ export async function GET() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [planRequired, rewards, spinsToday, history, extraSpinPrice] = await Promise.all([
+    const [planRequired, plan, rewards, spinsToday, history, extraSpinPrice] = await Promise.all([
       isActivePlanRequired().then((required) => required && !user.planId),
+      user.planId ? prisma.plan.findUnique({ where: { id: user.planId } }) : null,
       prisma.spinReward.findMany({ where: { isActive: true } }),
       prisma.spinHistory.count({ where: { userId: user.id, createdAt: { gte: startOfDay } } }),
       prisma.spinHistory.findMany({
@@ -25,8 +26,12 @@ export async function GET() {
       getSetting("spin_extra_spin_price", 50),
     ]);
 
+    const sectionDailyLimit = planSectionDailyLimit(plan, "spin");
+
     return NextResponse.json({
       planRequired,
+      sectionDailyLimit,
+      sectionCompletedToday: spinsToday,
       rewards,
       canSpin: spinsToday === 0,
       spinsToday,
@@ -46,7 +51,8 @@ export async function GET() {
 export async function POST() {
   try {
     const user = await requireUser();
-    if (!user.planId && (await isActivePlanRequired())) {
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    if (!plan && (await isActivePlanRequired())) {
       return jsonError("Activate a plan to use the Spin Wheel", 403);
     }
 
@@ -56,6 +62,12 @@ export async function POST() {
     const spinsToday = await prisma.spinHistory.count({
       where: { userId: user.id, createdAt: { gte: startOfDay } },
     });
+
+    const sectionDailyLimit = planSectionDailyLimit(plan, "spin");
+    if (sectionDailyLimit !== null && spinsToday >= sectionDailyLimit) {
+      return jsonError(`You've reached today's plan limit for Lucky Spin (${sectionDailyLimit}/day) - upgrade for more`, 429);
+    }
+
     const isPaidSpin = spinsToday > 0;
     const extraSpinPrice = await getSetting("spin_extra_spin_price", 50);
 

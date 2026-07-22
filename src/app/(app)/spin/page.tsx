@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PlanLockScreen } from "@/components/plan-lock-screen";
+import { PlanGateBanner } from "@/components/plan-gate-banner";
 
 interface SpinReward {
   id: string;
@@ -26,6 +27,8 @@ interface SpinHistoryEntry {
 export default function SpinPage() {
   const [rewards, setRewards] = useState<SpinReward[]>([]);
   const [planRequired, setPlanRequired] = useState(false);
+  const [sectionDailyLimit, setSectionDailyLimit] = useState<number | null>(null);
+  const [sectionCompletedToday, setSectionCompletedToday] = useState(0);
   const [canSpin, setCanSpin] = useState(false);
   const [extraSpinPrice, setExtraSpinPrice] = useState(50);
   const [history, setHistory] = useState<SpinHistoryEntry[]>([]);
@@ -37,12 +40,16 @@ export default function SpinPage() {
   function load() {
     return apiFetch<{
       planRequired: boolean;
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
       rewards: SpinReward[];
       canSpin: boolean;
       extraSpinPrice: number;
       history: SpinHistoryEntry[];
     }>("/api/spin").then((res) => {
       setPlanRequired(res.planRequired);
+      setSectionDailyLimit(res.sectionDailyLimit);
+      setSectionCompletedToday(res.sectionCompletedToday);
       setRewards(res.rewards);
       setCanSpin(res.canSpin);
       setExtraSpinPrice(res.extraSpinPrice);
@@ -82,6 +89,7 @@ export default function SpinPage() {
   }
 
   const segmentAngle = rewards.length ? 360 / rewards.length : 0;
+  const limitReached = sectionDailyLimit !== null && sectionCompletedToday >= sectionDailyLimit;
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading spin wheel…</p>;
 
@@ -126,7 +134,13 @@ export default function SpinPage() {
         </div>
       </div>
 
-      {canSpin ? (
+      {limitReached && (
+        <div className="mx-auto w-full max-w-xs">
+          <PlanGateBanner reason="limit_reached" feature="spin" dailyLimit={sectionDailyLimit ?? undefined} />
+        </div>
+      )}
+
+      {!limitReached && (canSpin ? (
         <Button size="lg" className="mx-auto w-full max-w-xs" loading={spinning} onClick={spin}>
           Spin now
         </Button>
@@ -139,7 +153,7 @@ export default function SpinPage() {
             Buy Extra Spin ({formatCurrency(extraSpinPrice)})
           </Button>
         </div>
-      )}
+      ))}
 
       <div className="mx-auto grid w-full max-w-xs grid-cols-2 gap-2">
         {rewards.map((r) => (
