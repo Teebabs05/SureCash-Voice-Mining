@@ -58,7 +58,7 @@ export async function initializeCharge(params: {
       reference: params.reference,
       narration: "SureCash Mining wallet funding",
       notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/korapay`,
-      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
+      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       customer: { name: params.name, email: params.email },
     }),
   });

@@ -33,7 +33,7 @@ class PaystackProvider implements PaymentProvider {
         email: params.email,
         amount: Math.round(params.amount * 100),
         reference: params.reference,
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       }),
     });
 

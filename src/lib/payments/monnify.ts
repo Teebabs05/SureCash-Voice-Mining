@@ -89,7 +89,7 @@ export async function initializeTransaction(params: {
       paymentDescription: "SureCash Mining wallet funding",
       currencyCode: "NGN",
       contractCode,
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
+      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       paymentMethods: ["CARD", "ACCOUNT_TRANSFER"],
     }),
   });

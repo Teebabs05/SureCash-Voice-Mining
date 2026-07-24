@@ -49,7 +49,7 @@ export async function initializePayment(params: {
       tx_ref: params.reference,
       amount: params.amount,
       currency: "NGN",
-      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
+      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       customer: { email: params.email, name: params.name },
       customizations: { title: "SureCash Mining wallet funding" },
     }),

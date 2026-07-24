@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Mic,
@@ -28,6 +29,7 @@ import {
   Flag,
   CheckSquare,
   ArrowUpRight,
+  PartyPopper,
 } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { BillPaymentsArc } from "@/components/dashboard/bill-payments-arc";
@@ -156,7 +158,9 @@ function CircularProgress({ percent }: { percent: number }) {
   );
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<DashboardData | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<"ready" | "cooldown" | "limit_reached" | null>(null);
@@ -165,6 +169,7 @@ export default function DashboardPage() {
   const [sponsoredStatus, setSponsoredStatus] = useState<"ready" | "done" | "limit_reached" | null>(null);
   const [sponsoredRate, setSponsoredRate] = useState(50);
   const [resending, setResending] = useState(false);
+  const [depositSuccess, setDepositSuccess] = useState<number | null>(null);
 
   useEffect(() => {
     apiFetch<DashboardData>("/api/dashboard").then(setData);
@@ -222,6 +227,39 @@ export default function DashboardPage() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const reference = searchParams.get("deposit");
+    if (!reference) return;
+
+    let cancelled = false;
+
+    function checkDeposit(retriesLeft: number) {
+      apiFetch<{ status: "success" | "pending" | "failed"; amount?: number }>(`/api/deposits/${reference}/confirm`)
+        .then((res) => {
+          if (cancelled) return;
+          if (res.status === "success") {
+            setDepositSuccess(res.amount ?? 0);
+            apiFetch<DashboardData>("/api/dashboard").then(setData).catch(() => {});
+          } else if (res.status === "pending" && retriesLeft > 0) {
+            setTimeout(() => checkDeposit(retriesLeft - 1), 3000);
+            return;
+          } else if (res.status === "failed") {
+            toast.error("We couldn't confirm that payment - if you were charged, it'll still be credited shortly.");
+          }
+          router.replace("/dashboard");
+        })
+        .catch(() => {
+          if (!cancelled) router.replace("/dashboard");
+        });
+    }
+
+    checkDeposit(2);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run if the ?deposit= param itself changes
+  }, [searchParams]);
 
   async function resendVerification() {
     setResending(true);
@@ -608,6 +646,35 @@ export default function DashboardPage() {
       </div>
 
       <TopEarnerFab fullName={data.user.fullName} lifetimeEarnings={data.earnings.lifetime} />
+
+      {depositSuccess !== null && (
+        <div className="fixed inset-0 z-50 flex items-end">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDepositSuccess(null)} />
+          <div className="relative w-full rounded-t-3xl bg-surface px-6 pb-8 pt-3 shadow-xl">
+            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border" />
+            <div className="flex flex-col items-center text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-green/15 text-brand-green">
+                <PartyPopper className="h-7 w-7" />
+              </div>
+              <h2 className="mt-4 text-lg font-bold">Deposit successful!</h2>
+              <p className="mt-1 text-sm text-foreground/60">Your wallet has been credited.</p>
+              <p className="mt-3 text-3xl font-extrabold text-brand-green">{formatCurrency(depositSuccess)}</p>
+
+              <Button className="mt-6 w-full" onClick={() => setDepositSuccess(null)}>
+                Continue
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<p className="py-10 text-center text-sm text-foreground/50">Loading dashboard…</p>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
