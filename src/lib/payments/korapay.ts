@@ -19,6 +19,10 @@ import { getCredential } from "@/lib/server/credentials";
  *     `x-korapay-signature` header — this differs from Paystack/Monnify,
  *     which sign the whole body, so it's easy to get wrong.
  *   - The disbursement request shape (nested `destination.bank_account`).
+ *   - The post-checkout redirect field name (`redirect_url`) - if Korapay
+ *     actually expects something else, the checkout will still succeed and
+ *     the webhook will still credit the wallet, but the user will be left
+ *     stranded on Korapay's own success page instead of coming back here.
  */
 
 const BASE_URL = "https://api.korapay.com";
@@ -54,6 +58,7 @@ export async function initializeCharge(params: {
       reference: params.reference,
       narration: "SureCash Mining wallet funding",
       notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/korapay`,
+      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
       customer: { name: params.name, email: params.email },
     }),
   });
