@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, Ban, CheckCircle, ShieldCheck, Lock, Unlock, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle, ShieldCheck, Lock, Unlock, Trash2, Pencil, LogIn } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,6 +154,18 @@ export default function AdminUserDetailPage() {
     }
   }
 
+  async function loginAsUser() {
+    if (!user) return;
+    setBusy(true);
+    try {
+      await apiFetch(`/api/admin/users/${user.id}/impersonate`, { method: "POST" });
+      window.location.assign("/dashboard");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not log in as this user");
+      setBusy(false);
+    }
+  }
+
   async function submitAdjustment() {
     if (!user) return;
     if (!adjustForm.amount || Number(adjustForm.amount) <= 0) return toast.error("Enter a valid amount");
@@ -222,6 +234,11 @@ export default function AdminUserDetailPage() {
               {!user.emailVerified && (
                 <Button size="sm" variant="outline" loading={busy} onClick={() => patch({ emailVerified: true }, "Email verified")}>
                   <ShieldCheck className="h-3.5 w-3.5" /> Verify email
+                </Button>
+              )}
+              {user.role === "USER" && !user.isBanned && (
+                <Button size="sm" variant="outline" loading={busy} onClick={loginAsUser}>
+                  <LogIn className="h-3.5 w-3.5" /> Login as this user
                 </Button>
               )}
               {isSuperAdmin && (

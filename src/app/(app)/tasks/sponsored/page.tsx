@@ -79,14 +79,22 @@ export default function SponsoredPostsPage() {
     load();
   }, [load]);
 
-  function openShare(platform: Platform) {
-    if (!data) return;
-    const limitReached =
-      data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
-    if (limitReached) {
-      toast.error(`You've reached today's plan limit for Sponsored Posts (${data.sectionDailyLimit}/day)`);
-      return;
+  /** Downloads the campaign banner as a File so it can be handed to the OS
+   * share sheet alongside the caption - null if it can't be fetched (e.g.
+   * offline, or the browser blocks the cross-origin read). */
+  async function buildBannerFile(bannerUrl: string): Promise<File | null> {
+    try {
+      const res = await fetch(bannerUrl);
+      const blob = await res.blob();
+      const extension = blob.type.split("/")[1] || "jpg";
+      return new File([blob], `surecash-sponsored.${extension}`, { type: blob.type });
+    } catch {
+      return null;
     }
+  }
+
+  function fallbackShare(platform: Platform) {
+    if (!data) return;
     const meta = PLATFORM_META[platform];
     if (meta.mode === "intent") {
       window.open(shareIntentUrl(platform, data.caption, data.shareUrl), "_blank", "noopener,noreferrer");
@@ -100,6 +108,38 @@ export default function SponsoredPostsPage() {
     }
     setProofPlatform(platform);
     setProofImage(null);
+  }
+
+  /** Prefers the device's native share sheet (Web Share API) so the banner
+   * image actually gets handed to the chosen app's composer instead of just
+   * a link/caption - this is the only legitimate way a website can attach
+   * an image directly into another app's post flow. Falls back to the old
+   * per-platform link/copy behavior on desktop or unsupported browsers. */
+  async function openShare(platform: Platform) {
+    if (!data) return;
+    const limitReached =
+      data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
+    if (limitReached) {
+      toast.error(`You've reached today's plan limit for Sponsored Posts (${data.sectionDailyLimit}/day)`);
+      return;
+    }
+
+    const text = `${data.caption}\n\n${data.shareUrl}`;
+    const file = data.bannerUrl ? await buildBannerFile(data.bannerUrl) : null;
+
+    if (file && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text });
+        setProofPlatform(platform);
+        setProofImage(null);
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return; // user canceled - not an error
+        // Any other failure (e.g. no matching app installed) - fall through to the link-based approach below.
+      }
+    }
+
+    fallbackShare(platform);
   }
 
   async function submitProof() {
@@ -236,7 +276,10 @@ export default function SponsoredPostsPage() {
 
       <Card className="flex items-start gap-2 text-xs text-foreground/50">
         <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span>Shares reset daily. Instagram and TikTok don&apos;t support pre-filled posts, so the caption is copied for you to paste in.</span>
+        <span>
+          Shares reset daily. On your phone, Share opens your device&apos;s share sheet with the banner and caption
+          ready to post - on desktop or older browsers, the caption is copied for you to paste in instead.
+        </span>
       </Card>
     </div>
   );
