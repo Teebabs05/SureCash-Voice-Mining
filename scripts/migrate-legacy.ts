@@ -39,8 +39,24 @@
  * MySQL server (they normally are, on the same shared-hosting account),
  * just with the old database's name at the end instead.
  */
-import "dotenv/config";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
 import { PrismaClient, KycStatus, UserMiningPlanStatus, CryptoNetwork } from "@prisma/client";
+
+// Minimal, dependency-free .env loader (avoids relying on the `dotenv`
+// package being present in whatever node_modules happens to be deployed -
+// this script only needs DATABASE_URL out of it, nothing fancier).
+function loadDotEnv(path: string) {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)\s*$/);
+    if (!match) continue;
+    const [, key, rawValue] = match;
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = rawValue.replace(/^["']|["']$/g, "");
+  }
+}
+loadDotEnv(join(process.cwd(), ".env"));
 
 const LIVE = process.argv.includes("--live");
 
