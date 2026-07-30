@@ -50,6 +50,7 @@ enum TxnReason {
   EXTRA_SPIN_PURCHASE
   MINING_PLAN_PURCHASE
   MINING_PLAN_PAYOUT
+  AD_REWARD
 }
 
 enum SponsoredPlatform {
@@ -243,6 +244,7 @@ model User {
   supportTicketReplies      SupportTicketReply[]
   sponsoredShares           SponsoredShare[]
   miningPlanInvestments     UserMiningPlan[]
+  adWatches                 AdWatch[]
 
   @@index([referredById])
   @@index([role])
@@ -554,6 +556,7 @@ model Plan {
   taskCenterDailyLimit     Int @default(9999)
   sponsoredPostsDailyLimit Int @default(9999)
   spinDailyLimit           Int @default(9999)
+  watchAdsDailyLimit       Int @default(9999)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -720,6 +723,21 @@ model SpinHistory {
   createdAt    DateTime   @default(now())
 
   @@index([userId])
+}
+
+// One row per completed "watch to earn" - a simple timed placeholder (no
+// real ad network integrated yet; swap in a real rewarded-ad SDK later by
+// changing what the client shows during the countdown, the reward/anti-abuse
+// logic here doesn't need to change).
+model AdWatch {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardAmount Decimal  @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ const schema = z.object({
   taskCenterDailyLimit: z.number().int().positive().default(9999),
   sponsoredPostsDailyLimit: z.number().int().positive().default(9999),
   spinDailyLimit: z.number().int().positive().default(9999),
+  watchAdsDailyLimit: z.number().int().positive().default(9999),
 });
 
 export async function GET() {

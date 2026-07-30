@@ -25,6 +25,7 @@ interface Plan {
   taskCenterDailyLimit: number;
   sponsoredPostsDailyLimit: number;
   spinDailyLimit: number;
+  watchAdsDailyLimit: number;
 }
 
 const FIELDS: Array<{ key: keyof Plan; label: string }> = [
@@ -38,7 +39,7 @@ const FIELDS: Array<{ key: keyof Plan; label: string }> = [
 ];
 
 const DAILY_LIMIT_FIELDS: Array<{
-  key: "voiceEarnDailyLimit" | "wordGameDailyLimit" | "taskCenterDailyLimit" | "sponsoredPostsDailyLimit" | "spinDailyLimit";
+  key: "voiceEarnDailyLimit" | "wordGameDailyLimit" | "taskCenterDailyLimit" | "sponsoredPostsDailyLimit" | "spinDailyLimit" | "watchAdsDailyLimit";
   label: string;
 }> = [
   { key: "voiceEarnDailyLimit", label: "Voice Earn /day (per language)" },
@@ -46,6 +47,7 @@ const DAILY_LIMIT_FIELDS: Array<{
   { key: "taskCenterDailyLimit", label: "Task Center /day" },
   { key: "sponsoredPostsDailyLimit", label: "Sponsored Posts /day" },
   { key: "spinDailyLimit", label: "Lucky Spin /day" },
+  { key: "watchAdsDailyLimit", label: "Watch Ads /day" },
 ];
 
 const NEW_PLAN_DEFAULTS = {
@@ -63,6 +65,7 @@ const NEW_PLAN_DEFAULTS = {
   taskCenterDailyLimit: "9999",
   sponsoredPostsDailyLimit: "9999",
   spinDailyLimit: "9999",
+  watchAdsDailyLimit: "9999",
 };
 
 export default function AdminPlansPage() {
@@ -92,6 +95,7 @@ export default function AdminPlansPage() {
               taskCenterDailyLimit: String(p.taskCenterDailyLimit),
               sponsoredPostsDailyLimit: String(p.sponsoredPostsDailyLimit),
               spinDailyLimit: String(p.spinDailyLimit),
+              watchAdsDailyLimit: String(p.watchAdsDailyLimit),
             },
           ])
         )
@@ -122,6 +126,7 @@ export default function AdminPlansPage() {
           taskCenterDailyLimit: Number(values.taskCenterDailyLimit),
           sponsoredPostsDailyLimit: Number(values.sponsoredPostsDailyLimit),
           spinDailyLimit: Number(values.spinDailyLimit),
+          watchAdsDailyLimit: Number(values.watchAdsDailyLimit),
         }),
       });
       toast.success("Plan updated");
@@ -176,6 +181,7 @@ export default function AdminPlansPage() {
           taskCenterDailyLimit: Number(form.taskCenterDailyLimit),
           sponsoredPostsDailyLimit: Number(form.sponsoredPostsDailyLimit),
           spinDailyLimit: Number(form.spinDailyLimit),
+          watchAdsDailyLimit: Number(form.watchAdsDailyLimit),
         }),
       });
       toast.success("Plan created");

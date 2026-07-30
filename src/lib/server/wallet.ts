@@ -26,6 +26,7 @@ const REASON_LABELS: Record<TxnReason, string> = {
   EXTRA_SPIN_PURCHASE: "Extra spin purchase",
   MINING_PLAN_PURCHASE: "Mining plan investment",
   MINING_PLAN_PAYOUT: "Mining plan daily return",
+  AD_REWARD: "Watch-ad reward",
 };
 
 // Fire-and-forget, same convention as notifyUser()'s push dispatch - a

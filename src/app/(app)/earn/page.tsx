@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, Disc3, ChevronRight, Crown, Lock, TrendingUp } from "lucide-react";
+import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, Disc3, ChevronRight, Crown, Lock, TrendingUp, Tv } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
@@ -79,6 +79,14 @@ const WAYS = [
     icon: Disc3,
     iconClass: "bg-brand-amber/15 text-[#a67c00]",
   },
+  {
+    key: "watchads",
+    href: "/watch-ads",
+    title: "Watch Ads",
+    description: "Watch a short ad, get paid instantly",
+    icon: Tv,
+    iconClass: "bg-brand-primary/15 text-brand-primary",
+  },
 ] as const;
 
 export default function EarnPage() {
@@ -118,6 +126,9 @@ export default function EarnPage() {
       .catch(() => {});
     apiFetch<{ canSpin: boolean }>("/api/spin")
       .then((res) => setStatus((s) => ({ ...s, spin: res.canSpin ? "Ready" : "Claimed" })))
+      .catch(() => {});
+    apiFetch<{ limitReached: boolean }>("/api/ads")
+      .then((res) => setStatus((s) => ({ ...s, watchads: res.limitReached ? "All done" : "Ready" })))
       .catch(() => {});
   }, []);
 

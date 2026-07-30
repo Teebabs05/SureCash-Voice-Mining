@@ -10,7 +10,7 @@ export async function isActivePlanRequired(): Promise<boolean> {
   return getSetting("require_active_plan", false);
 }
 
-export type PlanSection = "voiceEarn" | "wordGame" | "taskCenter" | "sponsoredPosts" | "spin";
+export type PlanSection = "voiceEarn" | "wordGame" | "taskCenter" | "sponsoredPosts" | "spin" | "watchAds";
 
 const SECTION_LIMIT_FIELD: Record<PlanSection, keyof Plan> = {
   voiceEarn: "voiceEarnDailyLimit",
@@ -18,6 +18,7 @@ const SECTION_LIMIT_FIELD: Record<PlanSection, keyof Plan> = {
   taskCenter: "taskCenterDailyLimit",
   sponsoredPosts: "sponsoredPostsDailyLimit",
   spin: "spinDailyLimit",
+  watchAds: "watchAdsDailyLimit",
 };
 
 /** Every plan can access every section - what differs per plan is how many

@@ -28,6 +28,11 @@ const GAMIFICATION_SETTING_FIELDS = [
   { key: "referral_signup_bonus", label: "Referral signup bonus" },
 ];
 
+const WATCH_ADS_SETTING_FIELDS = [
+  { key: "watch_ads_reward_amount", label: "Reward per ad watched" },
+  { key: "watch_ads_duration_seconds", label: "Ad duration (seconds) required before claiming" },
+];
+
 const MANUAL_BANK_FIELDS = [
   { key: "manual_deposit_bank_name", label: "Bank name" },
   { key: "manual_deposit_account_number", label: "Account number" },
@@ -243,6 +248,33 @@ export default function AdminSettingsPage() {
         </p>
         <div className="flex flex-col gap-3">
           {GAMIFICATION_SETTING_FIELDS.map(({ key, label }) => (
+            <div key={key} className="flex items-end gap-2">
+              <Input
+                label={label}
+                type="number"
+                value={settings[key] ?? ""}
+                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
+              />
+              <Button size="sm" loading={loading === key} onClick={() => save(key)}>
+                Save
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Watch Ads to Earn</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Also live — read directly by <code className="mx-1 rounded bg-surface-muted px-1">/api/ads</code> and{" "}
+          <code className="mx-1 rounded bg-surface-muted px-1">/api/ads/watch</code>. No real ad network is wired up
+          yet - users watch a timed placeholder countdown, so this is safe to use as-is or swap for a real rewarded-ad
+          SDK later.
+        </p>
+        <div className="flex flex-col gap-3">
+          {WATCH_ADS_SETTING_FIELDS.map(({ key, label }) => (
             <div key={key} className="flex items-end gap-2">
               <Input
                 label={label}

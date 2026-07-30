@@ -40,6 +40,7 @@ export const XP_CONFIG = {
   perVoiceTask: 8,
   perTaskCenter: 10,
   perMissionClaim: 15,
+  perAdWatch: 5,
 };
 
 /** Free/Silver/Gold/VIP activation tiers — multiply daily voice-task limits
