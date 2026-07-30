@@ -28,6 +28,7 @@ const DOCUMENT_TYPES = [
 export default function KycPage() {
   const router = useRouter();
   const [kycStatus, setKycStatus] = useState<KycStatus>("UNVERIFIED");
+  const [kycEnabled, setKycEnabled] = useState(false);
   const [documents, setDocuments] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [documentType, setDocumentType] = useState(DOCUMENT_TYPES[0].value);
@@ -35,10 +36,11 @@ export default function KycPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
-    apiFetch<{ kycStatus: KycStatus; documents: KycDocument[] }>("/api/kyc")
+    apiFetch<{ kycStatus: KycStatus; documents: KycDocument[]; enabled: boolean }>("/api/kyc")
       .then((res) => {
         setKycStatus(res.kycStatus);
         setDocuments(res.documents);
+        setKycEnabled(res.enabled);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -81,6 +83,11 @@ export default function KycPage() {
         <Card className="flex flex-col items-center gap-2 py-8 text-center">
           <CheckCircle2 className="h-8 w-8 text-brand-green" />
           <p className="font-semibold text-brand-green">Your identity is verified</p>
+        </Card>
+      ) : !kycEnabled && kycStatus === "UNVERIFIED" ? (
+        <Card className="flex flex-col items-center gap-2 py-8 text-center">
+          <p className="font-semibold">Identity verification isn&apos;t available right now</p>
+          <p className="text-xs text-foreground/50">Check back later.</p>
         </Card>
       ) : (
         <Card className="flex flex-col gap-3">

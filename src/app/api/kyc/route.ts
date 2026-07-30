@@ -5,15 +5,16 @@ import { requireUser } from "@/lib/server/current-user";
 import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { saveUploadedFile } from "@/lib/server/storage";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
+import { getSetting } from "@/lib/server/settings";
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const documents = await prisma.kycDocument.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-    });
-    return NextResponse.json({ kycStatus: user.kycStatus, documents });
+    const [documents, enabled] = await Promise.all([
+      prisma.kycDocument.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+      getSetting("kyc_enabled", false),
+    ]);
+    return NextResponse.json({ kycStatus: user.kycStatus, documents, enabled });
   } catch (error) {
     return handleApiError(error);
   }
@@ -24,6 +25,9 @@ const schema = z.object({ documentType: z.string().trim().min(2).max(50) });
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser();
+    if (!(await getSetting("kyc_enabled", false))) {
+      return jsonError("Identity verification is not currently available", 403);
+    }
     if (user.kycStatus === "APPROVED") {
       return jsonError("Your identity is already verified", 400);
     }

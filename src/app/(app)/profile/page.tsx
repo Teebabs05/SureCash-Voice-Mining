@@ -49,6 +49,7 @@ export default function ProfilePage() {
   const [hasBankAccount, setHasBankAccount] = useState(false);
   const [linkedSocialCount, setLinkedSocialCount] = useState(0);
   const [kycStatus, setKycStatus] = useState<"UNVERIFIED" | "PENDING" | "APPROVED" | "REJECTED">("UNVERIFIED");
+  const [kycEnabled, setKycEnabled] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   function load() {
@@ -62,8 +63,11 @@ export default function ProfilePage() {
       const { facebookUrl, instagramHandle, tiktokHandle } = res.socialAccounts;
       setLinkedSocialCount([facebookUrl, instagramHandle, tiktokHandle].filter(Boolean).length);
     });
-    apiFetch<{ kycStatus: "UNVERIFIED" | "PENDING" | "APPROVED" | "REJECTED" }>("/api/kyc").then((res) =>
-      setKycStatus(res.kycStatus)
+    apiFetch<{ kycStatus: "UNVERIFIED" | "PENDING" | "APPROVED" | "REJECTED"; enabled: boolean }>("/api/kyc").then(
+      (res) => {
+        setKycStatus(res.kycStatus);
+        setKycEnabled(res.enabled);
+      }
     );
   }, []);
 
@@ -223,36 +227,38 @@ export default function ProfilePage() {
           </span>
         </Link>
 
-        <Link href="/profile/kyc" className="card flex items-center justify-between gap-3 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
-              <IdCard className="h-4.5 w-4.5" />
+        {(kycEnabled || kycStatus !== "UNVERIFIED") && (
+          <Link href="/profile/kyc" className="card flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                <IdCard className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Identity Verification</p>
+                <p className="text-xs text-foreground/50">Verify your identity (KYC)</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold">Identity Verification</p>
-              <p className="text-xs text-foreground/50">Verify your identity (KYC)</p>
-            </div>
-          </div>
-          <span
-            className={
-              kycStatus === "APPROVED"
-                ? "rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green"
+            <span
+              className={
+                kycStatus === "APPROVED"
+                  ? "rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green"
+                  : kycStatus === "PENDING"
+                    ? "rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]"
+                    : kycStatus === "REJECTED"
+                      ? "rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500"
+                      : "rounded-full bg-surface-muted px-2.5 py-1 text-[10px] font-bold text-foreground/50"
+              }
+            >
+              {kycStatus === "APPROVED"
+                ? "Verified"
                 : kycStatus === "PENDING"
-                  ? "rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]"
+                  ? "Pending"
                   : kycStatus === "REJECTED"
-                    ? "rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500"
-                    : "rounded-full bg-surface-muted px-2.5 py-1 text-[10px] font-bold text-foreground/50"
-            }
-          >
-            {kycStatus === "APPROVED"
-              ? "Verified"
-              : kycStatus === "PENDING"
-                ? "Pending"
-                : kycStatus === "REJECTED"
-                  ? "Rejected"
-                  : "Not verified"}
-          </span>
-        </Link>
+                    ? "Rejected"
+                    : "Not verified"}
+            </span>
+          </Link>
+        )}
 
         <Link href="/profile/social-accounts" className="card flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">

@@ -358,6 +358,26 @@ export default function AdminSettingsPage() {
 
       <Card className="max-w-lg">
         <CardHeader>
+          <CardTitle>Identity verification (KYC)</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Off by default. When off, the &quot;Identity Verification&quot; option is hidden from users who haven&apos;t
+          submitted anything yet (existing submissions/statuses stay visible to whoever already has one). Turn this
+          on to let users upload a document from Profile and have it appear in Admin &gt; KYC Review.
+        </p>
+        <label className="flex items-center gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.kyc_enabled === "true"}
+            disabled={loading === "kyc_enabled"}
+            onChange={(e) => saveBool("kyc_enabled", e.target.checked)}
+          />
+          Enable identity verification (KYC) for users
+        </label>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
           <CardTitle>Manual deposit bank account</CardTitle>
         </CardHeader>
         <p className="mb-3 text-xs text-foreground/50">
