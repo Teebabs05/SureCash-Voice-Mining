@@ -90,6 +90,13 @@ enum UserTier {
   VIP
 }
 
+enum KycStatus {
+  UNVERIFIED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum SupportTicketStatus {
   OPEN
   ANSWERED
@@ -177,16 +184,17 @@ model User {
   fullName     String
   role         UserRole @default(USER)
 
-  emailVerified             Boolean  @default(false)
-  phoneVerified             Boolean  @default(false)
-  isBanned                  Boolean  @default(false)
+  emailVerified             Boolean   @default(false)
+  phoneVerified             Boolean   @default(false)
+  isBanned                  Boolean   @default(false)
   banReason                 String?
-  withdrawalsLocked         Boolean  @default(false)
+  withdrawalsLocked         Boolean   @default(false)
   withdrawalLockNote        String?
-  tier                      UserTier @default(FREE)
+  tier                      UserTier  @default(FREE)
   avatarUrl                 String?
-  emailNotificationsEnabled Boolean  @default(true)
-  loginAlertsEnabled        Boolean  @default(true)
+  emailNotificationsEnabled Boolean   @default(true)
+  loginAlertsEnabled        Boolean   @default(true)
+  kycStatus                 KycStatus @default(UNVERIFIED)
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
@@ -245,6 +253,7 @@ model User {
   sponsoredShares           SponsoredShare[]
   miningPlanInvestments     UserMiningPlan[]
   adWatches                 AdWatch[]
+  kycDocuments              KycDocument[]
 
   @@index([referredById])
   @@index([role])
@@ -738,6 +747,26 @@ model AdWatch {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+// A user's identity-verification submissions. Approving one flips
+// User.kycStatus to APPROVED - nothing else in the app currently gates on
+// that status, so KYC review is informational/compliance record-keeping
+// for now rather than a hard requirement to unlock a feature.
+model KycDocument {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType String
+  fileUrl      String
+  status       KycStatus @default(PENDING)
+  adminNote    String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
