@@ -185,6 +185,10 @@ async function main() {
     );
 
     if (!LIVE) {
+      // Placeholder id so the referral/mining-investment preview sections
+      // below can still resolve "this old user would map to a new user"
+      // during a dry run, without having actually created anyone yet.
+      oldIdToNewId.set(u.id, `dry-run:${u.id}`);
       migratedCount++;
       continue;
     }
@@ -299,7 +303,9 @@ async function main() {
     const newUserId = oldIdToNewId.get(inv.user_id);
     const legacyPlan = legacyPlanById.get(inv.plan_id);
     if (!newUserId || !legacyPlan) {
-      console.log(`  skipping investment ${inv.id} - missing user or plan reference`);
+      console.log(
+        `  skipping investment ${inv.id} - ${!newUserId ? `no user found for legacy user_id ${inv.user_id}` : `no plan found for legacy plan_id ${inv.plan_id}`}`
+      );
       continue;
     }
 
