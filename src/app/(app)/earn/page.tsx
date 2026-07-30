@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, Disc3, ChevronRight, Crown, Lock } from "lucide-react";
+import { Pickaxe, Mic, ClipboardCheck, Camera, BookOpen, Disc3, ChevronRight, Crown, Lock, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api-client";
@@ -30,6 +30,14 @@ const WAYS = [
     description: "Claim your free daily reward and build a streak",
     icon: Pickaxe,
     iconClass: "bg-brand-primary/15 text-brand-primary",
+  },
+  {
+    key: "miningplans",
+    href: "/mining-plans",
+    title: "Mining Plans",
+    description: "Invest once, earn a fixed return every day",
+    icon: TrendingUp,
+    iconClass: "bg-brand-green/15 text-brand-green",
   },
   {
     key: "voice",

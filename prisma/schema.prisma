@@ -48,6 +48,8 @@ enum TxnReason {
   PLAN_COMMISSION
   SPONSORED_POST_REWARD
   EXTRA_SPIN_PURCHASE
+  MINING_PLAN_PURCHASE
+  MINING_PLAN_PAYOUT
 }
 
 enum SponsoredPlatform {
@@ -240,6 +242,7 @@ model User {
   supportTickets            SupportTicket[]
   supportTicketReplies      SupportTicketReply[]
   sponsoredShares           SponsoredShare[]
+  miningPlanInvestments     UserMiningPlan[]
 
   @@index([referredById])
   @@index([role])
@@ -556,6 +559,66 @@ model Plan {
   updatedAt DateTime @updatedAt
 
   users User[]
+}
+
+// Investment-style mining products - distinct from the free daily-claim
+// "Daily Mining" streak feature. A user buys in at `price`, then earns a
+// fixed `dailyReturn` credited to their wallet once a day for
+// `durationDays`, after which the investment ends. Unlike Plan (a
+// permanent rate-boost subscription), this has a principal, a payout
+// schedule, and an expiry.
+model MiningPlan {
+  id           String   @id @default(cuid())
+  name         String
+  price        Decimal  @db.Decimal(18, 2)
+  dailyReturn  Decimal  @db.Decimal(18, 2)
+  durationDays Int      @default(30)
+  description  String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  investments UserMiningPlan[]
+}
+
+enum UserMiningPlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model UserMiningPlan {
+  id             String               @id @default(cuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId         String
+  plan           MiningPlan           @relation(fields: [planId], references: [id])
+  amountInvested Decimal              @db.Decimal(18, 2)
+  totalEarned    Decimal              @default(0) @db.Decimal(18, 2)
+  startedAt      DateTime             @default(now())
+  nextPayoutAt   DateTime
+  endsAt         DateTime
+  status         UserMiningPlanStatus @default(ACTIVE)
+  createdAt      DateTime             @default(now())
+
+  payouts MiningPlanPayout[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextPayoutAt])
+}
+
+model MiningPlanPayout {
+  id               String         @id @default(cuid())
+  userMiningPlanId String
+  userMiningPlan   UserMiningPlan @relation(fields: [userMiningPlanId], references: [id], onDelete: Cascade)
+  userId           String
+  amount           Decimal        @db.Decimal(18, 2)
+  createdAt        DateTime       @default(now())
+
+  @@index([userId])
+  @@index([userMiningPlanId])
 }
 
 // ---------------------------------------------------------------------------

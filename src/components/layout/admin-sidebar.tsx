@@ -22,6 +22,7 @@ import {
   X,
   Landmark,
   Disc3,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
@@ -38,6 +39,7 @@ const items = [
   { href: "/admin/tasks", label: "Task Center", icon: ClipboardCheck },
   { href: "/admin/spin-rewards", label: "Spin Wheel", icon: Disc3 },
   { href: "/admin/plans", label: "Plans", icon: Crown },
+  { href: "/admin/mining-plans", label: "Mining Plans", icon: TrendingUp },
   { href: "/admin/promo-codes", label: "Promo Codes", icon: Gift },
   { href: "/admin/support", label: "Support Tickets", icon: Ticket },
   { href: "/admin/fraud", label: "Fraud Dashboard", icon: ShieldAlert },

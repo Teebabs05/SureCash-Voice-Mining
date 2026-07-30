@@ -24,6 +24,8 @@ const REASON_LABELS: Record<TxnReason, string> = {
   PLAN_COMMISSION: "Referral commission",
   SPONSORED_POST_REWARD: "Sponsored post reward",
   EXTRA_SPIN_PURCHASE: "Extra spin purchase",
+  MINING_PLAN_PURCHASE: "Mining plan investment",
+  MINING_PLAN_PAYOUT: "Mining plan daily return",
 };
 
 // Fire-and-forget, same convention as notifyUser()'s push dispatch - a
