@@ -161,6 +161,17 @@ async function main() {
   const oldIdToNewId = new Map<number, string>();
   const skippedEmails: string[] = [];
   const bankAccountsNeedingReview: string[] = [];
+  const phoneDropped: string[] = [];
+  const referralCodeRewritten: string[] = [];
+
+  // Phone and referral code are both @unique on the new User model - a
+  // legacy value can collide with an existing new-app account, or with
+  // another legacy user sharing the same phone. Pre-load what's already
+  // taken and track additions as we go, rather than finding out mid-write.
+  const usedPhones = new Set(
+    (await db.user.findMany({ where: { phone: { not: null } }, select: { phone: true } })).map((u) => u.phone as string)
+  );
+  const usedReferralCodes = new Set((await db.user.findMany({ select: { referralCode: true } })).map((u) => u.referralCode));
 
   let migratedCount = 0;
 
@@ -193,11 +204,28 @@ async function main() {
       continue;
     }
 
+    let phone = u.phone || null;
+    if (phone) {
+      if (usedPhones.has(phone)) {
+        phoneDropped.push(`${u.email} (${phone})`);
+        phone = null;
+      } else {
+        usedPhones.add(phone);
+      }
+    }
+
+    let referralCode = u.referral_code;
+    if (usedReferralCodes.has(referralCode)) {
+      referralCode = `${referralCode}-${u.id}`;
+      referralCodeRewritten.push(`${u.email}: ${u.referral_code} -> ${referralCode}`);
+    }
+    usedReferralCodes.add(referralCode);
+
     const created = await db.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           email: u.email,
-          phone: u.phone || null,
+          phone,
           passwordHash: u.password,
           fullName: u.full_name,
           emailVerified: u.email_verified_at !== null,
@@ -205,7 +233,7 @@ async function main() {
           banReason: u.status === "suspended" ? "Migrated as suspended from the old platform - review status." : null,
           loginAlertsEnabled: Boolean(u.login_notifications_enabled),
           kycStatus: KYC_MAP[u.kyc_status] ?? "UNVERIFIED",
-          referralCode: u.referral_code,
+          referralCode,
           createdAt: u.created_at,
         },
       });
@@ -350,6 +378,14 @@ async function main() {
 
   if (bankAccountsNeedingReview.length > 0) {
     console.log(`\n${bankAccountsNeedingReview.length} bank account(s) migrated without a bank code - review in Admin > Bank Accounts before any withdrawal relies on them.`);
+  }
+  if (phoneDropped.length > 0) {
+    console.log(`\n${phoneDropped.length} user(s) migrated WITHOUT their phone number (it was already taken by another account):`);
+    for (const line of phoneDropped) console.log(`  ${line}`);
+  }
+  if (referralCodeRewritten.length > 0) {
+    console.log(`\n${referralCodeRewritten.length} referral code(s) had to be changed to avoid a collision:`);
+    for (const line of referralCodeRewritten) console.log(`  ${line}`);
   }
 
   console.log(`\n=== Done. ${LIVE ? "Changes were written." : "Nothing was written - re-run with --live to apply."} ===\n`);
