@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       await creditWallet({
         userId: withdrawal.userId,
-        type: "MAIN",
+        type: withdrawal.walletType,
         amount: Number(withdrawal.amount) + Number(withdrawal.fee),
         reason: "WITHDRAWAL_REVERSAL",
         description: `Withdrawal ${withdrawal.reference} rejected — funds returned`,
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await notifyUser({
         userId: withdrawal.userId,
         title: "Withdrawal rejected",
-        body: reason ?? "Your withdrawal was rejected and the funds have been returned to your Main wallet.",
+        body: reason ?? `Your withdrawal was rejected and the funds have been returned to your ${withdrawal.walletType === "SALES" ? "Sales" : "Engagement"} wallet.`,
         type: "WALLET",
         client: tx,
       });

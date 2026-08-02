@@ -17,6 +17,10 @@ export async function GET() {
       totalWithdrawalsPaid,
       voiceRecordingsToday,
       last7DaysSignups,
+      bankAccountsNeedingReview,
+      pendingTaskProofReview,
+      pendingKycReview,
+      openSupportTickets,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { emailVerified: true } }),
@@ -32,6 +36,10 @@ export async function GET() {
         WHERE \`createdAt\` > NOW() - INTERVAL 7 DAY
         GROUP BY 1 ORDER BY 1
       `,
+      prisma.bankAccount.count({ where: { autoVerified: false, reviewedAt: null } }),
+      prisma.userTaskCompletion.count({ where: { status: "PENDING_REVIEW" } }),
+      prisma.kycDocument.count({ where: { status: "PENDING" } }),
+      prisma.supportTicket.count({ where: { status: "OPEN" } }),
     ]);
 
     return NextResponse.json({
@@ -44,6 +52,10 @@ export async function GET() {
       totalWithdrawalsPaid: Number(totalWithdrawalsPaid._sum.amount ?? 0),
       voiceRecordingsToday,
       signupTrend: last7DaysSignups.map((r) => ({ day: r.day, count: Number(r.count) })),
+      bankAccountsNeedingReview,
+      pendingTaskProofReview,
+      pendingKycReview,
+      openSupportTickets,
     });
   } catch (error) {
     return handleApiError(error);

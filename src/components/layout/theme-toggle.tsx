@@ -10,7 +10,7 @@ function getSystemTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const [theme, setTheme] = useState<Theme | null>(null);
 
   useEffect(() => {
@@ -26,6 +26,18 @@ export function ThemeToggle() {
   }
 
   if (!theme) return null;
+
+  if (compact) {
+    return (
+      <button
+        onClick={() => apply(theme === "light" ? "dark" : "light")}
+        aria-label="Toggle dark mode"
+        className="rounded-full p-2 hover:bg-surface-muted"
+      >
+        {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+      </button>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 rounded-xl bg-surface-muted p-1">

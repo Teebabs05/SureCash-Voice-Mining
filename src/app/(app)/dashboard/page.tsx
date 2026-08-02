@@ -30,10 +30,12 @@ import {
   CheckSquare,
   ArrowUpRight,
   PartyPopper,
+  Banknote,
 } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { BillPaymentsArc } from "@/components/dashboard/bill-payments-arc";
 import { TopEarnerFab } from "@/components/dashboard/top-earner-fab";
+import { CommunityPromptSheet } from "@/components/dashboard/community-prompt-sheet";
 import { MissionsCard } from "@/components/dashboard/missions-card";
 import { ActivityTicker } from "@/components/dashboard/activity-ticker";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,6 +122,14 @@ const BILL_PAYMENTS = [
     description: "Renew TV subscriptions straight from your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
     raised: true,
   },
+  {
+    label: "Airtime to Cash",
+    icon: Banknote,
+    iconClass: "bg-brand-primary/15 text-brand-primary",
+    color: "primary" as const,
+    description: "Convert airtime to cash straight into your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
+    raised: false,
+  },
 ];
 
 const QUICK_ACTIONS = [
@@ -170,9 +180,15 @@ function DashboardContent() {
   const [sponsoredRate, setSponsoredRate] = useState(50);
   const [resending, setResending] = useState(false);
   const [depositSuccess, setDepositSuccess] = useState<number | null>(null);
+  const [communityPrompt, setCommunityPrompt] = useState<{ whatsappUrl: string; telegramUrl: string } | null>(null);
 
   useEffect(() => {
     apiFetch<DashboardData>("/api/dashboard").then(setData);
+    apiFetch<{ show: boolean; whatsappUrl: string; telegramUrl: string }>("/api/community-prompt")
+      .then((res) => {
+        if (res.show) setCommunityPrompt({ whatsappUrl: res.whatsappUrl, telegramUrl: res.telegramUrl });
+      })
+      .catch(() => {});
     apiFetch<ReferralData>("/api/referrals").then(setReferral).catch(() => {});
     apiFetch<{ languages: { limitReached: boolean }[] }>("/api/voice/tasks?category=session")
       .then((res) =>
@@ -646,6 +662,14 @@ function DashboardContent() {
       </div>
 
       <TopEarnerFab fullName={data.user.fullName} lifetimeEarnings={data.earnings.lifetime} />
+
+      {communityPrompt && (
+        <CommunityPromptSheet
+          whatsappUrl={communityPrompt.whatsappUrl}
+          telegramUrl={communityPrompt.telegramUrl}
+          onClose={() => setCommunityPrompt(null)}
+        />
+      )}
 
       {depositSuccess !== null && (
         <div className="fixed inset-0 z-50 flex items-end">

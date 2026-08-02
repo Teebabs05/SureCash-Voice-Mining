@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bell, Menu } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { SideDrawer } from "@/components/layout/side-drawer";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 export function TopBar({ title }: { title: string }) {
   const [unread, setUnread] = useState(0);
@@ -25,14 +26,17 @@ export function TopBar({ title }: { title: string }) {
           </button>
           <span className="text-lg font-bold text-brand-primary">{title}</span>
         </div>
-        <Link href="/profile/notifications" className="relative rounded-full p-2 hover:bg-surface-muted">
-          <Bell className="h-5 w-5" />
-          {unread > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-amber text-[10px] font-bold text-[#3a2c00]">
-              {unread > 9 ? "9+" : unread}
-            </span>
-          )}
-        </Link>
+        <div className="flex items-center gap-1">
+          <ThemeToggle compact />
+          <Link href="/profile/notifications" className="relative rounded-full p-2 hover:bg-surface-muted">
+            <Bell className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-amber text-[10px] font-bold text-[#3a2c00]">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+          </Link>
+        </div>
       </header>
       <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </>

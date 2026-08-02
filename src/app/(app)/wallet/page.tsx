@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency, cn } from "@/lib/utils";
-import { WALLET_META, WALLET_ORDER } from "@/lib/wallet-meta";
+import { WALLET_META, TRANSFERABLE_WALLETS } from "@/lib/wallet-meta";
 
 interface WalletTxn {
   id: string;
@@ -27,7 +27,7 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<WalletTxn[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTransfer, setShowTransfer] = useState(false);
-  const [transfer, setTransfer] = useState({ from: "MAIN", to: "ENGAGEMENT", amount: "" });
+  const [transfer, setTransfer] = useState({ from: "ENGAGEMENT", to: "SALES", amount: "" });
   const [transferLoading, setTransferLoading] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
@@ -114,14 +114,20 @@ export default function WalletPage() {
           <CardHeader>
             <CardTitle>Transfer between wallets</CardTitle>
           </CardHeader>
+          <p className="-mt-2 text-xs text-foreground/50">
+            Move money between your Engagement and Sales wallets. Main wallet isn&apos;t part of transfers.
+          </p>
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={transfer.from}
-                onChange={(e) => setTransfer({ ...transfer, from: e.target.value })}
+                onChange={(e) => {
+                  const from = e.target.value as "ENGAGEMENT" | "SALES";
+                  setTransfer({ ...transfer, from, to: from === "ENGAGEMENT" ? "SALES" : "ENGAGEMENT" });
+                }}
                 className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
               >
-                {WALLET_ORDER.map((w) => (
+                {TRANSFERABLE_WALLETS.map((w) => (
                   <option key={w} value={w}>
                     {WALLET_META[w].label}
                   </option>
@@ -129,10 +135,10 @@ export default function WalletPage() {
               </select>
               <select
                 value={transfer.to}
-                onChange={(e) => setTransfer({ ...transfer, to: e.target.value })}
-                className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+                disabled
+                className="rounded-xl border border-border bg-surface-muted px-3 py-2 text-sm text-foreground/60"
               >
-                {WALLET_ORDER.map((w) => (
+                {TRANSFERABLE_WALLETS.map((w) => (
                   <option key={w} value={w}>
                     {WALLET_META[w].label}
                   </option>

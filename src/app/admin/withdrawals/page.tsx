@@ -11,6 +11,7 @@ import { WithdrawalStepper } from "@/components/wallet/withdrawal-stepper";
 interface Withdrawal {
   id: string;
   method: string;
+  walletType: string;
   amount: string;
   usdtAmount: string | null;
   fee: string;
@@ -97,6 +98,7 @@ export default function AdminWithdrawalsPage() {
                   {w.method === "USDT" && w.usdtAmount && (
                     <span className="ml-1 text-xs text-foreground/50">≈ {w.usdtAmount} USDT</span>
                   )}
+                  <span className="ml-1 text-xs text-foreground/50">from {w.walletType === "SALES" ? "Sales" : "Engagement"} wallet</span>
                 </p>
                 {w.method === "BANK" && w.bankAccount && (
                   <p className="text-xs text-foreground/50">

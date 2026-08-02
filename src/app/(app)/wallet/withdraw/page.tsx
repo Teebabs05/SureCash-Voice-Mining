@@ -12,6 +12,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { WithdrawalStepper } from "@/components/wallet/withdrawal-stepper";
 import { BankAccountForm } from "@/components/wallet/bank-account-form";
 import { CryptoWalletForm } from "@/components/wallet/crypto-wallet-form";
+import { WALLET_META, TRANSFERABLE_WALLETS } from "@/lib/wallet-meta";
+import type { WalletType } from "@prisma/client";
 
 interface BankAccount {
   id: string;
@@ -52,6 +54,8 @@ export default function WithdrawPage() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [selectedCryptoWallet, setSelectedCryptoWallet] = useState<string>("");
+  const [walletType, setWalletType] = useState<WalletType>("ENGAGEMENT");
+  const [walletBalances, setWalletBalances] = useState<Record<string, number>>({});
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -71,6 +75,9 @@ export default function WithdrawPage() {
       if (res.wallets.length > 0) setSelectedCryptoWallet((prev) => prev || res.wallets[0].id);
     });
     apiFetch<{ withdrawals: Withdrawal[] }>("/api/withdrawals").then((res) => setWithdrawals(res.withdrawals));
+    apiFetch<{ wallets: { type: string; balance: number }[] }>("/api/wallet").then((res) =>
+      setWalletBalances(Object.fromEntries(res.wallets.map((w) => [w.type, w.balance])))
+    );
   }, []);
 
   useEffect(() => {
@@ -137,6 +144,7 @@ export default function WithdrawPage() {
         body: JSON.stringify({
           amount: Number(amount),
           method,
+          walletType,
           bankAccountId: method === "BANK" ? selectedAccount : undefined,
           cryptoWalletId: method === "USDT" ? selectedCryptoWallet : undefined,
         }),
@@ -290,6 +298,28 @@ export default function WithdrawPage() {
           )}
         </Card>
       )}
+
+      <Card>
+        <p className="mb-2 text-sm font-semibold">Withdraw from</p>
+        <div className="grid grid-cols-2 gap-2">
+          {TRANSFERABLE_WALLETS.map((w) => (
+            <button
+              key={w}
+              onClick={() => setWalletType(w)}
+              className={cn(
+                "rounded-xl border p-3 text-left",
+                walletType === w ? "border-brand-primary bg-brand-primary/5" : "border-border"
+              )}
+            >
+              <p className="text-sm font-medium">{WALLET_META[w].label}</p>
+              <p className="text-xs text-foreground/50">{formatCurrency(walletBalances[w] ?? 0)} available</p>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-foreground/50">
+          Main wallet is for deposits and site spending only — it can&apos;t be withdrawn from.
+        </p>
+      </Card>
 
       <Card>
         <Input label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />

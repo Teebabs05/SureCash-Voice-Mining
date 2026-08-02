@@ -79,7 +79,10 @@ function LoginForm() {
       <Link href="/" className="flex w-fit items-center gap-1.5 text-xs font-medium text-foreground/50 hover:text-foreground/70">
         <Home className="h-3.5 w-3.5" /> Home
       </Link>
-      <h2 className="text-lg font-semibold">Welcome back</h2>
+      <div>
+        <h2 className="text-3xl font-bold">Welcome back</h2>
+        <p className="mt-1 text-sm text-foreground/60">Log in to keep earning with SureCash Mining.</p>
+      </div>
       <Input
         label="Email"
         type="email"

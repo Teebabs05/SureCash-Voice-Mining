@@ -202,6 +202,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ completion, reward: effectiveReward, pending: false });
       }
 
+      // rewardPaid holds the promised amount here, not yet actually paid -
+      // admin approval credits the wallet for this exact figure so the
+      // payout matches what was true at submission time even if the user's
+      // plan (and re-priced reward) changes before review happens.
       const completion = await prisma.userTaskCompletion.create({
         data: {
           userId: user.id,
@@ -209,7 +213,7 @@ export async function POST(req: NextRequest) {
           status: "PENDING_REVIEW",
           proofUrl,
           proofText,
-          rewardPaid: 0,
+          rewardPaid: effectiveReward,
         },
       });
       return NextResponse.json({ completion, pending: true });

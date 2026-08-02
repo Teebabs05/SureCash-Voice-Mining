@@ -195,6 +195,10 @@ model User {
   emailNotificationsEnabled Boolean   @default(true)
   loginAlertsEnabled        Boolean   @default(true)
   kycStatus                 KycStatus @default(UNVERIFIED)
+  // Set the first time the "join our community" prompt is shown (fires once,
+  // on the first login that happens >=24h after signup) - null means not
+  // shown yet.
+  communityPromptSeenAt     DateTime?
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
@@ -454,6 +458,9 @@ model Withdrawal {
   userId              String
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   method              WithdrawalMethod @default(BANK)
+  // Withdrawals only ever draw from ENGAGEMENT or SALES (never MAIN, which
+  // is reserved for site spending like Bills/VTU) - kept for the record.
+  walletType          WalletType       @default(ENGAGEMENT)
   bankAccountId       String?
   bankAccount         BankAccount?     @relation(fields: [bankAccountId], references: [id])
   cryptoWalletId      String?
@@ -800,10 +807,16 @@ model UserTaskCompletion {
   proofImageUrl  String?
   proofImageHash String?
   rewardPaid     Decimal        @db.Decimal(18, 2)
+  // Set once an admin approves/rejects a "PENDING_REVIEW" submission - stays
+  // null for tasks that don't require proof (those pay out immediately).
+  reviewedAt     DateTime?
+  reviewedById   String?
+  adminNote      String?
   createdAt      DateTime       @default(now())
 
   @@index([userId])
   @@index([proofImageHash])
+  @@index([status])
 }
 
 // A single active campaign (caption/link/banner/reward) lives in Setting

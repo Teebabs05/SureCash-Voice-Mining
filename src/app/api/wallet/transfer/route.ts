@@ -6,7 +6,9 @@ import { handleApiError } from "@/lib/server/api-response";
 import { creditWallet, debitWallet } from "@/lib/server/wallet";
 import { generateReference } from "@/lib/utils";
 
-const walletTypes = ["MAIN", "ENGAGEMENT", "SALES"] as const;
+// Transfers only ever move money between ENGAGEMENT and SALES - MAIN is
+// reserved for site spending (Bills/VTU) and isn't a transfer source/target.
+const walletTypes = ["ENGAGEMENT", "SALES"] as const;
 
 const schema = z
   .object({

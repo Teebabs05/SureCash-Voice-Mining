@@ -20,6 +20,9 @@ import {
 const schema = z.object({
   amount: z.number().positive(),
   method: z.enum(["BANK", "USDT"]).default("BANK"),
+  // Main wallet is deposit/site-spending only - withdrawals only ever draw
+  // from Engagement or Sales.
+  walletType: z.enum(["ENGAGEMENT", "SALES"]).default("ENGAGEMENT"),
   bankAccountId: z.string().min(1).optional(),
   cryptoWalletId: z.string().min(1).optional(),
 });
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
       withdrawal = await prisma.$transaction(async (tx) => {
         await debitWallet({
           userId: user.id,
-          type: "MAIN",
+          type: body.walletType,
           amount: totalDebit,
           reason: "WITHDRAWAL",
           description: `Withdrawal request ${reference}`,
@@ -100,6 +103,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             method: "BANK",
+            walletType: body.walletType,
             bankAccountId: body.bankAccountId,
             amount: body.amount,
             fee,
@@ -128,7 +132,7 @@ export async function POST(req: NextRequest) {
       withdrawal = await prisma.$transaction(async (tx) => {
         await debitWallet({
           userId: user.id,
-          type: "MAIN",
+          type: body.walletType,
           amount: totalDebit,
           reason: "WITHDRAWAL",
           description: `USDT withdrawal request ${reference}`,
@@ -140,6 +144,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             method: "USDT",
+            walletType: body.walletType,
             cryptoWalletId: body.cryptoWalletId,
             amount: body.amount,
             usdtAmount,

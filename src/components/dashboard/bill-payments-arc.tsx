@@ -17,9 +17,12 @@ const DIP_OFFSET = 44;
 
 export function BillPaymentsArc({ items }: { items: ArcItem[] }) {
   const [selected, setSelected] = useState<ArcItem | null>(null);
+  // Doubled so the marquee loop is seamless - translateX(-50%) lands exactly
+  // back on the first set.
+  const looped = [...items, ...items];
 
   return (
-    <div className="relative" style={{ minHeight: 90 + DIP_OFFSET }}>
+    <div className="relative overflow-hidden" style={{ minHeight: 90 + DIP_OFFSET }}>
       <svg
         viewBox="0 0 400 90"
         preserveAspectRatio="none"
@@ -27,14 +30,14 @@ export function BillPaymentsArc({ items }: { items: ArcItem[] }) {
       >
         <path d="M10,10 C110,85 290,85 390,10" fill="none" stroke="currentColor" strokeWidth="1.5" />
       </svg>
-      <div className="relative flex items-start justify-between">
-        {items.map((item) => {
+      <div className="animate-marquee-x relative flex w-max items-start gap-8">
+        {looped.map((item, i) => {
           const { label, icon: Icon, iconClass, raised } = item;
           return (
             <button
-              key={label}
+              key={`${label}-${i}`}
               onClick={() => setSelected(item)}
-              className="flex flex-col items-center gap-1.5 transition-transform active:scale-95"
+              className="flex flex-none flex-col items-center gap-1.5 transition-transform active:scale-95"
               style={{ transform: `translateY(${raised ? 0 : DIP_OFFSET}px)` }}
             >
               <div className={`flex h-14 w-14 items-center justify-center rounded-full ${iconClass}`}>
