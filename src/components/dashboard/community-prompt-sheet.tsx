@@ -42,7 +42,7 @@ export function CommunityPromptSheet({ whatsappUrl, telegramUrl, onClose }: Comm
                 target="_blank"
                 rel="noreferrer"
                 onClick={dismiss}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] text-sm font-bold text-white"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl gradient-brand text-sm font-bold text-white"
               >
                 <MessageCircle className="h-4 w-4" /> Join WhatsApp Group
               </a>
@@ -53,7 +53,7 @@ export function CommunityPromptSheet({ whatsappUrl, telegramUrl, onClose }: Comm
                 target="_blank"
                 rel="noreferrer"
                 onClick={dismiss}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#26A5E4]/10 text-sm font-bold text-[#1a8cc9]"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-green/10 text-sm font-bold text-brand-green"
               >
                 <Send className="h-4 w-4" /> Join Telegram Channel
               </a>
