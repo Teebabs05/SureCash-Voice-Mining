@@ -258,14 +258,24 @@ async function main() {
       }
 
       const bankAccounts = bankAccountsByUserId.get(u.id) ?? [];
+      // Every migrated bank account gets the same blank bankCode, and crypto
+      // wallets are looked up by (userId, address, network) - a legacy user
+      // with two rows sharing an account number (or address+network) would
+      // otherwise trip the new schema's unique constraints. Keep only the
+      // first occurrence per user.
+      const seenAccountNumbers = new Set<string>();
+      const seenCryptoWallets = new Set<string>();
       for (const acc of bankAccounts) {
         if (acc.type === "bank") {
+          const accountNumber = acc.account_number ?? "";
+          if (seenAccountNumbers.has(accountNumber)) continue;
+          seenAccountNumbers.add(accountNumber);
           await tx.bankAccount.create({
             data: {
               userId: newUser.id,
               bankName: acc.bank_name ?? "Unknown",
               bankCode: "", // old system never stored a bank code - needs manual admin review before it can be used for auto-payout
-              accountNumber: acc.account_number ?? "",
+              accountNumber,
               accountName: acc.account_name ?? u.full_name,
               isPrimary: Boolean(acc.is_default),
               autoVerified: false,
@@ -275,11 +285,15 @@ async function main() {
           });
           bankAccountsNeedingReview.push(`${u.email}: ${acc.bank_name} ${acc.account_number}`);
         } else if (acc.usdt_address) {
+          const network = mapNetwork(acc.network);
+          const cryptoKey = `${acc.usdt_address}:${network}`;
+          if (seenCryptoWallets.has(cryptoKey)) continue;
+          seenCryptoWallets.add(cryptoKey);
           await tx.cryptoWallet.create({
             data: {
               userId: newUser.id,
               address: acc.usdt_address,
-              network: mapNetwork(acc.network),
+              network,
               isVerified: false,
             },
           });
