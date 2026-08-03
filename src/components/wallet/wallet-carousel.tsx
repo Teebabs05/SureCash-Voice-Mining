@@ -143,7 +143,7 @@ export function WalletCarousel({ wallets, totalCard }: { wallets: WalletCardData
   const walletCards = WALLET_ORDER.map((type) => wallets.find((w) => w.type === type)).filter(
     (w): w is WalletCardData => Boolean(w)
   );
-  const ordered: CarouselCard[] = totalCard ? [totalCard, ...walletCards] : walletCards;
+  const ordered: CarouselCard[] = totalCard ? [...walletCards, totalCard] : walletCards;
 
   const [active, setActive] = useState(0);
   const [dragDir, setDragDir] = useState<1 | -1>(1);

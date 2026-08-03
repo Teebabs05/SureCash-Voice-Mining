@@ -28,7 +28,9 @@ export default function WalletPage() {
   const [planName, setPlanName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<WalletTxn[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showTransfer, setShowTransfer] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("transfer") === "1"
+  );
   const [transfer, setTransfer] = useState({ from: "ENGAGEMENT", to: "SALES", amount: "" });
   const [transferLoading, setTransferLoading] = useState(false);
   const [promoCode, setPromoCode] = useState("");

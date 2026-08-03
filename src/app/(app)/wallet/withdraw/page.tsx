@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Plus, ShieldCheck, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -360,6 +361,16 @@ export default function WithdrawPage() {
         </div>
         <p className="mt-2 text-xs text-foreground/50">
           Deposit wallet is for deposits and site spending only — it can&apos;t be withdrawn from.
+        </p>
+        <Link
+          href="/wallet?transfer=1"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-brand-primary"
+        >
+          <Repeat className="h-4 w-4" /> Transfer between wallets
+        </Link>
+        <p className="mt-2 text-xs text-foreground/50">
+          Short on balance in one of these? Move money from Engagement to Sales (or vice versa) so you have enough
+          to withdraw.
         </p>
       </Card>
 
