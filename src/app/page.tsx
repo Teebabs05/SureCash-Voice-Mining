@@ -16,6 +16,9 @@ import {
   Zap,
   Tv,
   Megaphone,
+  ShieldCheck,
+  BadgeCheck,
+  Clock,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/server/current-user";
 import { formatCurrency } from "@/lib/utils";
@@ -43,6 +46,12 @@ const VTU_SERVICES = [
   { icon: Zap, label: "Electricity" },
   { icon: Tv, label: "Cable TV" },
   { icon: Banknote, label: "Airtime to Cash" },
+];
+
+const TRUST_BADGES = [
+  { icon: ShieldCheck, label: "Bank-level security" },
+  { icon: BadgeCheck, label: "KYC verified members" },
+  { icon: Clock, label: "Fast payouts" },
 ];
 
 const STATS = [
@@ -257,6 +266,24 @@ export default async function Home() {
                 </div>
               ))}
             </div>
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold">Your money is safe with us</h2>
+            <p className="text-sm text-foreground/60">Real payouts, verified members, secured transactions.</p>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {TRUST_BADGES.map(({ icon: Icon, label }) => (
+                <div key={label} className="card flex flex-col items-center gap-2 p-3 text-center">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <p className="text-xs font-semibold leading-tight">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-center text-[11px] text-foreground/40">
+              Deposits &amp; withdrawals powered by Paystack, Flutterwave, Monnify &amp; Korapay.
+            </p>
           </div>
 
           <Link
