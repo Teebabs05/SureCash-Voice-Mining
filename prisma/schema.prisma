@@ -258,9 +258,28 @@ model User {
   miningPlanInvestments     UserMiningPlan[]
   adWatches                 AdWatch[]
   kycDocuments              KycDocument[]
+  webauthnCredentials       WebAuthnCredential[]
 
   @@index([referredById])
   @@index([role])
+}
+
+// A registered biometric/passkey credential (Face ID, fingerprint, Windows
+// Hello, etc.) - registered as a discoverable/resident credential so login
+// works without the user typing their email first. "Biometric enabled" in
+// the UI just means this user has at least one row here.
+model WebAuthnCredential {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    String
+  counter      Int       @default(0)
+  deviceLabel  String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
 }
 
 model AdminProfile {

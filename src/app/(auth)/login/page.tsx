@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useState, FormEvent } from "react";
+import { Suspense, useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Home } from "lucide-react";
+import { Home, Fingerprint } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { biometricSupported, loginWithBiometric } from "@/lib/biometric-client";
 
 function LoginForm() {
   const router = useRouter();
@@ -18,6 +19,27 @@ function LoginForm() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [pending2fa, setPending2fa] = useState<{ uid: string } | null>(null);
   const [code, setCode] = useState("");
+  const [showBiometric, setShowBiometric] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time browser capability check
+    setShowBiometric(biometricSupported());
+  }, []);
+
+  async function onBiometricLogin() {
+    setError(null);
+    setBiometricLoading(true);
+    try {
+      const res = await loginWithBiometric();
+      router.push(res.user.role === "USER" ? "/dashboard" : "/admin");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Biometric login failed");
+    } finally {
+      setBiometricLoading(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -104,6 +126,17 @@ function LoginForm() {
       <Button type="submit" loading={loading} className="w-full">
         Log in
       </Button>
+      {showBiometric && (
+        <Button
+          type="button"
+          variant="outline"
+          loading={biometricLoading}
+          onClick={onBiometricLogin}
+          className="w-full"
+        >
+          <Fingerprint className="h-4 w-4" /> Log in with biometrics
+        </Button>
+      )}
       <p className="text-center text-sm text-foreground/60">
         New to SureCash Mining?{" "}
         <Link href="/register" className="font-medium text-brand-primary">

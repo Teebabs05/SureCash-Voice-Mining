@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Smartphone, ShieldAlert, History, Monitor, LogOut } from "lucide-react";
+import { ArrowLeft, Smartphone, ShieldAlert, History, Monitor, LogOut, Fingerprint } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import { biometricSupported, registerBiometric } from "@/lib/biometric-client";
 
 interface Me {
   user: { twoFactorEnabled?: boolean; phone?: string | null; phoneVerified?: boolean };
@@ -49,6 +50,9 @@ export default function SecurityPage() {
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "" });
   const [loading, setLoading] = useState(false);
   const [sessionBusyId, setSessionBusyId] = useState<string | null>(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   function loadSessions() {
     apiFetch<{ sessions: Session[] }>("/api/security/sessions").then((res) => setSessions(res.sessions));
@@ -62,6 +66,9 @@ export default function SecurityPage() {
     });
     apiFetch<{ devices: Device[] }>("/api/devices").then((res) => setDevices(res.devices));
     apiFetch<{ logins: LoginEvent[] }>("/api/security/login-history").then((res) => setLogins(res.logins));
+    apiFetch<{ enabled: boolean }>("/api/security/biometric").then((res) => setBiometricEnabled(res.enabled));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time browser capability check
+    setBiometricAvailable(biometricSupported());
     loadSessions();
   }, []);
 
@@ -131,6 +138,25 @@ export default function SecurityPage() {
     }
   }
 
+  async function toggleBiometric() {
+    setBiometricLoading(true);
+    try {
+      if (biometricEnabled) {
+        await apiFetch("/api/security/biometric", { method: "DELETE" });
+        setBiometricEnabled(false);
+        toast.success("Biometric login turned off");
+      } else {
+        await registerBiometric();
+        setBiometricEnabled(true);
+        toast.success("Biometric login enabled on this device");
+      }
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update biometric login");
+    } finally {
+      setBiometricLoading(false);
+    }
+  }
+
   async function changePassword() {
     setLoading(true);
     try {
@@ -160,6 +186,26 @@ export default function SecurityPage() {
           {twoFactorEnabled ? "Disable" : "Enable"}
         </Button>
       </Card>
+
+      {biometricAvailable && (
+        <Card className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Fingerprint className="h-4 w-4 flex-none text-brand-primary" />
+            <div>
+              <p className="text-sm font-semibold">Biometric login</p>
+              <p className="text-xs text-foreground/50">Use Face ID, fingerprint, or your device screen lock to log in</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant={biometricEnabled ? "danger" : "primary"}
+            loading={biometricLoading}
+            onClick={toggleBiometric}
+          >
+            {biometricEnabled ? "Disable" : "Enable"}
+          </Button>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

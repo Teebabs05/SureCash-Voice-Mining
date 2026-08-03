@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
@@ -100,7 +101,10 @@ export async function destroySession() {
     .catch(() => {});
 }
 
-export async function getSession(): Promise<SessionPayload | null> {
+// Memoized per-request (React cache()) - the layout and any page/API code
+// that also checks the session within the same server render only pay for
+// one Session table lookup, not one per call site.
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -112,7 +116,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!session || session.revokedAt || session.expiresAt < new Date()) return null;
 
   return payload;
-}
+});
 
 export function getCurrentSessionId(payload: SessionPayload | null) {
   return payload?.sessionId ?? null;
