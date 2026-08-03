@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizePhone } from "@/lib/utils";
 
 export const registerSchema = z.object({
   fullName: z.string().trim().min(2, "Full name is too short").max(80),
@@ -7,6 +8,7 @@ export const registerSchema = z.object({
     .string()
     .trim()
     .regex(/^\+?[0-9]{10,15}$/, "Invalid phone number")
+    .transform(normalizePhone)
     .optional()
     .or(z.literal("")),
   password: z

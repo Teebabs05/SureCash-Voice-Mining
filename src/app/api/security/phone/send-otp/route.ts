@@ -6,8 +6,15 @@ import { handleApiError, jsonError } from "@/lib/server/api-response";
 import { generateOtpCode, hashToken } from "@/lib/server/auth";
 import { sendOtpCode } from "@/lib/notifications/otp";
 import { rateLimit } from "@/lib/server/rate-limit";
+import { normalizePhone } from "@/lib/utils";
 
-const schema = z.object({ phone: z.string().trim().regex(/^\+?[0-9]{10,15}$/, "Invalid phone number") });
+const schema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{10,15}$/, "Invalid phone number")
+    .transform(normalizePhone),
+});
 
 export async function POST(req: NextRequest) {
   try {

@@ -37,6 +37,13 @@ export async function POST(req: NextRequest) {
       return jsonError("An account with this email already exists", 409);
     }
 
+    if (body.phone) {
+      const existingPhone = await prisma.user.findUnique({ where: { phone: body.phone } });
+      if (existingPhone) {
+        return jsonError("An account with this phone number already exists", 409);
+      }
+    }
+
     let referredById: string | null = null;
     if (body.referralCode) {
       const referrer = await prisma.user.findUnique({ where: { referralCode: body.referralCode } });
