@@ -174,6 +174,11 @@ async function main() {
   const usedReferralCodes = new Set((await db.user.findMany({ select: { referralCode: true } })).map((u) => u.referralCode));
 
   let migratedCount = 0;
+  let fundedUserCount = 0;
+  let fundedTotal = 0;
+  let fundedMainTotal = 0;
+  let fundedEngagementTotal = 0;
+  let fundedSalesTotal = 0;
 
   // Pass 1: users + wallets (referredById resolved in pass 2, once every
   // user that could be a referrer has been created).
@@ -194,6 +199,18 @@ async function main() {
     console.log(
       `[user] ${u.email} — ₦${oldTotal.toFixed(2)} total (MAIN ${mainBalance.toFixed(2)} / ENGAGEMENT ${engagementBalance.toFixed(2)} / SALES ${salesBalance.toFixed(2)})`
     );
+
+    // Every migrated user with a nonzero balance is money the site owes
+    // them post-migration - this is NOT moved as real cash, just copied as
+    // a number into the new wallet tables, so it's the liability an admin
+    // needs to make sure is actually backed/funded on the new platform.
+    if (oldTotal > 0) {
+      fundedUserCount++;
+      fundedTotal += oldTotal;
+      fundedMainTotal += mainBalance;
+      fundedEngagementTotal += engagementBalance;
+      fundedSalesTotal += salesBalance;
+    }
 
     if (!LIVE) {
       // Placeholder id so the referral/mining-investment preview sections
@@ -311,6 +328,12 @@ async function main() {
   if (skippedEmails.length > 0) {
     console.log(`${skippedEmails.length} skipped (email already exists in the new database): ${skippedEmails.join(", ")}`);
   }
+
+  console.log(
+    `\n${fundedUserCount} user(s) carry over a nonzero balance and need to be funded on the new platform - ` +
+      `₦${fundedTotal.toFixed(2)} total (MAIN ${fundedMainTotal.toFixed(2)} / ENGAGEMENT ${fundedEngagementTotal.toFixed(2)} / SALES ${fundedSalesTotal.toFixed(2)}). ` +
+      `This is a copied balance, not moved cash - make sure the new platform's payout funds actually cover it.`
+  );
 
   // Pass 2: referral relationships, now that every user has a new id.
   console.log("\n--- Referral relationships ---");
