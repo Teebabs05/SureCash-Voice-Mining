@@ -4,6 +4,10 @@ import { rateLimit } from "@/lib/server/rate-limit";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const CSRF_EXEMPT_PREFIXES = ["/api/webhooks/"];
 
+function stripWww(host: string) {
+  return host.startsWith("www.") ? host.slice(4) : host;
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -18,7 +22,7 @@ export async function middleware(req: NextRequest) {
     if (MUTATING_METHODS.has(req.method) && !isExempt) {
       const origin = req.headers.get("origin");
       const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-      if (origin && appUrl && new URL(origin).host !== new URL(appUrl).host) {
+      if (origin && appUrl && stripWww(new URL(origin).host) !== stripWww(new URL(appUrl).host)) {
         return NextResponse.json({ error: "Cross-origin request blocked" }, { status: 403 });
       }
     }

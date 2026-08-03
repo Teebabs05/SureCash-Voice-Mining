@@ -17,6 +17,7 @@ const RESUME_DELAY_MS = 2500;
 export function TestimonialsCarousel({ testimonials }: { testimonials: Testimonial[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
+  const expectedScrollLeftRef = useRef(0);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -27,10 +28,10 @@ export function TestimonialsCarousel({ testimonials }: { testimonials: Testimoni
     const step = () => {
       if (!pausedRef.current) {
         const halfWidth = track.scrollWidth / 2;
-        track.scrollLeft += AUTO_SCROLL_SPEED;
-        if (track.scrollLeft >= halfWidth) {
-          track.scrollLeft -= halfWidth;
-        }
+        let next = track.scrollLeft + AUTO_SCROLL_SPEED;
+        if (next >= halfWidth) next -= halfWidth;
+        track.scrollLeft = next;
+        expectedScrollLeftRef.current = track.scrollLeft;
       }
       frameId = requestAnimationFrame(step);
     };
@@ -39,12 +40,15 @@ export function TestimonialsCarousel({ testimonials }: { testimonials: Testimoni
     return () => cancelAnimationFrame(frameId);
   }, []);
 
-  const pause = () => {
-    pausedRef.current = true;
-    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
-  };
+  // Only a manual swipe/drag should move scrollLeft away from what our own
+  // rAF loop last set — that's how we tell user-driven scroll apart from a
+  // vertical page-scroll gesture merely passing through this element.
+  const onScroll = () => {
+    const track = trackRef.current;
+    if (!track) return;
+    if (Math.abs(track.scrollLeft - expectedScrollLeftRef.current) < 1) return;
 
-  const scheduleResume = () => {
+    pausedRef.current = true;
     if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
     resumeTimeoutRef.current = setTimeout(() => {
       pausedRef.current = false;
@@ -56,11 +60,7 @@ export function TestimonialsCarousel({ testimonials }: { testimonials: Testimoni
   return (
     <div
       ref={trackRef}
-      onPointerDown={pause}
-      onPointerUp={scheduleResume}
-      onPointerLeave={scheduleResume}
-      onTouchStart={pause}
-      onTouchEnd={scheduleResume}
+      onScroll={onScroll}
       className="no-scrollbar mt-4 flex gap-3 overflow-x-auto overflow-y-hidden pb-1 touch-pan-x [-webkit-overflow-scrolling:touch]"
     >
       {doubled.map((t, i) => (
