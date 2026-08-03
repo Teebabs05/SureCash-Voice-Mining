@@ -32,7 +32,7 @@ interface BankAccount {
   reviewNote: string | null;
 }
 
-function statusBadge(acc: BankAccount) {
+function statusBadge(acc: BankAccount, onSendOtp: (acc: BankAccount) => void) {
   if (acc.isVerified && acc.autoVerified) {
     return (
       <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green">
@@ -49,9 +49,12 @@ function statusBadge(acc: BankAccount) {
   }
   if (!acc.isVerified) {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
-        <Clock className="h-3.5 w-3.5" /> Confirm OTP
-      </span>
+      <button
+        onClick={() => onSendOtp(acc)}
+        className="flex items-center gap-1 rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00] hover:bg-brand-amber/25"
+      >
+        <Clock className="h-3.5 w-3.5" /> Send OTP
+      </button>
     );
   }
   return (
@@ -110,6 +113,19 @@ export default function BankAccountPage() {
       toast.error(err instanceof ApiError ? err.message : "Could not update default account");
     } finally {
       setSettingDefaultId(null);
+    }
+  }
+
+  async function resendOtp(acc: BankAccount) {
+    setLoading(true);
+    try {
+      await apiFetch(`/api/bank-accounts/${acc.id}/resend-otp`, { method: "POST" });
+      toast.success("OTP sent — check your email");
+      setPendingOtpId(acc.id);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send OTP");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -172,7 +188,7 @@ export default function BankAccountPage() {
       )}
 
       {primary && (!primary.isVerified || !primary.autoVerified) && (
-        <div className="-mt-2">{statusBadge(primary)}</div>
+        <div className="-mt-2">{statusBadge(primary, resendOtp)}</div>
       )}
 
       {otherAccounts.length > 0 && (
@@ -193,7 +209,7 @@ export default function BankAccountPage() {
                   </div>
                 </div>
                 <div className="flex flex-none items-center gap-2">
-                  {statusBadge(acc)}
+                  {statusBadge(acc, resendOtp)}
                   <button
                     onClick={() => removeAccount(acc)}
                     disabled={removingId === acc.id}

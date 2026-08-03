@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Wallet, ArrowUpRight, Crown } from "lucide-react";
 import {
   motion,
   useMotionValue,
@@ -9,24 +10,80 @@ import {
   useMotionValueEvent,
   animate,
 } from "framer-motion";
-import { WALLET_META, WALLET_ORDER } from "@/lib/wallet-meta";
+import { WALLET_META, WALLET_ORDER, TRANSFERABLE_WALLETS } from "@/lib/wallet-meta";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { WalletType } from "@prisma/client";
 
 export interface WalletCardData {
+  kind?: "wallet";
   type: WalletType;
   balance: number;
   todayEarnings?: number;
 }
 
+export interface TotalCardData {
+  kind: "total";
+  totalBalance: number;
+  username: string;
+  planLabel: string;
+}
+
+type CarouselCard = WalletCardData | TotalCardData;
+
 const SWIPE_OFFSET_THRESHOLD = 90;
 const SWIPE_VELOCITY_THRESHOLD = 500;
 const FLY_OUT_DISTANCE = 420;
 
-function CardFace({ wallet }: { wallet: WalletCardData }) {
+function cardKey(card: CarouselCard) {
+  return card.kind === "total" ? "total" : card.type;
+}
+
+function cardGradient(card: CarouselCard) {
+  return card.kind === "total" ? "gradient-wallet-total" : WALLET_META[card.type].gradient;
+}
+
+function TotalCardFace({ card }: { card: TotalCardData }) {
+  return (
+    <div className={cn("flex h-full w-full flex-col justify-between rounded-[1.75rem] p-5 text-white shadow-lg", cardGradient(card))}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="rounded-full bg-white/20 p-2">
+            <Wallet className="h-4 w-4" />
+          </div>
+          <span className="text-sm font-medium text-white/90">Total balance</span>
+        </div>
+      </div>
+
+      <div className="my-4">
+        <p className="text-3xl font-bold tracking-tight">{formatCurrency(card.totalBalance)}</p>
+        <p className="mt-1 flex items-center gap-1 text-xs text-white/75">
+          @{card.username} · <Crown className="h-3 w-3" /> {card.planLabel}
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <Link
+          href="/wallet/withdraw"
+          className="flex-1 rounded-xl bg-white py-2 text-center text-xs font-semibold text-[#1a1330] transition-colors hover:bg-white/90"
+        >
+          Withdraw
+        </Link>
+        <Link
+          href="/plans"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/15 py-2 text-center text-xs font-semibold backdrop-blur transition-colors hover:bg-white/25"
+        >
+          <ArrowUpRight className="h-3.5 w-3.5" /> Upgrade
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function WalletCardFace({ wallet }: { wallet: WalletCardData }) {
   const meta = WALLET_META[wallet.type];
   const Icon = meta.icon;
   const SecondaryIcon = meta.secondaryAction.icon;
+  const isWithdrawable = TRANSFERABLE_WALLETS.includes(wallet.type);
   return (
     <div
       className={cn(
@@ -41,11 +98,9 @@ function CardFace({ wallet }: { wallet: WalletCardData }) {
           </div>
           <span className="text-sm font-medium text-white/90">{meta.label}</span>
         </div>
-        {wallet.type === "MAIN" && (
-          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-            Withdrawable
-          </span>
-        )}
+        <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+          {isWithdrawable ? "Withdrawable" : "Not withdrawable"}
+        </span>
       </div>
 
       <div className="my-4">
@@ -54,12 +109,21 @@ function CardFace({ wallet }: { wallet: WalletCardData }) {
       </div>
 
       <div className="flex gap-2">
-        <Link
-          href="/wallet/withdraw"
-          className="flex-1 rounded-xl bg-white py-2 text-center text-xs font-semibold text-[#1a1330] transition-colors hover:bg-white/90"
-        >
-          Withdraw
-        </Link>
+        {isWithdrawable ? (
+          <Link
+            href="/wallet/withdraw"
+            className="flex-1 rounded-xl bg-white py-2 text-center text-xs font-semibold text-[#1a1330] transition-colors hover:bg-white/90"
+          >
+            Withdraw
+          </Link>
+        ) : (
+          <Link
+            href="/wallet/deposit"
+            className="flex-1 rounded-xl bg-white py-2 text-center text-xs font-semibold text-[#1a1330] transition-colors hover:bg-white/90"
+          >
+            Fund Wallet
+          </Link>
+        )}
         <Link
           href={meta.secondaryAction.href}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/15 py-2 text-center text-xs font-semibold backdrop-blur transition-colors hover:bg-white/25"
@@ -71,10 +135,15 @@ function CardFace({ wallet }: { wallet: WalletCardData }) {
   );
 }
 
-export function WalletCarousel({ wallets }: { wallets: WalletCardData[] }) {
-  const ordered = WALLET_ORDER.map((type) => wallets.find((w) => w.type === type)).filter(
+function CardFace({ card }: { card: CarouselCard }) {
+  return card.kind === "total" ? <TotalCardFace card={card} /> : <WalletCardFace wallet={card} />;
+}
+
+export function WalletCarousel({ wallets, totalCard }: { wallets: WalletCardData[]; totalCard?: TotalCardData }) {
+  const walletCards = WALLET_ORDER.map((type) => wallets.find((w) => w.type === type)).filter(
     (w): w is WalletCardData => Boolean(w)
   );
+  const ordered: CarouselCard[] = totalCard ? [totalCard, ...walletCards] : walletCards;
 
   const [active, setActive] = useState(0);
   const [dragDir, setDragDir] = useState<1 | -1>(1);
@@ -130,10 +199,10 @@ export function WalletCarousel({ wallets }: { wallets: WalletCardData[] }) {
   return (
     <div>
       <div className="relative h-[240px]">
-        {stackBehind.map((wallet, i) => (
+        {stackBehind.map((card, i) => (
           <div
-            key={`stack-${wallet.type}`}
-            className={cn("absolute inset-x-0 top-0 rounded-[1.75rem]", WALLET_META[wallet.type].gradient)}
+            key={`stack-${cardKey(card)}`}
+            className={cn("absolute inset-x-0 top-0 rounded-[1.75rem]", cardGradient(card))}
             style={{
               height: "100%",
               transform: `translateY(${-8 * (stackBehind.length - i)}px) scale(${1 - 0.04 * (stackBehind.length - i)})`,
@@ -143,30 +212,30 @@ export function WalletCarousel({ wallets }: { wallets: WalletCardData[] }) {
         ))}
 
         <motion.div
-          key={`peek-${ordered[peekIndex].type}`}
+          key={`peek-${cardKey(ordered[peekIndex])}`}
           className="absolute inset-0"
           style={{ opacity: peekOpacity, scale: peekScale }}
         >
-          <CardFace wallet={ordered[peekIndex]} />
+          <CardFace card={ordered[peekIndex]} />
         </motion.div>
 
         <motion.div
-          key={`front-${ordered[active].type}`}
+          key={`front-${cardKey(ordered[active])}`}
           className="absolute inset-0 cursor-grab active:cursor-grabbing"
           style={{ x, rotate }}
           drag="x"
           dragMomentum={false}
           onDragEnd={onDragEnd}
         >
-          <CardFace wallet={ordered[active]} />
+          <CardFace card={ordered[active]} />
         </motion.div>
       </div>
 
       <div className="mt-3 flex justify-center gap-1.5">
-        {ordered.map((wallet, i) => (
+        {ordered.map((card, i) => (
           <button
-            key={wallet.type}
-            aria-label={`Show ${WALLET_META[wallet.type].label}`}
+            key={cardKey(card)}
+            aria-label={`Show ${card.kind === "total" ? "Total balance" : WALLET_META[card.type].label}`}
             onClick={() => jumpTo(i)}
             className={cn(
               "h-1.5 rounded-full transition-all",

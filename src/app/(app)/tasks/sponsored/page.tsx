@@ -205,7 +205,7 @@ export default function SponsoredPostsPage() {
           // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded campaign banner preview
           <img src={data.bannerUrl} alt="" className="w-full rounded-xl" />
         )}
-        <p className="text-sm">{data.caption}</p>
+        <p className="whitespace-pre-wrap text-sm">{data.caption}</p>
         <p className="truncate text-xs text-foreground/50">{data.shareUrl}</p>
       </Card>
 

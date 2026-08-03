@@ -24,6 +24,8 @@ interface WalletTxn {
 export default function WalletPage() {
   const [wallets, setWallets] = useState<WalletCardData[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [fullName, setFullName] = useState("");
+  const [planName, setPlanName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<WalletTxn[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -33,11 +35,19 @@ export default function WalletPage() {
   const [promoLoading, setPromoLoading] = useState(false);
 
   function load() {
-    apiFetch<{ wallets: WalletCardData[]; totalBalance: number; recentTransactions: WalletTxn[] }>("/api/wallet")
+    apiFetch<{
+      wallets: WalletCardData[];
+      totalBalance: number;
+      recentTransactions: WalletTxn[];
+      fullName: string;
+      plan: { name: string } | null;
+    }>("/api/wallet")
       .then((res) => {
         setWallets(res.wallets);
         setTotalBalance(res.totalBalance);
         setTransactions(res.recentTransactions);
+        setFullName(res.fullName);
+        setPlanName(res.plan?.name ?? null);
       })
       .finally(() => setLoading(false));
   }
@@ -92,7 +102,15 @@ export default function WalletPage() {
         <p className="text-3xl font-bold">{formatCurrency(totalBalance)}</p>
       </div>
 
-      <WalletCarousel wallets={wallets} />
+      <WalletCarousel
+        wallets={wallets}
+        totalCard={{
+          kind: "total",
+          totalBalance,
+          username: fullName.split(" ")[0] || "",
+          planLabel: planName ?? "Free Plan",
+        }}
+      />
 
       <div className="grid grid-cols-3 gap-3">
         <Link href="/wallet/deposit" className="card flex flex-col items-center justify-center gap-1 py-3 text-xs font-semibold text-brand-primary">
@@ -115,7 +133,7 @@ export default function WalletPage() {
             <CardTitle>Transfer between wallets</CardTitle>
           </CardHeader>
           <p className="-mt-2 text-xs text-foreground/50">
-            Move money between your Engagement and Sales wallets. Main wallet isn&apos;t part of transfers.
+            Move money between your Engagement and Sales wallets. Deposit wallet isn&apos;t part of transfers.
           </p>
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2">

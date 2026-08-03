@@ -61,10 +61,10 @@ export function TestimonialsCarousel({ testimonials }: { testimonials: Testimoni
       onPointerLeave={scheduleResume}
       onTouchStart={pause}
       onTouchEnd={scheduleResume}
-      className="no-scrollbar mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-hidden pb-1 touch-pan-x [-webkit-overflow-scrolling:touch]"
+      className="no-scrollbar mt-4 flex gap-3 overflow-x-auto overflow-y-hidden pb-1 touch-pan-x [-webkit-overflow-scrolling:touch]"
     >
       {doubled.map((t, i) => (
-        <div key={`${t.name}-${i}`} className="card flex w-64 flex-none snap-start flex-col gap-3 p-4">
+        <div key={`${t.name}-${i}`} className="card flex w-64 flex-none flex-col gap-3 p-4">
           <Quote className="h-5 w-5 text-brand-primary/40" />
           <p className="text-sm text-foreground/80">&ldquo;{t.quote}&rdquo;</p>
           <div className="mt-auto flex items-center justify-between">

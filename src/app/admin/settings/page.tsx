@@ -55,6 +55,7 @@ const GATEWAY_PROVIDER_FIELDS = [
 const SOCIAL_LINK_FIELDS = [
   { key: "social_whatsapp_url", label: "WhatsApp group/channel link" },
   { key: "social_telegram_url", label: "Telegram channel link" },
+  { key: "business_whatsapp_url", label: "Business inquiries WhatsApp link (\"Partner with us\" button on the homepage)" },
 ];
 
 export default function AdminSettingsPage() {
@@ -454,6 +455,42 @@ export default function AdminSettingsPage() {
               </Button>
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card className="max-w-lg">
+        <CardHeader>
+          <CardTitle>Company info</CardTitle>
+        </CardHeader>
+        <p className="mb-3 text-xs text-foreground/50">
+          Shown in the homepage footer. Leave the RC number empty to hide it until CAC registration is complete.
+        </p>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-end gap-2">
+            <Input
+              label="RC number"
+              placeholder="e.g. 1234567"
+              value={settings.company_rc_number ?? ""}
+              onChange={(e) => setSettings({ ...settings, company_rc_number: e.target.value })}
+            />
+            <Button size="sm" loading={loading === "company_rc_number"} onClick={() => saveOptionalText("company_rc_number")}>
+              Save
+            </Button>
+          </div>
+          <div className="flex items-end gap-2">
+            <Input
+              label="Office address"
+              value={settings.company_office_address ?? ""}
+              onChange={(e) => setSettings({ ...settings, company_office_address: e.target.value })}
+            />
+            <Button
+              size="sm"
+              loading={loading === "company_office_address"}
+              onClick={() => saveOptionalText("company_office_address")}
+            >
+              Save
+            </Button>
+          </div>
         </div>
       </Card>
 

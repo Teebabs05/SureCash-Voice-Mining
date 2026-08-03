@@ -12,7 +12,7 @@ export const WALLET_META: Record<
   }
 > = {
   MAIN: {
-    label: "Main Wallet",
+    label: "Deposit Wallet",
     gradient: "gradient-wallet-main",
     icon: Wallet,
     description: "Deposits & site spending — not withdrawable",

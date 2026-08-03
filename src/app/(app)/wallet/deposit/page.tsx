@@ -227,7 +227,7 @@ export default function DepositPage() {
           </button>
           <p className="text-sm text-foreground/70">
             Transfer <span className="font-bold text-foreground">{formatCurrency(amount)}</span> to this dedicated
-            account number — it&apos;s credited to your Main wallet automatically, no receipt needed.
+            account number — it&apos;s credited to your Deposit wallet automatically, no receipt needed.
           </p>
           {virtualAccountLoading && <p className="mt-3 text-sm text-foreground/50">Setting up your account…</p>}
           {virtualAccountError && <p className="mt-3 text-sm text-red-500">{virtualAccountError}</p>}

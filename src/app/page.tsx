@@ -92,7 +92,9 @@ export default async function Home() {
   const user = await getCurrentUser();
   if (user) redirect(user.role === "USER" ? "/dashboard" : "/admin");
   const logoUrl = await getSetting("site_logo_url", "");
-  const whatsappUrl = await getSetting("social_whatsapp_url", "");
+  const businessWhatsappUrl = await getSetting("business_whatsapp_url", "");
+  const companyRcNumber = await getSetting("company_rc_number", "");
+  const companyOfficeAddress = await getSetting("company_office_address", "NO. 23, UDOEDEHE STREET, UYO.");
 
   return (
     <div className="min-h-screen bg-background">
@@ -153,9 +155,9 @@ export default async function Home() {
               Reach thousands of active members through Sponsored Posts — paid promotions our members share across
               their own social media as one of their daily earning tasks. Real people, real reach, real results.
             </p>
-            {whatsappUrl && (
+            {businessWhatsappUrl && (
               <a
-                href={whatsappUrl}
+                href={businessWhatsappUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-1 flex h-11 w-fit items-center justify-center rounded-xl gradient-brand px-5 text-sm font-bold text-white"
@@ -263,10 +265,49 @@ export default async function Home() {
           >
             Get started — it&apos;s free
           </Link>
+        </div>
 
-          <p className="text-center text-xs text-foreground/40">
-            © {new Date().getFullYear()} SureCash Mining. All rights reserved.
-          </p>
+        <div className="border-t border-border bg-surface-muted px-5 py-8">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p className="text-lg font-bold">SureCash Mining ⛏️</p>
+            <p className="max-w-xs text-xs text-foreground/60">
+              A Nigerian earning platform where members earn real cash through voice tasks, daily mining, task
+              completions, referrals, and more — all tracked across dedicated wallets. We also partner with
+              businesses to advertise their products and services through Sponsored Posts, tasks our members
+              complete and share on their own social media as part of their daily earning routine.
+            </p>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="mb-2 font-semibold text-foreground/70">Platform</p>
+              <div className="flex flex-col gap-2 text-foreground/50">
+                <Link href="/voice">Voice Tasks</Link>
+                <Link href="/tasks">Task Center</Link>
+                <Link href="/mine">Daily Mining</Link>
+                <Link href="/referrals">Referrals</Link>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 font-semibold text-foreground/70">Company</p>
+              <div className="flex flex-col gap-2 text-foreground/50">
+                <Link href="/faq">FAQ</Link>
+                <Link href="/support">Contact</Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-1 border-t border-border pt-5 text-center text-[11px] text-foreground/40">
+            <p className="font-medium text-foreground/60">
+              SureCash Digital Technologies Ltd{companyRcNumber ? ` · RC ${companyRcNumber}` : ""}
+            </p>
+            <p>{companyOfficeAddress}</p>
+            <p className="mt-3">© {new Date().getFullYear()} SureCash Mining. All rights reserved.</p>
+            <p>
+              Registered with the Corporate Affairs Commission (CAC), Nigeria
+              {companyRcNumber ? ` · RC ${companyRcNumber}` : ""}
+            </p>
+          </div>
         </div>
       </div>
     </div>

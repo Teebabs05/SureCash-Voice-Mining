@@ -395,7 +395,15 @@ function DashboardContent() {
 
       <ActivityTicker />
 
-      <WalletCarousel wallets={data.wallets} />
+      <WalletCarousel
+        wallets={data.wallets}
+        totalCard={{
+          kind: "total",
+          totalBalance: data.totalBalance,
+          username: data.user.fullName.split(" ")[0],
+          planLabel: data.plan ? data.plan.name : "Free Plan",
+        }}
+      />
 
       <BillPaymentsArc items={BILL_PAYMENTS} />
 

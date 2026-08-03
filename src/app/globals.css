@@ -109,6 +109,9 @@ body {
   .gradient-wallet-sales {
     background-image: linear-gradient(135deg, #e2497a 0%, #9c2f56 100%);
   }
+  .gradient-wallet-total {
+    background-image: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
+  }
 
   /* Decorative icon-badge gradients used on non-wallet-card UI (Task
      Center, Voice, Invite Friends, dashboard quick actions) - kept as

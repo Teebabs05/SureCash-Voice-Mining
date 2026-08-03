@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Plus, MessageCircle, HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -68,7 +69,12 @@ export default function SupportPage() {
         <Card>
           <div className="flex flex-col gap-2">
             <Input placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-            <Input placeholder="Describe your issue" value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
+            <Textarea
+              placeholder="Describe your issue"
+              rows={5}
+              value={form.message}
+              onChange={(e) => setForm({ ...form, message: e.target.value })}
+            />
             <Button loading={loading} onClick={createTicket}>
               Submit ticket
             </Button>

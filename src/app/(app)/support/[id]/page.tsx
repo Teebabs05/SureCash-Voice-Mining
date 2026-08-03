@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -67,11 +67,11 @@ export default function TicketPage() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="card p-3 text-sm">{ticket.message}</div>
+        <div className="card whitespace-pre-wrap p-3 text-sm">{ticket.message}</div>
         {ticket.replies.map((r) => (
           <div
             key={r.id}
-            className={cn("max-w-[85%] rounded-2xl p-3 text-sm", r.isAdmin ? "self-start bg-brand-primary/10" : "self-end gradient-brand text-white")}
+            className={cn("max-w-[85%] whitespace-pre-wrap rounded-2xl p-3 text-sm", r.isAdmin ? "self-start bg-brand-primary/10" : "self-end gradient-brand text-white")}
           >
             <p className="mb-1 text-[10px] font-semibold opacity-70">{r.isAdmin ? "Support" : "You"}</p>
             {r.message}
@@ -80,8 +80,14 @@ export default function TicketPage() {
       </div>
 
       {ticket.status !== "CLOSED" && (
-        <div className="flex gap-2">
-          <Input placeholder="Type a message…" value={message} onChange={(e) => setMessage(e.target.value)} />
+        <div className="flex items-end gap-2">
+          <Textarea
+            placeholder="Type a message…"
+            rows={2}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className="flex-1"
+          />
           <Button loading={loading} onClick={reply}>
             Send
           </Button>

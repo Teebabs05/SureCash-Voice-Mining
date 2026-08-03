@@ -98,6 +98,32 @@ export default function WithdrawPage() {
     load();
   }
 
+  async function resendBankOtp(accountId: string) {
+    setLoading(true);
+    try {
+      await apiFetch(`/api/bank-accounts/${accountId}/resend-otp`, { method: "POST" });
+      toast.success("OTP sent — check your email");
+      setPendingOtp({ id: accountId, kind: "bank" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send OTP");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendCryptoOtp(walletId: string) {
+    setLoading(true);
+    try {
+      await apiFetch(`/api/crypto-wallets/${walletId}/resend-otp`, { method: "POST" });
+      toast.success("OTP sent — check your email");
+      setPendingOtp({ id: walletId, kind: "crypto" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send OTP");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function confirmOtp() {
     if (!pendingOtp) return;
     setLoading(true);
@@ -204,11 +230,11 @@ export default function WithdrawPage() {
           )}
           <div className="flex flex-col gap-2">
             {accounts.map((acc) => (
-              <button
+              <div
                 key={acc.id}
                 onClick={() => setSelectedAccount(acc.id)}
                 className={cn(
-                  "flex items-center justify-between rounded-xl border p-3 text-left text-sm",
+                  "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-left text-sm",
                   selectedAccount === acc.id ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
@@ -222,16 +248,22 @@ export default function WithdrawPage() {
                       <ShieldCheck className="h-3.5 w-3.5" /> Ready
                     </span>
                   ) : !acc.isVerified ? (
-                    <span className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00]">
-                      Confirm OTP
-                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resendBankOtp(acc.id);
+                      }}
+                      className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00] hover:bg-brand-amber/25"
+                    >
+                      Send OTP
+                    </button>
                   ) : (
                     <span className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00]">
                       Awaiting review
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
           {bankAccountBlocked && (
@@ -263,11 +295,11 @@ export default function WithdrawPage() {
           )}
           <div className="flex flex-col gap-2">
             {cryptoWallets.map((w) => (
-              <button
+              <div
                 key={w.id}
                 onClick={() => setSelectedCryptoWallet(w.id)}
                 className={cn(
-                  "flex items-center justify-between rounded-xl border p-3 text-left text-sm",
+                  "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-left text-sm",
                   selectedCryptoWallet === w.id ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
@@ -275,12 +307,22 @@ export default function WithdrawPage() {
                   <p className="break-all font-medium">{w.address}</p>
                   <p className="text-xs text-foreground/50">{w.network}</p>
                 </div>
-                {w.isVerified && (
+                {w.isVerified ? (
                   <span title="OTP confirmed">
                     <ShieldCheck className="h-4 w-4 flex-none text-brand-green" />
                   </span>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resendCryptoOtp(w.id);
+                    }}
+                    className="flex-none rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00] hover:bg-brand-amber/25"
+                  >
+                    Send OTP
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
           </div>
 
@@ -317,7 +359,7 @@ export default function WithdrawPage() {
           ))}
         </div>
         <p className="mt-2 text-xs text-foreground/50">
-          Main wallet is for deposits and site spending only — it can&apos;t be withdrawn from.
+          Deposit wallet is for deposits and site spending only — it can&apos;t be withdrawn from.
         </p>
       </Card>
 
