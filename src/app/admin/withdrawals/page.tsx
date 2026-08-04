@@ -51,7 +51,10 @@ export default function AdminWithdrawalsPage() {
     setSelected(new Set());
   }
 
-  async function act(id: string, action: "approve" | "reject" | "process" | "retry-payout" | "check-crypto-status") {
+  async function act(
+    id: string,
+    action: "approve" | "reject" | "process" | "retry-payout" | "check-crypto-status" | "check-korapay-status"
+  ) {
     setBusyId(id);
     try {
       const res = await apiFetch<{ note?: string }>(`/api/admin/withdrawals/${id}/${action}`, {
@@ -65,7 +68,7 @@ export default function AdminWithdrawalsPage() {
             ? "Withdrawal rejected"
             : action === "retry-payout"
               ? "Automatic payout retried"
-              : action === "check-crypto-status"
+              : action === "check-crypto-status" || action === "check-korapay-status"
                 ? (res.note ?? "Status updated")
                 : "Withdrawal is now processing"
       );
@@ -218,7 +221,7 @@ export default function AdminWithdrawalsPage() {
                         <RefreshCw className="h-3.5 w-3.5" /> Check Binance status
                       </Button>
                     )}
-                    {w.status === "PROCESSING" && w.payoutProvider === "KORAPAY" && w.payoutReference && (
+                    {w.status === "PROCESSING" && w.payoutProvider === "KORAPAY" && w.payoutReference?.startsWith("KORAPAY_BATCH") && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -226,6 +229,11 @@ export default function AdminWithdrawalsPage() {
                         onClick={() => syncKorapayBatch(w.payoutReference!)}
                       >
                         <RefreshCw className="h-3.5 w-3.5" /> Check Korapay batch
+                      </Button>
+                    )}
+                    {w.status === "PROCESSING" && w.payoutProvider === "KORAPAY" && !w.payoutReference?.startsWith("KORAPAY_BATCH") && (
+                      <Button size="sm" variant="outline" loading={busyId === w.id} onClick={() => act(w.id, "check-korapay-status")}>
+                        <RefreshCw className="h-3.5 w-3.5" /> Check Korapay status
                       </Button>
                     )}
                     {w.status === "PENDING" && (

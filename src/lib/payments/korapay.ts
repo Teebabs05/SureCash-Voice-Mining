@@ -137,6 +137,37 @@ export async function isKorapayConfigured(): Promise<boolean> {
   return Boolean(await getSecretKey());
 }
 
+export interface KorapayTransferStatus {
+  status: "success" | "failed" | "pending" | "processing";
+  message?: string;
+}
+
+/**
+ * Polls a single (non-bulk) transfer's status by the `reference` this app
+ * assigned it when calling initiateTransfer above — confirmed against
+ * Korapay's "Fetch Payout Transaction" guide (GET .../transactions/:reference,
+ * same {status,message,data:{status,message,...}} envelope as the bulk
+ * endpoints in this file). Manual fallback for when the transfer.success/
+ * transfer.failed webhook (see /api/webhooks/korapay) doesn't arrive or
+ * doesn't validate — same role as getBulkPayoutPayouts for batches, and
+ * getWithdrawStatus in binance.ts for USDT.
+ */
+export async function getTransferStatus(reference: string): Promise<KorapayTransferStatus | null> {
+  const key = await getSecretKey();
+  if (!key) return null;
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/${encodeURIComponent(reference)}`, {
+    headers: headers(key),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data) return null;
+
+  const raw = String(data.data.status ?? "").toLowerCase();
+  const status: KorapayTransferStatus["status"] =
+    raw === "success" || raw === "failed" || raw === "processing" ? raw : "pending";
+  return { status, message: data.data.message };
+}
+
 /**
  * Bulk payouts — unlike the rest of this file, this section is confirmed
  * against Korapay's actual published docs (developers.korapay.com/docs/
