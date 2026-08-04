@@ -320,6 +320,9 @@ export default async function Home() {
               <div className="flex flex-col gap-2 text-foreground/50">
                 <Link href="/faq">FAQ</Link>
                 <Link href="/support">Contact</Link>
+                <Link href="/privacy-policy">Privacy Policy</Link>
+                <Link href="/terms-and-conditions">Terms &amp; Conditions</Link>
+                <Link href="/refund-policy">Refund Policy</Link>
               </div>
             </div>
           </div>
