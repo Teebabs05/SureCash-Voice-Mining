@@ -10,10 +10,11 @@ import { formatCurrency, cn } from "@/lib/utils";
 interface Purchase {
   id: string;
   provider: string;
-  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV";
+  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV" | "AIRTIME_TO_CASH";
   serviceId: string;
   recipient: string;
   amount: string;
+  creditAmount: string | null;
   reference: string;
   status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "REFUNDED";
   token: string | null;
@@ -87,7 +88,16 @@ export default function AdminBillsPage() {
                 <p className="mt-1 text-sm">
                   {p.serviceType} · {p.serviceId.toUpperCase()} · {p.recipient}
                 </p>
-                <p className="text-sm font-bold">{formatCurrency(p.amount)}</p>
+                <p className="text-sm font-bold">
+                  {p.serviceType === "AIRTIME_TO_CASH" ? (
+                    <>
+                      Sent {formatCurrency(p.amount)}
+                      {p.creditAmount && <span className="ml-1 text-brand-green">· Credited {formatCurrency(p.creditAmount)}</span>}
+                    </>
+                  ) : (
+                    formatCurrency(p.amount)
+                  )}
+                </p>
                 <p className="text-xs text-foreground/40">
                   {p.provider} · {p.reference}
                 </p>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Smartphone, Wifi, Zap, Tv } from "lucide-react";
+import { ArrowLeft, RefreshCw, Smartphone, Wifi, Zap, Tv, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -10,10 +10,11 @@ import { formatCurrency, cn } from "@/lib/utils";
 
 interface Purchase {
   id: string;
-  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV";
+  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV" | "AIRTIME_TO_CASH";
   serviceId: string;
   recipient: string;
   amount: string;
+  creditAmount: string | null;
   status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "REFUNDED";
   token: string | null;
   units: string | null;
@@ -21,8 +22,14 @@ interface Purchase {
   createdAt: string;
 }
 
-const SERVICE_ICON = { AIRTIME: Smartphone, DATA: Wifi, ELECTRICITY: Zap, CABLE_TV: Tv } as const;
-const SERVICE_LABEL = { AIRTIME: "Airtime", DATA: "Data", ELECTRICITY: "Electricity", CABLE_TV: "Cable TV" } as const;
+const SERVICE_ICON = { AIRTIME: Smartphone, DATA: Wifi, ELECTRICITY: Zap, CABLE_TV: Tv, AIRTIME_TO_CASH: Banknote } as const;
+const SERVICE_LABEL = {
+  AIRTIME: "Airtime",
+  DATA: "Data",
+  ELECTRICITY: "Electricity",
+  CABLE_TV: "Cable TV",
+  AIRTIME_TO_CASH: "Airtime to Cash",
+} as const;
 
 const STATUS_STYLE: Record<Purchase["status"], string> = {
   PENDING: "bg-surface-muted text-foreground/60",
@@ -88,7 +95,16 @@ export default function BillsHistoryPage() {
                   {p.status}
                 </span>
               </div>
-              <p className="text-sm font-bold">{formatCurrency(p.amount)}</p>
+              <p className="text-sm font-bold">
+                {p.serviceType === "AIRTIME_TO_CASH" ? (
+                  <>
+                    Sent {formatCurrency(p.amount)}
+                    {p.creditAmount && <span className="ml-1 text-brand-green">· Credited {formatCurrency(p.creditAmount)}</span>}
+                  </>
+                ) : (
+                  formatCurrency(p.amount)
+                )}
+              </p>
               {p.token && (
                 <p className="rounded-lg bg-surface-muted px-3 py-2 text-xs">
                   Token: <span className="font-mono font-semibold">{p.token}</span>

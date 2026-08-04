@@ -80,5 +80,42 @@ export async function getVtuProvider(provider: VtuProviderName): Promise<VtuProv
     const { VtuNgProvider } = await import("@/lib/payments/vtu-ng");
     return new VtuNgProvider();
   }
-  throw new Error("VTUAfrica isn't wired up yet");
+  const { VtuAfricaProvider } = await import("@/lib/payments/vtuafrica");
+  return new VtuAfricaProvider();
+}
+
+export type AirtimeToCashStatus = "processing" | "completed" | "failed";
+
+export interface AirtimeToCashAvailability {
+  available: boolean;
+  sitePhone?: string;
+  message?: string;
+}
+
+export interface AirtimeToCashResult {
+  status: AirtimeToCashStatus;
+  message?: string;
+  raw?: unknown;
+}
+
+/**
+ * Separate from VtuProviderAdapter since this runs the opposite direction
+ * (credit the user, not debit them) and only VTUAfrica offers it at all -
+ * VTU.ng has no airtime-to-cash service in its API.
+ */
+export interface AirtimeToCashProvider {
+  checkAvailability(network: string): Promise<AirtimeToCashAvailability>;
+  convert(params: {
+    reference: string;
+    network: string;
+    senderEmail: string;
+    senderPhone: string;
+    amount: number;
+    sitePhone: string;
+  }): Promise<AirtimeToCashResult>;
+}
+
+export async function getAirtimeToCashProvider(): Promise<AirtimeToCashProvider> {
+  const { VtuAfricaProvider } = await import("@/lib/payments/vtuafrica");
+  return new VtuAfricaProvider();
 }

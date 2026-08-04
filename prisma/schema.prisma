@@ -520,6 +520,7 @@ enum BillServiceType {
   DATA
   ELECTRICITY
   CABLE_TV
+  AIRTIME_TO_CASH
 }
 
 enum BillPurchaseStatus {
@@ -531,13 +532,23 @@ enum BillPurchaseStatus {
 }
 
 /**
- * A single VTU/bills purchase — always debits the user's MAIN wallet (never
+ * A single VTU/bills transaction. For every serviceType except
+ * AIRTIME_TO_CASH this always debits the user's MAIN wallet (never
  * ENGAGEMENT/SALES, which are earnings-only; see the comment on
- * Withdrawal.walletType above). PENDING/PROCESSING means the provider hasn't
- * confirmed the outcome yet - the provider's requery endpoint (see
- * src/lib/payments/vtu-provider.ts) is the source of truth for resolving
- * those, since VTU.ng's own docs say their "completed" webhook only fires
- * for admin-manually-triggered completions, not routine ones.
+ * Withdrawal.walletType above) - `amount` is what was debited.
+ * AIRTIME_TO_CASH runs the opposite direction: nothing is debited up
+ * front, `amount` is the airtime value the user claims to have sent, and
+ * `creditAmount` (only set once VTUAfrica's webhook confirms receipt) is
+ * what actually lands in ENGAGEMENT - always less than `amount` since
+ * VTUAfrica takes a conversion fee.
+ *
+ * PENDING/PROCESSING means the provider hasn't confirmed the outcome yet.
+ * For VTU.ng, the requery endpoint (see src/lib/payments/vtu-provider.ts)
+ * is the source of truth, since their own docs say the "completed"
+ * webhook only fires for admin-manually-triggered completions. VTUAfrica
+ * has no confirmed requery endpoint at all (see vtuafrica.ts) - only
+ * AIRTIME_TO_CASH is webhook-confirmed there; everything else resolves
+ * synchronously from VTUAfrica's own purchase-call response.
  */
 model BillPurchase {
   id               String             @id @default(cuid())
@@ -548,7 +559,8 @@ model BillPurchase {
   serviceId        String // provider's own service code, e.g. "mtn", "dstv", "ikeja-electric"
   variationId      String? // data plan / cable bouquet / meter type - not used for airtime
   recipient        String // phone number, meter number, or smartcard/IUC number
-  amount           Decimal            @db.Decimal(18, 2) // amount debited from the user's MAIN wallet
+  amount           Decimal            @db.Decimal(18, 2) // amount debited from MAIN, or (AIRTIME_TO_CASH) the claimed airtime value
+  creditAmount     Decimal?           @db.Decimal(18, 2) // AIRTIME_TO_CASH only - actual amount credited to ENGAGEMENT once confirmed
   reference        String             @unique // our own reference, sent to the provider as its request/order id
   providerOrderId  String?
   status           BillPurchaseStatus @default(PENDING)

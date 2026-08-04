@@ -65,6 +65,11 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Bills & VTU",
+    provider: "VTUAfrica",
+    fields: [{ key: "VTUAFRICA_API_KEY", label: "API key", placeholder: "" }],
+  },
+  {
     category: "Notifications",
     provider: "Email (Resend)",
     fields: [

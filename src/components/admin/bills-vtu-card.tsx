@@ -6,9 +6,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { CredentialFieldGroups } from "@/components/admin/credential-field-group";
 
-// VTUAfrica isn't wired up yet - only list providers that actually work so
-// picking one can't silently break every purchase.
-const VTU_PROVIDERS = ["VTU_NG"] as const;
+const VTU_PROVIDERS = ["VTU_NG", "VTUAFRICA"] as const;
 
 export function BillsVtuCard() {
   const [defaultProvider, setDefaultProvider] = useState("VTU_NG");
@@ -42,11 +40,12 @@ export function BillsVtuCard() {
       <p className="mb-3 text-xs text-foreground/50">
         SUPERADMIN only. Powers Airtime, Data, Electricity, and Cable TV purchases (Admin &gt; Bills &amp; VTU for the
         purchase queue). Keys entered here are encrypted at rest and take effect immediately (cached up to 30s),
-        overriding whatever is set in the server&apos;s .env file — no redeploy needed.
+        overriding whatever is set in the server&apos;s .env file — no redeploy needed. Airtime to Cash always uses
+        VTUAfrica regardless of this switch, since VTU.ng doesn&apos;t offer that service at all.
       </p>
 
       <div className="mb-4 flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-foreground/70">Active provider</label>
+        <label className="text-xs font-medium text-foreground/70">Active provider (Airtime / Data / Electricity / Cable TV)</label>
         <select
           value={defaultProvider}
           disabled={savingDefault}
@@ -59,6 +58,13 @@ export function BillsVtuCard() {
             </option>
           ))}
         </select>
+        {defaultProvider === "VTUAFRICA" && (
+          <p className="mt-1 rounded-lg bg-brand-amber/10 px-2.5 py-2 text-[11px] text-[#a67c00]">
+            VTUAfrica has no live pricing for Data/Cable TV yet (those will show &quot;no plans available&quot;) and no
+            pre-purchase meter/smartcard verification for Electricity/Cable TV — Airtime and Electricity purchases
+            still work fully.
+          </p>
+        )}
       </div>
 
       <CredentialFieldGroups category="Bills & VTU" />

@@ -131,8 +131,9 @@ const BILL_PAYMENTS = [
     icon: Banknote,
     iconClass: "bg-brand-primary/15 text-brand-primary",
     color: "primary" as const,
-    description: "Convert airtime to cash straight into your SureCash wallet. We're putting the finishing touches on it. Stay tuned.",
+    description: "Convert airtime to cash straight into your SureCash wallet.",
     raised: false,
+    href: "/bills/airtime-to-cash",
   },
 ];
 
