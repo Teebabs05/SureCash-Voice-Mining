@@ -30,8 +30,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const result = await getTransferStatus(withdrawal.reference);
-    if (!result) {
-      return NextResponse.json({ withdrawal, note: "No update from Korapay yet" });
+    if (!result.ok) {
+      // A lookup failure isn't proof the transfer itself failed (could be a
+      // transient issue with this specific call) - surface the real reason
+      // without touching the withdrawal's status, so the admin can decide.
+      return NextResponse.json({ withdrawal, note: `Korapay error: ${result.error}` });
     }
 
     if (result.status === "success") {

@@ -151,21 +151,33 @@ export interface KorapayTransferStatus {
  * transfer.failed webhook (see /api/webhooks/korapay) doesn't arrive or
  * doesn't validate — same role as getBulkPayoutPayouts for batches, and
  * getWithdrawStatus in binance.ts for USDT.
+ *
+ * Returns `error` (rather than throwing or returning null) when the lookup
+ * call itself fails, so the caller can show the admin *why* — e.g. the same
+ * account-level "not authorized for payout" rejection Korapay can return at
+ * initiation can also show up here, and that's a very different situation
+ * from "Korapay just hasn't resolved it yet."
  */
-export async function getTransferStatus(reference: string): Promise<KorapayTransferStatus | null> {
+export async function getTransferStatus(
+  reference: string
+): Promise<{ ok: true; status: KorapayTransferStatus["status"]; message?: string } | { ok: false; error: string }> {
   const key = await getSecretKey();
-  if (!key) return null;
+  if (!key) return { ok: false, error: "Korapay is not configured" };
 
   const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/${encodeURIComponent(reference)}`, {
     headers: headers(key),
   });
   const data = await res.json().catch(() => null);
-  if (!res.ok || !data?.data) return null;
+  if (!res.ok || !data?.data) {
+    const error = data?.message ?? res.statusText ?? `Korapay returned HTTP ${res.status}`;
+    console.error("[korapay:getTransferStatus] failed", JSON.stringify({ reference, status: res.status, body: data }));
+    return { ok: false, error };
+  }
 
   const raw = String(data.data.status ?? "").toLowerCase();
   const status: KorapayTransferStatus["status"] =
     raw === "success" || raw === "failed" || raw === "processing" ? raw : "pending";
-  return { status, message: data.data.message };
+  return { ok: true, status, message: data.data.message };
 }
 
 /**
