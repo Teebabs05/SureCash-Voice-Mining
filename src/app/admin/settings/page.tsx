@@ -11,6 +11,7 @@ import { PaymentGatewaysCard } from "@/components/admin/payment-gateways-card";
 import { NotificationsIntegrationsCard } from "@/components/admin/notifications-integrations-card";
 import { VoiceVerificationCard } from "@/components/admin/voice-verification-card";
 import { SponsoredPostsCard } from "@/components/admin/sponsored-posts-card";
+import { BillsVtuCard } from "@/components/admin/bills-vtu-card";
 
 interface Setting {
   key: string;
@@ -63,6 +64,7 @@ const TABS = [
   { key: "general", label: "General" },
   { key: "payments", label: "Payments" },
   { key: "features", label: "Features" },
+  { key: "bills", label: "Bills & VTU" },
   { key: "integrations", label: "Integrations" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
@@ -555,6 +557,16 @@ export default function AdminSettingsPage() {
           </Button>
         </div>
       </Card>
+        </>
+      )}
+
+      {tab === "bills" && (
+        <>
+          {role === "SUPERADMIN" ? (
+            <BillsVtuCard />
+          ) : (
+            <p className="text-sm text-foreground/50">Only super admins can view Bills &amp; VTU settings.</p>
+          )}
         </>
       )}
 

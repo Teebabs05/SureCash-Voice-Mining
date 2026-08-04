@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { ComingSoonSheet, type ComingSoonColor } from "@/components/dashboard/coming-soon-sheet";
 
@@ -11,11 +12,14 @@ interface ArcItem {
   color: ComingSoonColor;
   description: string;
   raised: boolean;
+  /** If set, navigates here instead of showing the "coming soon" sheet. */
+  href?: string;
 }
 
 const DIP_OFFSET = 44;
 
 export function BillPaymentsArc({ items }: { items: ArcItem[] }) {
+  const router = useRouter();
   const [selected, setSelected] = useState<ArcItem | null>(null);
   // Doubled so the marquee loop is seamless - translateX(-50%) lands exactly
   // back on the first set.
@@ -36,7 +40,7 @@ export function BillPaymentsArc({ items }: { items: ArcItem[] }) {
           return (
             <button
               key={`${label}-${i}`}
-              onClick={() => setSelected(item)}
+              onClick={() => (item.href ? router.push(item.href) : setSelected(item))}
               className="flex flex-none flex-col items-center gap-1.5 transition-transform active:scale-95"
               style={{ transform: `translateY(${raised ? 0 : DIP_OFFSET}px)` }}
             >

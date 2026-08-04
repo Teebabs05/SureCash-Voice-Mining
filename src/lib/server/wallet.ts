@@ -27,6 +27,7 @@ const REASON_LABELS: Record<TxnReason, string> = {
   MINING_PLAN_PURCHASE: "Mining plan investment",
   MINING_PLAN_PAYOUT: "Mining plan daily return",
   AD_REWARD: "Watch-ad reward",
+  BILLS_PURCHASE: "Bills & VTU purchase",
 };
 
 // Fire-and-forget, same convention as notifyUser()'s push dispatch - a

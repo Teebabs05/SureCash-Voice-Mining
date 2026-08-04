@@ -25,6 +25,7 @@ import {
   Disc3,
   TrendingUp,
   IdCard,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
@@ -36,6 +37,7 @@ const items = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/deposits", label: "Deposits", icon: Banknote },
   { href: "/admin/withdrawals", label: "Withdrawals", icon: ArrowUpFromLine },
+  { href: "/admin/bills", label: "Bills & VTU", icon: Receipt },
   { href: "/admin/bank-accounts", label: "Bank Accounts", icon: Landmark },
   { href: "/admin/voice-tasks", label: "Voice Tasks", icon: Mic },
   { href: "/admin/tasks", label: "Task Center", icon: ClipboardCheck },

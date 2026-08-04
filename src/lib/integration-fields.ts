@@ -57,6 +57,14 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Bills & VTU",
+    provider: "VTU.ng",
+    fields: [
+      { key: "VTU_NG_USERNAME", label: "Account email or username", placeholder: "" },
+      { key: "VTU_NG_PASSWORD", label: "Password", placeholder: "" },
+    ],
+  },
+  {
     category: "Notifications",
     provider: "Email (Resend)",
     fields: [
