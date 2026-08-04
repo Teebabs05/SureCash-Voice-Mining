@@ -51,6 +51,7 @@ enum TxnReason {
   MINING_PLAN_PURCHASE
   MINING_PLAN_PAYOUT
   AD_REWARD
+  BILLS_PURCHASE
 }
 
 enum SponsoredPlatform {
@@ -259,6 +260,7 @@ model User {
   adWatches                 AdWatch[]
   kycDocuments              KycDocument[]
   webauthnCredentials       WebAuthnCredential[]
+  billPurchases             BillPurchase[]
 
   @@index([referredById])
   @@index([role])
@@ -499,6 +501,64 @@ model Withdrawal {
   rejectionReason     String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Bills & VTU (airtime, data, electricity, cable TV)
+// ---------------------------------------------------------------------------
+
+enum BillProvider {
+  VTU_NG
+  VTUAFRICA
+}
+
+enum BillServiceType {
+  AIRTIME
+  DATA
+  ELECTRICITY
+  CABLE_TV
+}
+
+enum BillPurchaseStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+/**
+ * A single VTU/bills purchase — always debits the user's MAIN wallet (never
+ * ENGAGEMENT/SALES, which are earnings-only; see the comment on
+ * Withdrawal.walletType above). PENDING/PROCESSING means the provider hasn't
+ * confirmed the outcome yet - the provider's requery endpoint (see
+ * src/lib/payments/vtu-provider.ts) is the source of truth for resolving
+ * those, since VTU.ng's own docs say their "completed" webhook only fires
+ * for admin-manually-triggered completions, not routine ones.
+ */
+model BillPurchase {
+  id               String             @id @default(cuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider         BillProvider
+  serviceType      BillServiceType
+  serviceId        String // provider's own service code, e.g. "mtn", "dstv", "ikeja-electric"
+  variationId      String? // data plan / cable bouquet / meter type - not used for airtime
+  recipient        String // phone number, meter number, or smartcard/IUC number
+  amount           Decimal            @db.Decimal(18, 2) // amount debited from the user's MAIN wallet
+  reference        String             @unique // our own reference, sent to the provider as its request/order id
+  providerOrderId  String?
+  status           BillPurchaseStatus @default(PENDING)
+  token            String? // electricity prepaid token
+  units            String? // electricity units purchased
+  providerResponse Json?
+  errorMessage     String?
+  processedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@index([userId])
   @@index([status])
