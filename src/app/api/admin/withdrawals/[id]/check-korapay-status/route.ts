@@ -29,11 +29,36 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return jsonError("This withdrawal isn't currently processing", 409);
     }
 
+    const userId = withdrawal.userId;
+
+    async function markFailed(message: string, auditAction: string) {
+      await prisma.withdrawal.update({
+        where: { id },
+        data: { status: "PENDING", autoPayoutError: message },
+      });
+      await notifyUser({
+        userId,
+        title: "Withdrawal delayed",
+        body: "Your withdrawal couldn't be completed automatically and is now under manual review.",
+        type: "WALLET",
+      });
+      await writeAuditLog({ userId: admin.id, action: auditAction, ipAddress, userAgent, metadata: { withdrawalId: id, message } });
+    }
+
     const result = await getTransferStatus(withdrawal.reference);
     if (!result.ok) {
-      // A lookup failure isn't proof the transfer itself failed (could be a
-      // transient issue with this specific call) - surface the real reason
-      // without touching the withdrawal's status, so the admin can decide.
+      if (result.notFound) {
+        // Korapay has no record of this transfer at all - it was never
+        // actually created on their end despite the app marking it
+        // PROCESSING, so treat this the same as an explicit failure rather
+        // than leaving it stuck forever.
+        await markFailed(`Korapay has no record of this transfer (${result.error})`, "admin.withdrawal_korapay_status_not_found");
+        const updated = await prisma.withdrawal.findUnique({ where: { id } });
+        return NextResponse.json({ withdrawal: updated, note: "Korapay has no record of this transfer - moved back to Pending for manual review" });
+      }
+      // Any other lookup failure isn't proof the transfer itself failed
+      // (could be transient) - surface the real reason without touching
+      // the withdrawal's status, so the admin can decide.
       return NextResponse.json({ withdrawal, note: `Korapay error: ${result.error}` });
     }
 
@@ -55,17 +80,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
       await writeAuditLog({ userId: admin.id, action: "admin.withdrawal_korapay_status_paid", ipAddress, userAgent, metadata: { withdrawalId: id } });
     } else if (result.status === "failed") {
-      await prisma.withdrawal.update({
-        where: { id },
-        data: { status: "PENDING", autoPayoutError: result.message ?? "Korapay reported this transfer as failed" },
-      });
-      await notifyUser({
-        userId: withdrawal.userId,
-        title: "Withdrawal delayed",
-        body: "Your withdrawal couldn't be completed automatically and is now under manual review.",
-        type: "WALLET",
-      });
-      await writeAuditLog({ userId: admin.id, action: "admin.withdrawal_korapay_status_failed", ipAddress, userAgent, metadata: { withdrawalId: id } });
+      await markFailed(result.message ?? "Korapay reported this transfer as failed", "admin.withdrawal_korapay_status_failed");
     }
 
     const updated = await prisma.withdrawal.findUnique({ where: { id } });

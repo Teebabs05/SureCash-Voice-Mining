@@ -129,8 +129,18 @@ export async function initiateTransfer(params: {
   }
 
   const raw = String(data.data.status ?? "").toLowerCase();
-  const status = raw === "success" ? "success" : raw === "failed" ? "failed" : "pending";
-  return { status, reference: data.data.reference ?? params.reference };
+  if (raw === "success") return { status: "success", reference: data.data.reference ?? params.reference };
+  if (raw === "pending" || raw === "processing") return { status: "pending", reference: data.data.reference ?? params.reference };
+
+  // Anything else - including a genuinely "failed" status, or a response
+  // that didn't come back with a status this file recognizes - gets
+  // treated as failed rather than silently assumed to be "pending". Two
+  // real withdrawals got stuck in PROCESSING forever because this used to
+  // default unrecognized statuses to "pending": the app believed a payout
+  // was in flight when Korapay's own records later showed no such
+  // transaction ever existed for that reference.
+  console.error("[korapay:initiateTransfer] non-success status", JSON.stringify({ reference: params.reference, raw, data: data.data }));
+  return { status: "failed", message: data.data.message ?? (raw ? `Korapay status: ${raw}` : "Korapay did not confirm the transfer") };
 }
 
 export async function isKorapayConfigured(): Promise<boolean> {
@@ -160,9 +170,12 @@ export interface KorapayTransferStatus {
  */
 export async function getTransferStatus(
   reference: string
-): Promise<{ ok: true; status: KorapayTransferStatus["status"]; message?: string } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; status: KorapayTransferStatus["status"]; message?: string }
+  | { ok: false; error: string; notFound: boolean }
+> {
   const key = await getSecretKey();
-  if (!key) return { ok: false, error: "Korapay is not configured" };
+  if (!key) return { ok: false, error: "Korapay is not configured", notFound: false };
 
   const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/${encodeURIComponent(reference)}`, {
     headers: headers(key),
@@ -171,7 +184,11 @@ export async function getTransferStatus(
   if (!res.ok || !data?.data) {
     const error = data?.message ?? res.statusText ?? `Korapay returned HTTP ${res.status}`;
     console.error("[korapay:getTransferStatus] failed", JSON.stringify({ reference, status: res.status, body: data }));
-    return { ok: false, error };
+    // Korapay has no record of a transaction under this reference at all -
+    // a reliable signal the transfer was never actually created on their
+    // end (as opposed to some other, possibly transient, lookup failure).
+    const notFound = res.status === 404 || /not found/i.test(error);
+    return { ok: false, error, notFound };
   }
 
   const raw = String(data.data.status ?? "").toLowerCase();
