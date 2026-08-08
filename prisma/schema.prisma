@@ -1037,7 +1037,10 @@ model Setting {
 // .env var — see src/lib/server/credentials.ts.
 model IntegrationCredential {
   key            String   @id
-  encryptedValue String
+  // @db.Text, not the default VARCHAR(191) - some values (e.g. a PEM RSA
+  // private key) run well past 191 chars once AES-GCM encrypted, and would
+  // silently truncate on save otherwise, corrupting the stored value.
+  encryptedValue String   @db.Text
   updatedAt      DateTime @updatedAt
   updatedById    String?
 }

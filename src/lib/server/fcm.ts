@@ -37,17 +37,25 @@ async function getAccessToken(): Promise<string | null> {
   const creds = await getFirebaseCredentials();
   if (!creds) return null;
 
-  const key = await importPKCS8(creds.privateKey, "RS256");
-  const now = Math.floor(Date.now() / 1000);
-  const assertion = await new SignJWT({
-    scope: "https://www.googleapis.com/auth/firebase.messaging",
-  })
-    .setProtectedHeader({ alg: "RS256" })
-    .setIssuer(creds.clientEmail)
-    .setAudience("https://oauth2.googleapis.com/token")
-    .setIssuedAt(now)
-    .setExpirationTime(now + 3600)
-    .sign(key);
+  let assertion: string;
+  try {
+    const key = await importPKCS8(creds.privateKey, "RS256");
+    const now = Math.floor(Date.now() / 1000);
+    assertion = await new SignJWT({
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
+    })
+      .setProtectedHeader({ alg: "RS256" })
+      .setIssuer(creds.clientEmail)
+      .setAudience("https://oauth2.googleapis.com/token")
+      .setIssuedAt(now)
+      .setExpirationTime(now + 3600)
+      .sign(key);
+  } catch {
+    // A malformed/corrupted private key (e.g. a stored value that got
+    // truncated) throws here rather than producing a usable token - treat
+    // it the same as "not configured" instead of crashing the caller.
+    return null;
+  }
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
