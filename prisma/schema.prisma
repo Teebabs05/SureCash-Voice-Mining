@@ -241,6 +241,7 @@ model User {
   notifications             Notification[]
   devices                   Device[]
   pushSubscriptions         PushSubscription[]
+  deviceTokens              DeviceToken[]
   fraudReports              FraudReport[]            @relation("FraudSubject")
   fraudReportsReviewed      FraudReport[]            @relation("FraudReviewer")
   missionProgress           UserMissionProgress[]
@@ -958,6 +959,21 @@ model PushSubscription {
   auth      String
   userAgent String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Firebase Cloud Messaging tokens for the native Android app - separate
+// from PushSubscription, which is browser Web Push (VAPID) and can't
+// reach a WebView-based app. See src/lib/server/fcm.ts.
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   @default("android")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }

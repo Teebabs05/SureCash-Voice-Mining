@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma, NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { sendPushToUser, sendPushToAllUsers } from "@/lib/server/push";
+import { sendFcmToUser, sendFcmToAllUsers } from "@/lib/server/fcm";
 import { sendWhatsAppNotification, isWhatsAppConfigured } from "@/lib/notifications/whatsapp";
 
 type Tx = Prisma.TransactionClient;
@@ -36,6 +37,7 @@ export async function notifyUser(params: {
   // configured, no verified phone) should never fail the in-app
   // notification write itself.
   sendPushToUser(params.userId, { title: params.title, body: params.body }).catch(() => {});
+  sendFcmToUser(params.userId, { title: params.title, body: params.body }).catch(() => {});
   sendWhatsAppIfEnabled(params.userId, params.title, params.body).catch(() => {});
 
   return notification;
@@ -52,6 +54,7 @@ export async function broadcastNotification(params: { title: string; body: strin
   });
 
   sendPushToAllUsers({ title: params.title, body: params.body }).catch(() => {});
+  sendFcmToAllUsers({ title: params.title, body: params.body }).catch(() => {});
 
   return notification;
 }

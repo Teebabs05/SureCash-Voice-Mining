@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { PwaRegistration } from "@/components/pwa-registration";
+import { AndroidPushBridge } from "@/components/android-push-bridge";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,6 +62,7 @@ export default function RootLayout({
         {children}
         <Toaster position="top-center" richColors closeButton />
         <PwaRegistration />
+        <AndroidPushBridge />
       </body>
     </html>
   );

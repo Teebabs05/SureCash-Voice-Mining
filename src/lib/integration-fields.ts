@@ -96,6 +96,23 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Notifications",
+    provider: "Push Notifications (Firebase, for the Android app)",
+    fields: [
+      { key: "FIREBASE_PROJECT_ID", label: "Project ID", placeholder: "surecash-mining" },
+      {
+        key: "FIREBASE_CLIENT_EMAIL",
+        label: "Client email",
+        placeholder: "firebase-adminsdk-xxxxx@surecash-mining.iam.gserviceaccount.com",
+      },
+      {
+        key: "FIREBASE_PRIVATE_KEY",
+        label: "Private key (paste with \\n, not real line breaks)",
+        placeholder: "-----BEGIN PRIVATE KEY-----\\nMIIE...\\n-----END PRIVATE KEY-----\\n",
+      },
+    ],
+  },
+  {
     category: "Voice Verification",
     provider: "Groq (recommended — free tier, usually no card needed)",
     fields: [{ key: "GROQ_API_KEY", label: "API key", placeholder: "gsk_..." }],
