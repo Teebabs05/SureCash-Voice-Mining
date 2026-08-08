@@ -50,8 +50,9 @@ export function VoiceRecorder({
       setSeconds(0);
       setRecording(true);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } catch {
-      toast.error("Microphone access is required to record");
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : "UnknownError";
+      toast.error(`Microphone access failed: ${name}${err instanceof Error && err.message ? ` - ${err.message}` : ""}`);
     }
   }
 
