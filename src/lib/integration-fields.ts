@@ -97,6 +97,15 @@ export const INTEGRATION_GROUPS = [
   },
   {
     category: "Notifications",
+    provider: "Push Notifications (Web/browser)",
+    fields: [
+      { key: "VAPID_PUBLIC_KEY", label: "VAPID public key", placeholder: "" },
+      { key: "VAPID_PRIVATE_KEY", label: "VAPID private key", placeholder: "" },
+      { key: "VAPID_SUBJECT", label: "Contact (mailto: or https:, optional)", placeholder: "mailto:support@surecash.app" },
+    ],
+  },
+  {
+    category: "Notifications",
     provider: "Push Notifications (Firebase, for the Android app)",
     fields: [
       { key: "FIREBASE_PROJECT_ID", label: "Project ID", placeholder: "surecash-mining" },

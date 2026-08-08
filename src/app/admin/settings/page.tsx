@@ -9,6 +9,7 @@ import { apiFetch, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { PaymentGatewaysCard } from "@/components/admin/payment-gateways-card";
 import { NotificationsIntegrationsCard } from "@/components/admin/notifications-integrations-card";
+import { PushDiagnosticsCard } from "@/components/admin/push-diagnostics-card";
 import { VoiceVerificationCard } from "@/components/admin/voice-verification-card";
 import { SponsoredPostsCard } from "@/components/admin/sponsored-posts-card";
 import { BillsVtuCard } from "@/components/admin/bills-vtu-card";
@@ -575,6 +576,7 @@ export default function AdminSettingsPage() {
           {role === "SUPERADMIN" ? (
             <>
               <NotificationsIntegrationsCard />
+              <PushDiagnosticsCard />
               <VoiceVerificationCard />
             </>
           ) : (

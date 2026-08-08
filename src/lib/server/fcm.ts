@@ -69,7 +69,7 @@ async function sendToToken(
   accessToken: string,
   token: string,
   payload: { title: string; body: string; url?: string }
-): Promise<{ ok: true } | { ok: false; invalidToken: boolean }> {
+): Promise<{ ok: true } | { ok: false; invalidToken: boolean; message: string }> {
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -88,34 +88,54 @@ async function sendToToken(
     (d: { errorCode?: string }) => typeof d?.errorCode === "string"
   )?.errorCode;
   const invalidToken = status === "UNREGISTERED" || status === "INVALID_ARGUMENT" || res.status === 404;
-  return { ok: false, invalidToken };
+  return { ok: false, invalidToken, message: body?.error?.message ?? `HTTP ${res.status}` };
+}
+
+export interface FcmSendResult {
+  attempted: number;
+  sent: number;
+  errors: string[];
 }
 
 /**
  * Best-effort push send — silently a no-op if Firebase credentials aren't
  * configured, and prunes tokens FCM reports as unregistered/invalid so dead
  * devices don't pile up (same convention as push.ts's subscription pruning).
+ * Returns a result summary so the admin push-test endpoint can surface real
+ * failures instead of guessing - existing fire-and-forget callers just
+ * ignore the resolved value.
  */
-async function sendToTokens(tokens: { id: string; token: string }[], payload: { title: string; body: string; url?: string }) {
+async function sendToTokens(
+  tokens: { id: string; token: string }[],
+  payload: { title: string; body: string; url?: string }
+): Promise<FcmSendResult> {
   const creds = await getFirebaseCredentials();
-  if (!creds) return;
+  if (!creds) return { attempted: tokens.length, sent: 0, errors: ["Firebase credentials not configured"] };
   const accessToken = await getAccessToken();
-  if (!accessToken) return;
+  if (!accessToken) return { attempted: tokens.length, sent: 0, errors: ["Could not obtain a Google OAuth2 access token - check the service account credentials"] };
 
+  const errors: string[] = [];
+  let sent = 0;
   await Promise.all(
     tokens.map(async ({ id, token }) => {
       const result = await sendToToken(creds.projectId, accessToken, token, payload);
-      if (!result.ok && result.invalidToken) {
-        await prisma.deviceToken.delete({ where: { id } }).catch(() => {});
+      if (result.ok) {
+        sent++;
+      } else {
+        errors.push(result.message);
+        if (result.invalidToken) {
+          await prisma.deviceToken.delete({ where: { id } }).catch(() => {});
+        }
       }
     })
   );
+  return { attempted: tokens.length, sent, errors };
 }
 
-export async function sendFcmToUser(userId: string, payload: { title: string; body: string; url?: string }) {
+export async function sendFcmToUser(userId: string, payload: { title: string; body: string; url?: string }): Promise<FcmSendResult> {
   const tokens = await prisma.deviceToken.findMany({ where: { userId }, select: { id: true, token: true } });
-  if (tokens.length === 0) return;
-  await sendToTokens(tokens, payload);
+  if (tokens.length === 0) return { attempted: 0, sent: 0, errors: ["No device registered for this user yet"] };
+  return sendToTokens(tokens, payload);
 }
 
 export async function sendFcmToAllUsers(payload: { title: string; body: string; url?: string }) {
