@@ -44,7 +44,6 @@ async function getAccessToken(): Promise<string | null> {
   })
     .setProtectedHeader({ alg: "RS256" })
     .setIssuer(creds.clientEmail)
-    .setSubject(creds.clientEmail)
     .setAudience("https://oauth2.googleapis.com/token")
     .setIssuedAt(now)
     .setExpirationTime(now + 3600)
