@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
  * for provider integrations (see notifications/email.ts, payments/*).
  */
 
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
 async function getFirebaseCredentials() {
   const [projectId, clientEmail, rawPrivateKey] = await Promise.all([
     getCredential("FIREBASE_PROJECT_ID"),
@@ -84,7 +86,11 @@ async function sendToToken(
     body: JSON.stringify({
       message: {
         token,
-        notification: { title: payload.title, body: payload.body },
+        // The image lets Android's own system-generated notification (the
+        // path used whenever the app isn't in the foreground - i.e. most
+        // real-world pushes) show the logo too, not just the foreground
+        // code path in PushMessagingService.kt.
+        notification: { title: payload.title, body: payload.body, image: `${SITE_URL}/icons/icon-512.png` },
         data: payload.url ? { url: payload.url } : undefined,
       },
     }),
