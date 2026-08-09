@@ -4,13 +4,13 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 60 * 60 * 1000;
 const WARNING_BEFORE_MS = 60 * 1000;
 const ACTIVITY_EVENTS = ["mousedown", "mousemove", "keydown", "touchstart", "scroll", "wheel"] as const;
 const STORAGE_KEY = "surecash_last_activity";
 
 /**
- * Auto-logs out after 15 minutes of no interaction, for account security on
+ * Auto-logs out after 1 hour of no interaction, for account security on
  * shared/public devices. Activity is tracked via localStorage (not just
  * local timers) so it's shared across every open tab - moving the mouse in
  * one tab resets the idle clock for all of them, and an idle tab still gets
