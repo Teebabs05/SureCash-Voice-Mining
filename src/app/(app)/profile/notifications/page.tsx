@@ -23,6 +23,19 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [pushState, setPushState] = useState<"unsupported" | "subscribed" | "unsubscribed">("unsubscribed");
   const [pushLoading, setPushLoading] = useState(false);
+  // iOS Safari never exposes the Push API unless the site was installed via
+  // "Add to Home Screen" first (and even then, needs iOS 16.4+) - it's
+  // otherwise indistinguishable from "this browser doesn't support push at
+  // all", so detect that specific case to explain it instead of just hiding
+  // the whole section with no explanation. Computed once at mount (not in an
+  // effect) since it never changes for the lifetime of the page.
+  const [needsHomeScreenInstall] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+    return isIos && !isStandalone;
+  });
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [emailLoading, setEmailLoading] = useState(false);
   const [loginAlertsEnabled, setLoginAlertsEnabled] = useState(true);
@@ -140,26 +153,42 @@ export default function NotificationsPage() {
         </Button>
       </div>
 
-      {pushState !== "unsupported" && (
-        <div className="card flex items-center justify-between gap-3 p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
-              <BellRing className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Push notifications</p>
-              <p className="text-xs text-foreground/60">Get alerts on this device even when the app is closed.</p>
-            </div>
+      {needsHomeScreenInstall ? (
+        <div className="card flex items-start gap-3 p-4">
+          <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+            <BellRing className="h-4 w-4" />
           </div>
-          <Button
-            size="sm"
-            variant={pushState === "subscribed" ? "danger" : "primary"}
-            loading={pushLoading}
-            onClick={togglePush}
-          >
-            {pushState === "subscribed" ? "Disable" : "Enable"}
-          </Button>
+          <div>
+            <p className="text-sm font-semibold">Push notifications</p>
+            <p className="text-xs text-foreground/60">
+              iPhone Safari only supports push notifications for sites installed to your Home Screen. Tap the{" "}
+              <strong>Share</strong> button, then <strong>&quot;Add to Home Screen&quot;</strong>, then open SureCash
+              Mining from that new icon and come back to this page to enable them.
+            </p>
+          </div>
         </div>
+      ) : (
+        pushState !== "unsupported" && (
+          <div className="card flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                <BellRing className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Push notifications</p>
+                <p className="text-xs text-foreground/60">Get alerts on this device even when the app is closed.</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant={pushState === "subscribed" ? "danger" : "primary"}
+              loading={pushLoading}
+              onClick={togglePush}
+            >
+              {pushState === "subscribed" ? "Disable" : "Enable"}
+            </Button>
+          </div>
+        )
       )}
 
       {notifications.length === 0 && (
