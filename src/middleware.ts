@@ -13,7 +13,10 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-    const limited = await rateLimit(`global:${ip}`, 120, 60_000);
+    // Same shared-IP reasoning as the register endpoint: 120/min (2/sec) was
+    // tight for a household/office/carrier-NAT IP with several real users
+    // browsing at once, each page load firing multiple parallel API calls.
+    const limited = await rateLimit(`global:${ip}`, 300, 60_000);
     if (!limited.success) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
