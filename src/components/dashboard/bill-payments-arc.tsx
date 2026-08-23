@@ -1,0 +1,66 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import { ComingSoonSheet, type ComingSoonColor } from "@/components/dashboard/coming-soon-sheet";
+
+interface ArcItem {
+  label: string;
+  icon: LucideIcon;
+  iconClass: string;
+  color: ComingSoonColor;
+  description: string;
+  raised: boolean;
+  /** If set, navigates here instead of showing the "coming soon" sheet. */
+  href?: string;
+}
+
+const DIP_OFFSET = 44;
+
+export function BillPaymentsArc({ items }: { items: ArcItem[] }) {
+  const router = useRouter();
+  const [selected, setSelected] = useState<ArcItem | null>(null);
+  // Doubled so the marquee loop is seamless - translateX(-50%) lands exactly
+  // back on the first set.
+  const looped = [...items, ...items];
+
+  return (
+    <div className="relative overflow-hidden" style={{ minHeight: 90 + DIP_OFFSET }}>
+      <svg
+        viewBox="0 0 400 90"
+        preserveAspectRatio="none"
+        className="pointer-events-none absolute inset-x-2 top-9 h-14 w-[calc(100%-1rem)] text-border"
+      >
+        <path d="M10,10 C110,85 290,85 390,10" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+      <div className="animate-marquee-x relative flex w-max items-start gap-8">
+        {looped.map((item, i) => {
+          const { label, icon: Icon, iconClass, raised } = item;
+          return (
+            <button
+              key={`${label}-${i}`}
+              onClick={() => (item.href ? router.push(item.href) : setSelected(item))}
+              className="flex flex-none flex-col items-center gap-1.5 transition-transform active:scale-95"
+              style={{ transform: `translateY(${raised ? 0 : DIP_OFFSET}px)` }}
+            >
+              <div className={`flex h-14 w-14 items-center justify-center rounded-full ${iconClass}`}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <span className="text-xs font-medium text-foreground/70">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <ComingSoonSheet
+        feature={
+          selected
+            ? { icon: selected.icon, title: selected.label, description: selected.description, color: selected.color }
+            : null
+        }
+        onClose={() => setSelected(null)}
+      />
+    </div>
+  );
+}

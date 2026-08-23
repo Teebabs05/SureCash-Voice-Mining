@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/server/current-user";
 import { handleApiError } from "@/lib/server/api-response";
+import { dateOnlyKey } from "@/lib/server/gamification";
 
 export async function GET() {
   try {
     const user = await requireUser();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = dateOnlyKey();
 
     const missions = await prisma.dailyMission.findMany({ where: { isActive: true } });
     const progress = await prisma.userMissionProgress.findMany({

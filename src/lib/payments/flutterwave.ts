@@ -49,7 +49,7 @@ export async function initializePayment(params: {
       tx_ref: params.reference,
       amount: params.amount,
       currency: "NGN",
-      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
+      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       customer: { email: params.email, name: params.name },
       customizations: { title: "SureCash Mining wallet funding" },
     }),
@@ -122,6 +122,64 @@ export async function initiateTransfer(params: {
 
 export async function isFlutterwaveConfigured(): Promise<boolean> {
   return Boolean(await getSecretKey());
+}
+
+export interface BankListEntry {
+  code: string;
+  name: string;
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function listBanks(): Promise<BankListEntry[]> {
+  const key = await getSecretKey();
+  if (!key) return [];
+
+  const res = await fetch(`${BASE_URL}/banks/NG`, { headers: headers(key) });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data?.data)) return [];
+
+  return data.data.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
+}
+
+/** Same call as listBanks, but returns the raw response for admin diagnostics. */
+export async function debugListBanks() {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, status: 0, body: { error: "Flutterwave is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/banks/NG`, { headers: headers(key) });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
+  const key = await getSecretKey();
+  if (!key) return null;
+
+  const res = await fetch(`${BASE_URL}/accounts/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data?.account_name) return null;
+  return data.data.account_name as string;
+}
+
+/** Same call as resolveBankAccount, but returns the raw response for admin diagnostics. */
+export async function debugResolveBankAccount(bankCode: string, accountNumber: string) {
+  const key = await getSecretKey();
+  if (!key) {
+    return { ok: false, status: 0, request: { account_number: accountNumber, account_bank: bankCode }, body: { error: "Flutterwave is not configured" } };
+  }
+  const res = await fetch(`${BASE_URL}/accounts/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }),
+  });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, request: { account_number: accountNumber, account_bank: bankCode }, body };
 }
 
 /**

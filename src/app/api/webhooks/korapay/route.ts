@@ -30,13 +30,15 @@ export async function POST(req: NextRequest) {
 
     if (reference && status === "success" && amount > 0) {
       await prisma.$transaction(async (tx) => {
-        const deposit = await tx.deposit.findUnique({ where: { reference } });
-        if (!deposit || deposit.status === "APPROVED") return;
-
-        await tx.deposit.update({
-          where: { id: deposit.id },
+        // Atomic status flip - see the paystack webhook for why a plain
+        // read-then-check isn't safe against redelivered webhooks.
+        const claimed = await tx.deposit.updateMany({
+          where: { reference, status: { not: "APPROVED" } },
           data: { status: "APPROVED", verifiedAt: new Date(), gatewayData: body },
         });
+        if (claimed.count === 0) return;
+
+        const deposit = await tx.deposit.findUniqueOrThrow({ where: { reference } });
 
         await creditWallet({
           userId: deposit.userId,
@@ -70,7 +72,11 @@ export async function POST(req: NextRequest) {
 
     if (status === "success" && withdrawal.status !== "PAID") {
       await prisma.$transaction(async (tx) => {
-        await tx.withdrawal.update({ where: { id: withdrawal.id }, data: { status: "PAID", processedAt: new Date() } });
+        const claimed = await tx.withdrawal.updateMany({
+          where: { id: withdrawal.id, status: { not: "PAID" } },
+          data: { status: "PAID", processedAt: new Date() },
+        });
+        if (claimed.count === 0) return;
         await notifyUser({
           userId: withdrawal.userId,
           title: "Withdrawal paid",

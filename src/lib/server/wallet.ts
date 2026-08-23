@@ -1,10 +1,66 @@
 import "server-only";
 import { Prisma, WalletType, TxnReason } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { generateReference } from "@/lib/utils";
+import { generateReference, formatCurrency } from "@/lib/utils";
 import { WALLET_TYPES } from "@/lib/config";
+import { sendEmail, walletActivityEmailHtml } from "@/lib/notifications/email";
 
 type Tx = Prisma.TransactionClient;
+
+const REASON_LABELS: Record<TxnReason, string> = {
+  DAILY_MINING: "Daily mining reward",
+  VOICE_TASK_REWARD: "Voice task reward",
+  TASK_REWARD: "Task reward",
+  REFERRAL_BONUS: "Referral bonus",
+  DEPOSIT: "Wallet deposit",
+  WITHDRAWAL: "Withdrawal",
+  WITHDRAWAL_REVERSAL: "Withdrawal reversed",
+  ADMIN_ADJUSTMENT: "Wallet adjustment",
+  SPIN_REWARD: "Lucky Spin reward",
+  MISSION_REWARD: "Mission reward",
+  LEVEL_UP_BONUS: "Level-up bonus",
+  WALLET_TRANSFER: "Wallet transfer",
+  PLAN_ACTIVATION: "Plan purchase",
+  PLAN_COMMISSION: "Referral commission",
+  SPONSORED_POST_REWARD: "Sponsored post reward",
+  EXTRA_SPIN_PURCHASE: "Extra spin purchase",
+  MINING_PLAN_PURCHASE: "Mining plan investment",
+  MINING_PLAN_PAYOUT: "Mining plan daily return",
+  AD_REWARD: "Watch-ad reward",
+  BILLS_PURCHASE: "Bills & VTU purchase",
+};
+
+// Fire-and-forget, same convention as notifyUser()'s push dispatch - a
+// failed or slow email send should never hold up or fail the wallet
+// operation itself.
+async function sendWalletActivityEmail(params: {
+  client: Tx;
+  userId: string;
+  direction: "CREDIT" | "DEBIT";
+  reason: TxnReason;
+  description?: string;
+  amount: number;
+  balanceAfter: Prisma.Decimal;
+}) {
+  const user = await params.client.user.findUnique({
+    where: { id: params.userId },
+    select: { email: true, fullName: true, emailNotificationsEnabled: true },
+  });
+  if (!user || !user.emailNotificationsEnabled) return;
+
+  sendEmail({
+    to: user.email,
+    subject: `${REASON_LABELS[params.reason]} - ${formatCurrency(params.amount)}`,
+    html: walletActivityEmailHtml({
+      fullName: user.fullName,
+      direction: params.direction,
+      reasonLabel: REASON_LABELS[params.reason],
+      amount: formatCurrency(params.amount),
+      balanceAfter: formatCurrency(Number(params.balanceAfter)),
+      description: params.description,
+    }),
+  }).catch(() => {});
+}
 
 export class InsufficientBalanceError extends Error {
   constructor() {
@@ -49,7 +105,7 @@ export async function creditWallet(params: {
       data: { balance: { increment: params.amount } },
     });
 
-    return tx.walletTransaction.create({
+    const transaction = await tx.walletTransaction.create({
       data: {
         walletId: wallet.id,
         userId: params.userId,
@@ -62,6 +118,18 @@ export async function creditWallet(params: {
         metadata: params.metadata as Prisma.InputJsonValue,
       },
     });
+
+    sendWalletActivityEmail({
+      client: tx,
+      userId: params.userId,
+      direction: "CREDIT",
+      reason: params.reason,
+      description: params.description,
+      amount: params.amount,
+      balanceAfter: updated.balance,
+    }).catch(() => {});
+
+    return transaction;
   };
 
   return params.client ? run(params.client) : prisma.$transaction(run);
@@ -91,7 +159,7 @@ export async function debitWallet(params: {
 
     const updated = await tx.wallet.findUniqueOrThrow({ where: { id: wallet.id } });
 
-    return tx.walletTransaction.create({
+    const transaction = await tx.walletTransaction.create({
       data: {
         walletId: wallet.id,
         userId: params.userId,
@@ -104,6 +172,18 @@ export async function debitWallet(params: {
         metadata: params.metadata as Prisma.InputJsonValue,
       },
     });
+
+    sendWalletActivityEmail({
+      client: tx,
+      userId: params.userId,
+      direction: "DEBIT",
+      reason: params.reason,
+      description: params.description,
+      amount: params.amount,
+      balanceAfter: updated.balance,
+    }).catch(() => {});
+
+    return transaction;
   };
 
   return params.client ? run(params.client) : prisma.$transaction(run);

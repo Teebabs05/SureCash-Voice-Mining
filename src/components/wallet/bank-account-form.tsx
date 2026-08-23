@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, Search, ShieldAlert } from "lucide-react";
+import { CheckCircle2, CheckSquare, Loader2, Search, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -20,6 +20,8 @@ interface BankAccount {
   accountName: string;
   autoVerified: boolean;
   isVerified: boolean;
+  isPrimary: boolean;
+  reviewNote: string | null;
 }
 
 export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) => void }) {
@@ -31,8 +33,8 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
 
   const [resolving, setResolving] = useState(false);
   const [resolvedName, setResolvedName] = useState<string | null>(null);
-  const [resolveError, setResolveError] = useState<string | null>(null);
-  const [providerConfigured, setProviderConfigured] = useState(true);
+  const [resolveAttempted, setResolveAttempted] = useState(false);
+  const [manualName, setManualName] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -43,10 +45,10 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
 
   useEffect(() => {
     // Reset the previous lookup result whenever the inputs change so a stale
-    // resolved name/error can't linger against a different bank/account pair.
+    // resolved name can't linger against a different bank/account pair.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolvedName(null);
-    setResolveError(null);
+    setResolveAttempted(false);
 
     if (!selectedBank || accountNumber.length !== 10) return;
 
@@ -58,11 +60,12 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
           "/api/bank-accounts/resolve",
           { method: "POST", body: JSON.stringify({ bankCode: selectedBank.code, accountNumber }) }
         );
-        setProviderConfigured(res.configured);
         if (res.verified && res.accountName) setResolvedName(res.accountName);
-      } catch (err) {
-        setResolveError(err instanceof ApiError ? err.message : "Could not verify this account");
+      } catch {
+        // Treated the same as "couldn't resolve" below - the manual-name
+        // fallback covers both a real error and a clean "not verified".
       } finally {
+        setResolveAttempted(true);
         setResolving(false);
       }
     }, 500);
@@ -76,7 +79,13 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
     ? banks.filter((b) => b.name.toLowerCase().includes(bankQuery.toLowerCase()))
     : banks;
 
-  const canSave = Boolean(selectedBank) && accountNumber.length === 10 && !resolving && !resolveError && (resolvedName || !providerConfigured);
+  const needsManualName = resolveAttempted && !resolvedName;
+  const canSave =
+    Boolean(selectedBank) &&
+    accountNumber.length === 10 &&
+    !resolving &&
+    resolveAttempted &&
+    (Boolean(resolvedName) || manualName.trim().length > 0);
 
   async function save() {
     if (!selectedBank) return;
@@ -84,13 +93,18 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
     try {
       const res = await apiFetch<{ account: BankAccount }>("/api/bank-accounts", {
         method: "POST",
-        body: JSON.stringify({ bankCode: selectedBank.code, accountNumber }),
+        body: JSON.stringify({
+          bankCode: selectedBank.code,
+          accountNumber,
+          accountName: resolvedName ? undefined : manualName.trim(),
+        }),
       });
       onAdded(res.account);
       setSelectedBank(null);
       setBankQuery("");
       setAccountNumber("");
       setResolvedName(null);
+      setManualName("");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not add bank account");
     } finally {
@@ -99,44 +113,50 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="relative">
-        <Input
-          placeholder="Search for your bank"
-          value={selectedBank ? selectedBank.name : bankQuery}
-          onFocus={() => setShowDropdown(true)}
-          onChange={(e) => {
-            setSelectedBank(null);
-            setBankQuery(e.target.value);
-            setShowDropdown(true);
-          }}
-        />
-        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/30" />
-        {showDropdown && !selectedBank && (
-          <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
-            {filteredBanks.length === 0 && <p className="p-3 text-xs text-foreground/50">No banks found</p>}
-            {filteredBanks.map((b) => (
-              <button
-                key={b.code}
-                onClick={() => {
-                  setSelectedBank(b);
-                  setShowDropdown(false);
-                }}
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-muted"
-              >
-                {b.name}
-              </button>
-            ))}
-          </div>
-        )}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-foreground/60">Select Bank</label>
+        <div className="relative">
+          <Input
+            placeholder="Search for your bank"
+            value={selectedBank ? selectedBank.name : bankQuery}
+            onFocus={() => setShowDropdown(true)}
+            onChange={(e) => {
+              setSelectedBank(null);
+              setBankQuery(e.target.value);
+              setShowDropdown(true);
+            }}
+          />
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/30" />
+          {showDropdown && !selectedBank && (
+            <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-surface shadow-lg">
+              {filteredBanks.length === 0 && <p className="p-3 text-xs text-foreground/50">No banks found</p>}
+              {filteredBanks.map((b) => (
+                <button
+                  key={b.code}
+                  onClick={() => {
+                    setSelectedBank(b);
+                    setShowDropdown(false);
+                  }}
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-muted"
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <Input
-        placeholder="10-digit account number"
-        value={accountNumber}
-        maxLength={10}
-        onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
-      />
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-foreground/60">Account Number</label>
+        <Input
+          placeholder="10-digit account number"
+          value={accountNumber}
+          maxLength={10}
+          onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+        />
+      </div>
 
       {resolving && (
         <p className="flex items-center gap-1.5 text-xs text-foreground/50">
@@ -144,23 +164,26 @@ export function BankAccountForm({ onAdded }: { onAdded: (account: BankAccount) =
         </p>
       )}
       {resolvedName && (
-        <p className="flex items-center gap-1.5 text-xs font-medium text-brand-green">
-          <CheckCircle2 className="h-3.5 w-3.5" /> {resolvedName}
-        </p>
+        <div className="flex items-center gap-1.5 rounded-xl bg-brand-green/10 px-3 py-2.5 text-sm font-semibold text-brand-green">
+          <CheckCircle2 className="h-4 w-4 flex-none" /> {resolvedName}
+        </div>
       )}
-      {resolveError && (
-        <p className="flex items-center gap-1.5 text-xs font-medium text-red-500">
-          <ShieldAlert className="h-3.5 w-3.5" /> {resolveError}
-        </p>
-      )}
-      {!providerConfigured && accountNumber.length === 10 && !resolveError && (
-        <p className="text-xs text-foreground/50">
-          Automatic verification isn&apos;t configured — this account will be reviewed manually before withdrawals are paid out.
-        </p>
+      {needsManualName && (
+        <>
+          <p className="flex items-center gap-1.5 text-xs font-medium text-[#a67c00]">
+            <ShieldAlert className="h-3.5 w-3.5" /> Couldn&apos;t automatically verify this account — enter the account
+            holder&apos;s name below. It&apos;ll be reviewed manually before withdrawals are paid out.
+          </p>
+          <Input
+            placeholder="Account holder's full name"
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+          />
+        </>
       )}
 
       <Button loading={submitting} disabled={!canSave} onClick={save} className={cn(!canSave && "opacity-50")}>
-        Save & send OTP
+        <CheckSquare className="h-4 w-4" /> Save Bank Account
       </Button>
     </div>
   );

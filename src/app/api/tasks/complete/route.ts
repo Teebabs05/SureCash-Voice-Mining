@@ -9,13 +9,39 @@ import { payReferralCommission } from "@/lib/server/referral-commission";
 import { saveUploadedFile } from "@/lib/server/storage";
 import { hashBuffer } from "@/lib/server/file-hash";
 import { XP_CONFIG } from "@/lib/config";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 type Tx = Prisma.TransactionClient;
 
 async function approveAndPay(
   tx: Tx,
-  params: { userId: string; taskId: string; title: string; reward: number; proofUrl?: string; proofText?: string; proofImageUrl?: string; proofImageHash?: string }
+  params: {
+    userId: string;
+    taskId: string;
+    taskType: string;
+    title: string;
+    reward: number;
+    proofUrl?: string;
+    proofText?: string;
+    proofImageUrl?: string;
+    proofImageHash?: string;
+  }
 ) {
+  if (params.taskType === "checkin") {
+    // Claim today's check-in atomically: only proceeds past this point if
+    // this request is the one that flips lastCheckInAt from "not today" to
+    // "today", so two near-simultaneous taps can't both pay out.
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const claimed = await tx.$executeRaw`
+      UPDATE \`User\` SET \`lastCheckInAt\` = NOW()
+      WHERE \`id\` = ${params.userId} AND (\`lastCheckInAt\` IS NULL OR \`lastCheckInAt\` < ${startOfDay})
+    `;
+    if (claimed === 0) {
+      throw new Error("You've already checked in today. Come back tomorrow for another check-in.");
+    }
+  }
+
   const completion = await tx.userTaskCompletion.create({
     data: {
       userId: params.userId,
@@ -89,14 +115,31 @@ export async function POST(req: NextRequest) {
       if (existing) return jsonError("You've already completed this task", 409);
     }
 
+    // Tasks stay completable with no active plan - the user just earns
+    // nothing (below) until they activate one, rather than being blocked
+    // outright.
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    const planRequired = !plan && (await isActivePlanRequired());
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const sectionDailyLimit = planSectionDailyLimit(plan, "taskCenter");
+    if (sectionDailyLimit !== null) {
+      const sectionCompletedToday = await prisma.userTaskCompletion.count({
+        where: { userId: user.id, createdAt: { gte: startOfDay } },
+      });
+      if (sectionCompletedToday >= sectionDailyLimit) {
+        return jsonError(`You've reached today's plan limit for Task Center (${sectionDailyLimit}/day) - upgrade for more`, 429);
+      }
+    }
+
     // A user's active plan re-prices task rewards at a flat rate for the
     // task's type (sponsored post vs general task), overriding the
-    // individual task's own rewardAmount. Users with no active plan keep
-    // today's per-task reward.
-    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
-    const effectiveReward = Number(
-      plan ? (task.type === "sponsored_post" ? plan.sponsoredPostReward : plan.taskReward) : task.rewardAmount
-    );
+    // individual task's own rewardAmount. A user with no plan (while one is
+    // required) can still complete the task, but earns nothing.
+    const effectiveReward = planRequired
+      ? 0
+      : Number(plan ? (task.type === "sponsored_post" ? plan.sponsoredPostReward : plan.taskReward) : task.rewardAmount);
 
     if (task.requiresProof) {
       if (!(proofImage instanceof Blob) && !proofUrl && !proofText) {
@@ -146,6 +189,7 @@ export async function POST(req: NextRequest) {
           approveAndPay(tx, {
             userId: user.id,
             taskId,
+            taskType: task.type,
             title: task.title,
             reward: effectiveReward,
             proofUrl,
@@ -158,6 +202,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ completion, reward: effectiveReward, pending: false });
       }
 
+      // rewardPaid holds the promised amount here, not yet actually paid -
+      // admin approval credits the wallet for this exact figure so the
+      // payout matches what was true at submission time even if the user's
+      // plan (and re-priced reward) changes before review happens.
       const completion = await prisma.userTaskCompletion.create({
         data: {
           userId: user.id,
@@ -165,14 +213,14 @@ export async function POST(req: NextRequest) {
           status: "PENDING_REVIEW",
           proofUrl,
           proofText,
-          rewardPaid: 0,
+          rewardPaid: effectiveReward,
         },
       });
       return NextResponse.json({ completion, pending: true });
     }
 
     const result = await prisma.$transaction((tx) =>
-      approveAndPay(tx, { userId: user.id, taskId, title: task.title, reward: effectiveReward })
+      approveAndPay(tx, { userId: user.id, taskId, taskType: task.type, title: task.title, reward: effectiveReward })
     );
 
     return NextResponse.json({ completion: result, reward: effectiveReward, pending: false });

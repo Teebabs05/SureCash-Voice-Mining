@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -46,6 +46,24 @@ enum TxnReason {
   WALLET_TRANSFER
   PLAN_ACTIVATION
   PLAN_COMMISSION
+  SPONSORED_POST_REWARD
+  EXTRA_SPIN_PURCHASE
+  MINING_PLAN_PURCHASE
+  MINING_PLAN_PAYOUT
+  AD_REWARD
+  BILLS_PURCHASE
+}
+
+enum SponsoredPlatform {
+  FACEBOOK
+  INSTAGRAM
+  TIKTOK
+  WHATSAPP
+}
+
+enum SponsoredShareStatus {
+  APPROVED
+  REJECTED
 }
 
 enum VoiceRecordingStatus {
@@ -71,6 +89,13 @@ enum UserTier {
   SILVER
   GOLD
   VIP
+}
+
+enum KycStatus {
+  UNVERIFIED
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum SupportTicketStatus {
@@ -160,12 +185,21 @@ model User {
   fullName     String
   role         UserRole @default(USER)
 
-  emailVerified Boolean  @default(false)
-  phoneVerified Boolean  @default(false)
-  isBanned      Boolean  @default(false)
-  banReason     String?
-  tier          UserTier @default(FREE)
-  avatarUrl     String?
+  emailVerified             Boolean   @default(false)
+  phoneVerified             Boolean   @default(false)
+  isBanned                  Boolean   @default(false)
+  banReason                 String?
+  withdrawalsLocked         Boolean   @default(false)
+  withdrawalLockNote        String?
+  tier                      UserTier  @default(FREE)
+  avatarUrl                 String?
+  emailNotificationsEnabled Boolean   @default(true)
+  loginAlertsEnabled        Boolean   @default(true)
+  kycStatus                 KycStatus @default(UNVERIFIED)
+  // Set the first time the "join our community" prompt is shown (fires once,
+  // on the first login that happens >=24h after signup) - null means not
+  // shown yet.
+  communityPromptSeenAt     DateTime?
 
   twoFactorEnabled Boolean @default(false)
   twoFactorSecret  String?
@@ -207,6 +241,7 @@ model User {
   notifications             Notification[]
   devices                   Device[]
   pushSubscriptions         PushSubscription[]
+  deviceTokens              DeviceToken[]
   fraudReports              FraudReport[]            @relation("FraudSubject")
   fraudReportsReviewed      FraudReport[]            @relation("FraudReviewer")
   missionProgress           UserMissionProgress[]
@@ -215,14 +250,39 @@ model User {
   otpCodes                  OtpCode[]
   auditLogs                 AuditLog[]
   emailVerificationTokens   EmailVerificationToken[]
+  passwordResetTokens       PasswordResetToken[]
   sessions                  Session[]
   adminProfile              AdminProfile?
   promoCodeRedemptions      PromoCodeRedemption[]
   supportTickets            SupportTicket[]
   supportTicketReplies      SupportTicketReply[]
+  sponsoredShares           SponsoredShare[]
+  miningPlanInvestments     UserMiningPlan[]
+  adWatches                 AdWatch[]
+  kycDocuments              KycDocument[]
+  webauthnCredentials       WebAuthnCredential[]
+  billPurchases             BillPurchase[]
 
   @@index([referredById])
   @@index([role])
+}
+
+// A registered biometric/passkey credential (Face ID, fingerprint, Windows
+// Hello, etc.) - registered as a discoverable/resident credential so login
+// works without the user typing their email first. "Biometric enabled" in
+// the UI just means this user has at least one row here.
+model WebAuthnCredential {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    String
+  counter      Int       @default(0)
+  deviceLabel  String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
 }
 
 model AdminProfile {
@@ -230,7 +290,7 @@ model AdminProfile {
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   department  String?
-  permissions String[] @default([])
+  permissions Json     @default("[]")
   createdAt   DateTime @default(now())
 }
 
@@ -253,6 +313,18 @@ model Session {
 }
 
 model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -338,9 +410,9 @@ model Deposit {
 }
 
 model BankAccount {
-  id                    String   @id @default(cuid())
+  id                    String    @id @default(cuid())
   userId                String
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bankName              String
   bankCode              String
   accountNumber         String
@@ -349,21 +421,30 @@ model BankAccount {
   // number to a real account name (the "instant bank account detection"
   // flow) — distinct from `isVerified`, which tracks the separate OTP step
   // confirming the account owner authorized adding this payout destination.
-  autoVerified          Boolean  @default(false)
-  isVerified            Boolean  @default(false)
-  isPrimary             Boolean  @default(false)
+  autoVerified          Boolean   @default(false)
+  isVerified            Boolean   @default(false)
+  isPrimary             Boolean   @default(false)
   paystackRecipientCode String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  // Set once an admin has manually reviewed an account that couldn't be
+  // auto-verified (no bank API configured, or the lookup failed) — see
+  // Admin > Bank Accounts. Approving sets autoVerified; rejecting clears
+  // isVerified so the account can't be used for a withdrawal until fixed.
+  reviewedAt            DateTime?
+  reviewedById          String?
+  reviewNote            String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   withdrawals Withdrawal[]
 
   @@unique([userId, accountNumber, bankCode])
 }
 
-/** A permanent dedicated bank account number (NUBAN) tied to one user for
+/**
+ * A permanent dedicated bank account number (NUBAN) tied to one user for
  * wallet funding — any bank transfer into it is credited automatically via
- * the provider's webhook, no checkout redirect involved. */
+ * the provider's webhook, no checkout redirect involved.
+ */
 model VirtualAccount {
   id            String   @id @default(cuid())
   userId        String   @unique
@@ -399,6 +480,9 @@ model Withdrawal {
   userId              String
   user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   method              WithdrawalMethod @default(BANK)
+  // Withdrawals only ever draw from ENGAGEMENT or SALES (never MAIN, which
+  // is reserved for site spending like Bills/VTU) - kept for the record.
+  walletType          WalletType       @default(ENGAGEMENT)
   bankAccountId       String?
   bankAccount         BankAccount?     @relation(fields: [bankAccountId], references: [id])
   cryptoWalletId      String?
@@ -424,6 +508,79 @@ model Withdrawal {
 }
 
 // ---------------------------------------------------------------------------
+// Bills & VTU (airtime, data, electricity, cable TV)
+// ---------------------------------------------------------------------------
+
+enum BillProvider {
+  VTU_NG
+  VTUAFRICA
+}
+
+enum BillServiceType {
+  AIRTIME
+  DATA
+  ELECTRICITY
+  CABLE_TV
+  AIRTIME_TO_CASH
+  EPIN
+  BETTING
+}
+
+enum BillPurchaseStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+/**
+ * A single VTU/bills transaction. For every serviceType except
+ * AIRTIME_TO_CASH this always debits the user's MAIN wallet (never
+ * ENGAGEMENT/SALES, which are earnings-only; see the comment on
+ * Withdrawal.walletType above) - `amount` is what was debited.
+ * AIRTIME_TO_CASH runs the opposite direction: nothing is debited up
+ * front, `amount` is the airtime value the user claims to have sent, and
+ * `creditAmount` (only set once VTUAfrica's webhook confirms receipt) is
+ * what actually lands in ENGAGEMENT - always less than `amount` since
+ * VTUAfrica takes a conversion fee.
+ *
+ * PENDING/PROCESSING means the provider hasn't confirmed the outcome yet.
+ * For VTU.ng, the requery endpoint (see src/lib/payments/vtu-provider.ts)
+ * is the source of truth, since their own docs say the "completed"
+ * webhook only fires for admin-manually-triggered completions. VTUAfrica
+ * has no confirmed requery endpoint at all (see vtuafrica.ts) - only
+ * AIRTIME_TO_CASH is webhook-confirmed there; everything else resolves
+ * synchronously from VTUAfrica's own purchase-call response.
+ */
+model BillPurchase {
+  id               String             @id @default(cuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider         BillProvider
+  serviceType      BillServiceType
+  serviceId        String // provider's own service code, e.g. "mtn", "dstv", "ikeja-electric"
+  variationId      String? // data plan / cable bouquet / meter type - not used for airtime
+  recipient        String // phone number, meter number, or smartcard/IUC number
+  amount           Decimal            @db.Decimal(18, 2) // amount debited from MAIN, or (AIRTIME_TO_CASH) the claimed airtime value
+  creditAmount     Decimal?           @db.Decimal(18, 2) // AIRTIME_TO_CASH only - actual amount credited to ENGAGEMENT once confirmed
+  reference        String             @unique // our own reference, sent to the provider as its request/order id
+  providerOrderId  String?
+  status           BillPurchaseStatus @default(PENDING)
+  token            String? // electricity prepaid token
+  units            String? // electricity units purchased
+  pins             Json? // EPIN only - array of recharge card PINs printed
+  providerResponse Json?
+  errorMessage     String?
+  processedAt      DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
 // Voice AI mining
 // ---------------------------------------------------------------------------
 
@@ -433,6 +590,7 @@ model VoiceTask {
   promptText   String
   language     String   @default("en")
   category     String   @default("session") // "session" | "word_game" - selects which Plan reward field applies
+  syllables    String? // e.g. "Op-por-tu-ni-ty" - shown under the word in Word Game to help pronunciation
   rewardAmount Decimal  @db.Decimal(18, 2)
   dailyLimit   Int      @default(5)
   minDuration  Int      @default(3)
@@ -488,20 +646,93 @@ model AiResult {
 // ---------------------------------------------------------------------------
 
 model Plan {
-  id                  String   @id @default(cuid())
+  id                  String  @id @default(cuid())
   name                String
-  price               Decimal  @db.Decimal(18, 2)
-  voiceSessionReward  Decimal  @db.Decimal(18, 2)
-  wordGameReward      Decimal  @db.Decimal(18, 2)
-  sponsoredPostReward Decimal  @db.Decimal(18, 2)
-  taskReward          Decimal  @db.Decimal(18, 2)
-  referralCommission  Decimal  @db.Decimal(18, 2)
-  sortOrder           Int      @default(0)
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  price               Decimal @db.Decimal(18, 2)
+  voiceSessionReward  Decimal @db.Decimal(18, 2)
+  wordGameReward      Decimal @db.Decimal(18, 2)
+  sponsoredPostReward Decimal @db.Decimal(18, 2)
+  taskReward          Decimal @db.Decimal(18, 2)
+  referralCommission  Decimal @db.Decimal(18, 2)
+  sortOrder           Int     @default(0)
+  isActive            Boolean @default(true)
+  isPopular           Boolean @default(false)
+
+  // Per-plan daily quantity caps - every plan can access every activity;
+  // what differs per plan is how many times per day each section can be
+  // used. 9999 is the "effectively unlimited" convention used by the top
+  // tier and by any newly created plan until an admin dials it in.
+  voiceEarnDailyLimit      Int @default(9999)
+  wordGameDailyLimit       Int @default(9999)
+  taskCenterDailyLimit     Int @default(9999)
+  sponsoredPostsDailyLimit Int @default(9999)
+  spinDailyLimit           Int @default(9999)
+  watchAdsDailyLimit       Int @default(9999)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   users User[]
+}
+
+// Investment-style mining products - distinct from the free daily-claim
+// "Daily Mining" streak feature. A user buys in at `price`, then earns a
+// fixed `dailyReturn` credited to their wallet once a day for
+// `durationDays`, after which the investment ends. Unlike Plan (a
+// permanent rate-boost subscription), this has a principal, a payout
+// schedule, and an expiry.
+model MiningPlan {
+  id           String   @id @default(cuid())
+  name         String
+  price        Decimal  @db.Decimal(18, 2)
+  dailyReturn  Decimal  @db.Decimal(18, 2)
+  durationDays Int      @default(30)
+  description  String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  investments UserMiningPlan[]
+}
+
+enum UserMiningPlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model UserMiningPlan {
+  id             String               @id @default(cuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId         String
+  plan           MiningPlan           @relation(fields: [planId], references: [id])
+  amountInvested Decimal              @db.Decimal(18, 2)
+  totalEarned    Decimal              @default(0) @db.Decimal(18, 2)
+  startedAt      DateTime             @default(now())
+  nextPayoutAt   DateTime
+  endsAt         DateTime
+  status         UserMiningPlanStatus @default(ACTIVE)
+  createdAt      DateTime             @default(now())
+
+  payouts MiningPlanPayout[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([nextPayoutAt])
+}
+
+model MiningPlanPayout {
+  id               String         @id @default(cuid())
+  userMiningPlanId String
+  userMiningPlan   UserMiningPlan @relation(fields: [userMiningPlanId], references: [id], onDelete: Cascade)
+  userId           String
+  amount           Decimal        @db.Decimal(18, 2)
+  createdAt        DateTime       @default(now())
+
+  @@index([userId])
+  @@index([userMiningPlanId])
 }
 
 // ---------------------------------------------------------------------------
@@ -605,6 +836,41 @@ model SpinHistory {
   @@index([userId])
 }
 
+// One row per completed "watch to earn" - a simple timed placeholder (no
+// real ad network integrated yet; swap in a real rewarded-ad SDK later by
+// changing what the client shows during the countdown, the reward/anti-abuse
+// logic here doesn't need to change).
+model AdWatch {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewardAmount Decimal  @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// A user's identity-verification submissions. Approving one flips
+// User.kycStatus to APPROVED - nothing else in the app currently gates on
+// that status, so KYC review is informational/compliance record-keeping
+// for now rather than a hard requirement to unlock a feature.
+model KycDocument {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentType String
+  fileUrl      String
+  status       KycStatus @default(PENDING)
+  adminNote    String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
+
 // ---------------------------------------------------------------------------
 // Task center
 // ---------------------------------------------------------------------------
@@ -636,10 +902,37 @@ model UserTaskCompletion {
   proofImageUrl  String?
   proofImageHash String?
   rewardPaid     Decimal        @db.Decimal(18, 2)
+  // Set once an admin approves/rejects a "PENDING_REVIEW" submission - stays
+  // null for tasks that don't require proof (those pay out immediately).
+  reviewedAt     DateTime?
+  reviewedById   String?
+  adminNote      String?
   createdAt      DateTime       @default(now())
 
   @@index([userId])
   @@index([proofImageHash])
+  @@index([status])
+}
+
+// A single active campaign (caption/link/banner/reward) lives in Setting
+// (sponsored_post_*) — this table only tracks individual share attempts, one
+// per user per platform per day.
+model SponsoredShare {
+  id             String               @id @default(cuid())
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform       SponsoredPlatform
+  date           DateTime
+  status         SponsoredShareStatus
+  proofImageUrl  String
+  proofImageHash String
+  rewardPaid     Decimal              @db.Decimal(18, 2)
+  reviewNote     String?
+  createdAt      DateTime             @default(now())
+
+  @@unique([userId, platform, date])
+  @@index([proofImageHash])
+  @@index([status])
 }
 
 // ---------------------------------------------------------------------------
@@ -669,6 +962,21 @@ model PushSubscription {
   auth      String
   userAgent String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Firebase Cloud Messaging tokens for the native Android app - separate
+// from PushSubscription, which is browser Web Push (VAPID) and can't
+// reach a WebView-based app. See src/lib/server/fcm.ts.
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   @default("android")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }
@@ -732,7 +1040,10 @@ model Setting {
 // .env var — see src/lib/server/credentials.ts.
 model IntegrationCredential {
   key            String   @id
-  encryptedValue String
+  // @db.Text, not the default VARCHAR(191) - some values (e.g. a PEM RSA
+  // private key) run well past 191 chars once AES-GCM encrypted, and would
+  // silently truncate on save otherwise, corrupting the stored value.
+  encryptedValue String   @db.Text
   updatedAt      DateTime @updatedAt
   updatedById    String?
 }

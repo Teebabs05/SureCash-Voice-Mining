@@ -109,6 +109,9 @@ body {
   .gradient-wallet-sales {
     background-image: linear-gradient(135deg, #e2497a 0%, #9c2f56 100%);
   }
+  .gradient-wallet-total {
+    background-image: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
+  }
 
   /* Decorative icon-badge gradients used on non-wallet-card UI (Task
      Center, Voice, Invite Friends, dashboard quick actions) - kept as
@@ -127,6 +130,21 @@ body {
   }
   .gradient-wallet-bonus {
     background-image: linear-gradient(135deg, #f5a623 0%, #c97f00 100%);
+  }
+
+  /* Standard (non-popular) plan card header on Plans & Pricing - dark,
+     teal-tinted, deliberately quieter than gradient-brand so the popular
+     tier's vivid header stands out by contrast. */
+  .gradient-plan-dark {
+    background-image:
+      repeating-linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.04) 0px,
+        rgba(255, 255, 255, 0.04) 2px,
+        transparent 2px,
+        transparent 14px
+      ),
+      linear-gradient(135deg, #10201e 0%, #05100e 100%);
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -159,6 +177,14 @@ body {
   }
   .animate-marquee-y {
     animation: marquee-y 16s linear infinite;
+  }
+
+  @keyframes marquee-x {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .animate-marquee-x {
+    animation: marquee-x 18s linear infinite;
   }
 
   @keyframes float {

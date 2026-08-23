@@ -31,7 +31,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request))
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      // No unhandled catch here previously - a failed network fetch (e.g.
+      // a flaky connection) surfaced as an uncaught rejection in the
+      // console instead of just... failing the one request quietly.
+      return fetch(request).catch(() => new Response("", { status: 503, statusText: "Offline" }));
+    })
   );
 });
 

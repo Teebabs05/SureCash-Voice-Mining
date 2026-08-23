@@ -24,6 +24,8 @@ export default function AdminPromoCodesPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ code: "", amount: "", maxRedemptions: "100" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ code: "", amount: "", maxRedemptions: "" });
 
   const load = useCallback(() => {
     apiFetch<{ promoCodes: PromoCode[] }>("/api/admin/promo-codes").then((res) => setCodes(res.promoCodes));
@@ -32,6 +34,46 @@ export default function AdminPromoCodesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  function startEdit(code: PromoCode) {
+    setEditingId(code.id);
+    setEditForm({ code: code.code, amount: code.amount, maxRedemptions: String(code.maxRedemptions) });
+  }
+
+  async function saveEdit(id: string) {
+    setBusyId(id);
+    try {
+      await apiFetch(`/api/admin/promo-codes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          code: editForm.code,
+          amount: Number(editForm.amount),
+          maxRedemptions: Number(editForm.maxRedemptions),
+        }),
+      });
+      toast.success("Promo code updated");
+      setEditingId(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update promo code");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function remove(code: PromoCode) {
+    if (!confirm(`Delete promo code ${code.code}? This cannot be undone.`)) return;
+    setBusyId(code.id);
+    try {
+      await apiFetch(`/api/admin/promo-codes/${code.id}`, { method: "DELETE" });
+      toast.success("Promo code deleted");
+      load();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not delete promo code");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function create() {
     try {
@@ -73,24 +115,64 @@ export default function AdminPromoCodesPage() {
           <CardTitle>Active codes</CardTitle>
         </CardHeader>
         <div className="flex flex-col gap-2">
-          {codes.map((c) => (
-            <div key={c.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
-              <div>
-                <p className="text-sm font-semibold tracking-widest">{c.code}</p>
-                <p className="text-xs text-foreground/50">
-                  {formatCurrency(c.amount)} · {c.redemptionCount}/{c.maxRedemptions} redeemed
-                </p>
+          {codes.map((c) =>
+            editingId === c.id ? (
+              <div key={c.id} className="flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
+                <Input
+                  placeholder="CODE"
+                  value={editForm.code}
+                  onChange={(e) => setEditForm({ ...editForm, code: e.target.value.toUpperCase() })}
+                />
+                <Input
+                  placeholder="Amount"
+                  type="number"
+                  value={editForm.amount}
+                  onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                />
+                <Input
+                  placeholder="Max redemptions"
+                  type="number"
+                  value={editForm.maxRedemptions}
+                  onChange={(e) => setEditForm({ ...editForm, maxRedemptions: e.target.value })}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" loading={busyId === c.id} onClick={() => saveEdit(c.id)}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <Button
-                size="sm"
-                variant={c.isActive ? "outline" : "primary"}
-                loading={busyId === c.id}
-                onClick={() => toggle(c)}
-              >
-                {c.isActive ? "Deactivate" : "Activate"}
-              </Button>
-            </div>
-          ))}
+            ) : (
+              <div key={c.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
+                <div>
+                  <p className="text-sm font-semibold tracking-widest">
+                    {c.code} {!c.isActive && <span className="text-xs text-red-500">(inactive)</span>}
+                  </p>
+                  <p className="text-xs text-foreground/50">
+                    {formatCurrency(c.amount)} · {c.redemptionCount}/{c.maxRedemptions} redeemed
+                  </p>
+                </div>
+                <div className="flex flex-none gap-2">
+                  <Button size="sm" variant="outline" onClick={() => startEdit(c)}>
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={c.isActive ? "outline" : "primary"}
+                    loading={busyId === c.id}
+                    onClick={() => toggle(c)}
+                  >
+                    {c.isActive ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button size="sm" variant="danger" loading={busyId === c.id} onClick={() => remove(c)}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         {showForm ? (

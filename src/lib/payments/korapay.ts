@@ -19,6 +19,10 @@ import { getCredential } from "@/lib/server/credentials";
  *     `x-korapay-signature` header — this differs from Paystack/Monnify,
  *     which sign the whole body, so it's easy to get wrong.
  *   - The disbursement request shape (nested `destination.bank_account`).
+ *   - The post-checkout redirect field name (`redirect_url`) - if Korapay
+ *     actually expects something else, the checkout will still succeed and
+ *     the webhook will still credit the wallet, but the user will be left
+ *     stranded on Korapay's own success page instead of coming back here.
  */
 
 const BASE_URL = "https://api.korapay.com";
@@ -54,6 +58,7 @@ export async function initializeCharge(params: {
       reference: params.reference,
       narration: "SureCash Mining wallet funding",
       notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/korapay`,
+      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       customer: { name: params.name, email: params.email },
     }),
   });
@@ -124,12 +129,277 @@ export async function initiateTransfer(params: {
   }
 
   const raw = String(data.data.status ?? "").toLowerCase();
-  const status = raw === "success" ? "success" : raw === "failed" ? "failed" : "pending";
-  return { status, reference: data.data.reference ?? params.reference };
+  if (raw === "success") return { status: "success", reference: data.data.reference ?? params.reference };
+  if (raw === "pending" || raw === "processing") return { status: "pending", reference: data.data.reference ?? params.reference };
+
+  // Anything else - including a genuinely "failed" status, or a response
+  // that didn't come back with a status this file recognizes - gets
+  // treated as failed rather than silently assumed to be "pending". Two
+  // real withdrawals got stuck in PROCESSING forever because this used to
+  // default unrecognized statuses to "pending": the app believed a payout
+  // was in flight when Korapay's own records later showed no such
+  // transaction ever existed for that reference.
+  console.error("[korapay:initiateTransfer] non-success status", JSON.stringify({ reference: params.reference, raw, data: data.data }));
+  return { status: "failed", message: data.data.message ?? (raw ? `Korapay status: ${raw}` : "Korapay did not confirm the transfer") };
 }
 
 export async function isKorapayConfigured(): Promise<boolean> {
   return Boolean(await getSecretKey());
+}
+
+export interface KorapayTransferStatus {
+  status: "success" | "failed" | "pending" | "processing";
+  message?: string;
+}
+
+/**
+ * Polls a single (non-bulk) transfer's status by the `reference` this app
+ * assigned it when calling initiateTransfer above — confirmed against
+ * Korapay's "Fetch Payout Transaction" guide (GET .../transactions/:reference,
+ * same {status,message,data:{status,message,...}} envelope as the bulk
+ * endpoints in this file). Manual fallback for when the transfer.success/
+ * transfer.failed webhook (see /api/webhooks/korapay) doesn't arrive or
+ * doesn't validate — same role as getBulkPayoutPayouts for batches, and
+ * getWithdrawStatus in binance.ts for USDT.
+ *
+ * Returns `error` (rather than throwing or returning null) when the lookup
+ * call itself fails, so the caller can show the admin *why* — e.g. the same
+ * account-level "not authorized for payout" rejection Korapay can return at
+ * initiation can also show up here, and that's a very different situation
+ * from "Korapay just hasn't resolved it yet."
+ */
+export async function getTransferStatus(
+  reference: string
+): Promise<
+  | { ok: true; status: KorapayTransferStatus["status"]; message?: string }
+  | { ok: false; error: string; notFound: boolean }
+> {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, error: "Korapay is not configured", notFound: false };
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/${encodeURIComponent(reference)}`, {
+    headers: headers(key),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data) {
+    const error = data?.message ?? res.statusText ?? `Korapay returned HTTP ${res.status}`;
+    console.error("[korapay:getTransferStatus] failed", JSON.stringify({ reference, status: res.status, body: data }));
+    // Korapay has no record of a transaction under this reference at all -
+    // a reliable signal the transfer was never actually created on their
+    // end (as opposed to some other, possibly transient, lookup failure).
+    const notFound = res.status === 404 || /not found/i.test(error);
+    return { ok: false, error, notFound };
+  }
+
+  const raw = String(data.data.status ?? "").toLowerCase();
+  const status: KorapayTransferStatus["status"] =
+    raw === "success" || raw === "failed" || raw === "processing" ? raw : "pending";
+  return { ok: true, status, message: data.data.message };
+}
+
+/**
+ * Bulk payouts — unlike the rest of this file, this section is confirmed
+ * against Korapay's actual published docs (developers.korapay.com/docs/
+ * bulk-payouts-via-api), not just training knowledge. Field names
+ * (bank_code/account_number, the batch_reference/payouts[] request shape,
+ * the {status,message,data} response envelope) are taken directly from
+ * that page's documented request/response examples.
+ *
+ * Constraint that shapes how this is used: a batch must contain between 2
+ * and 50 payouts — there is no single-item bulk call. That's why this is
+ * wired up as an admin "pay several pending withdrawals at once" action
+ * (see /api/admin/withdrawals/bulk-pay-korapay) rather than folding it
+ * into the existing per-withdrawal attemptAutomaticPayout flow, which
+ * fires immediately after a single withdrawal is created.
+ */
+export interface KorapayBulkPayoutItem {
+  reference: string;
+  amount: number;
+  narration: string;
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+  email: string;
+}
+
+export interface KorapayBulkPayoutResult {
+  status: "pending" | "failed";
+  message?: string;
+}
+
+export async function initiateBulkPayout(params: {
+  batchReference: string;
+  payouts: KorapayBulkPayoutItem[];
+}): Promise<KorapayBulkPayoutResult> {
+  const key = await getSecretKey();
+  if (!key) throw new Error("Korapay is not configured");
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/disburse/bulk`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({
+      batch_reference: params.batchReference,
+      currency: "NGN",
+      // Korapay's own transfer fee defaults to being deducted from the
+      // recipient's side (merchant_bears_cost defaults to false) - this app
+      // already computes and deducts its own withdrawal fee up front, so
+      // without this the user would be shorted a second, invisible fee on
+      // top of the amount already shown to them in the app.
+      merchant_bears_cost: true,
+      payouts: params.payouts.map((p) => ({
+        reference: p.reference,
+        amount: p.amount,
+        type: "bank_account",
+        narration: p.narration,
+        bank_account: { bank_code: p.bankCode, account_number: p.accountNumber },
+        customer: { name: p.accountName, email: p.email },
+      })),
+    }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data) {
+    return { status: "failed", message: data?.message ?? res.statusText ?? "Bulk payout request failed" };
+  }
+
+  const raw = String(data.data.status ?? "").toLowerCase();
+  return { status: raw === "failed" ? "failed" : "pending" };
+}
+
+export interface KorapayBulkPayoutStatus {
+  status: "pending" | "failed" | "complete";
+  successfulTransactions: number;
+  failedTransactions: number;
+  pendingTransactions: number;
+  processingTransactions: number;
+}
+
+export async function getBulkPayoutStatus(batchReference: string): Promise<KorapayBulkPayoutStatus | null> {
+  const key = await getSecretKey();
+  if (!key) return null;
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/bulk/${encodeURIComponent(batchReference)}`, {
+    headers: headers(key),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data) return null;
+
+  const raw = String(data.data.status ?? "").toLowerCase();
+  return {
+    status: raw === "complete" ? "complete" : raw === "failed" ? "failed" : "pending",
+    successfulTransactions: Number(data.data.successfulTransactions ?? 0),
+    failedTransactions: Number(data.data.failedTransactions ?? 0),
+    pendingTransactions: Number(data.data.pendingTransactions ?? 0),
+    processingTransactions: Number(data.data.processingTransactions ?? 0),
+  };
+}
+
+export interface KorapayBatchPayoutEntry {
+  reference: string;
+  status: "success" | "failed" | "pending" | "processing";
+  message?: string;
+}
+
+/**
+ * Per-payout statuses within a batch — used to reconcile individual
+ * Withdrawal rows by their `reference`.
+ *
+ * Two Korapay docs sources disagree on this path: the dedicated "Bulk
+ * Payouts via API" guide says `/bulk/:batch_reference/payouts` (plural,
+ * matches the array response it documents), while the general Postman-style
+ * API reference shows `/bulk/:bulk_reference/payout` (singular) for what
+ * looks like the same call. Going with the guide's plural form here since
+ * it's dedicated to this exact feature and its path matches its own
+ * documented array response — but this is the one endpoint in this file
+ * worth a live test call against before relying on it in production.
+ */
+export async function getBulkPayoutPayouts(batchReference: string): Promise<KorapayBatchPayoutEntry[]> {
+  const key = await getSecretKey();
+  if (!key) return [];
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/transactions/bulk/${encodeURIComponent(batchReference)}/payouts`, {
+    headers: headers(key),
+  });
+  const data = await res.json().catch(() => null);
+  const list = data?.data?.data;
+  if (!res.ok || !Array.isArray(list)) return [];
+
+  return list.map((p: { reference: string; status: string; message?: string }) => {
+    const raw = String(p.status ?? "").toLowerCase();
+    const status: KorapayBatchPayoutEntry["status"] =
+      raw === "success" || raw === "failed" || raw === "processing" ? raw : "pending";
+    return { reference: p.reference, status, message: p.message };
+  });
+}
+
+export interface BankListEntry {
+  code: string;
+  name: string;
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function listBanks(): Promise<BankListEntry[]> {
+  const key = await getSecretKey();
+  if (!key) return [];
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks`, { headers: headers(key) });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data?.data)) {
+    console.error("[korapay:listBanks] unexpected response", res.status, JSON.stringify(data));
+    return [];
+  }
+
+  return data.data.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
+}
+
+/** Same call as listBanks, but returns the raw response for admin diagnostics. */
+export async function debugListBanks() {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, status: 0, body: { error: "Korapay is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks`, { headers: headers(key) });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
+  const key = await getSecretKey();
+  if (!key) return null;
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ bank: bankCode, account: accountNumber }),
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.data?.account_name) {
+    // Logged (not just swallowed) so a real failure reason from Korapay -
+    // wrong bank code, unsupported bank, auth issue, etc. - shows up in the
+    // app's server logs instead of just silently falling back to manual
+    // review with no way to tell why.
+    console.error(
+      "[korapay:resolveBankAccount] failed",
+      JSON.stringify({ bankCode, status: res.status, body: data })
+    );
+    return null;
+  }
+  return data.data.account_name as string;
+}
+
+/** Same call as resolveBankAccount, but returns the raw response for admin diagnostics. */
+export async function debugResolveBankAccount(bankCode: string, accountNumber: string) {
+  const key = await getSecretKey();
+  if (!key) return { ok: false, status: 0, request: { bank: bankCode, account: accountNumber }, body: { error: "Korapay is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/merchant/api/v1/misc/banks/resolve`, {
+    method: "POST",
+    headers: headers(key),
+    body: JSON.stringify({ bank: bankCode, account: accountNumber }),
+  });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, request: { bank: bankCode, account: accountNumber }, body };
 }
 
 /**

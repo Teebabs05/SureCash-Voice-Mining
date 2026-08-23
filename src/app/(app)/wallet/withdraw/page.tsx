@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, ShieldCheck, BadgeCheck } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Plus, ShieldCheck, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,8 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { WithdrawalStepper } from "@/components/wallet/withdrawal-stepper";
 import { BankAccountForm } from "@/components/wallet/bank-account-form";
 import { CryptoWalletForm } from "@/components/wallet/crypto-wallet-form";
+import { WALLET_META, TRANSFERABLE_WALLETS } from "@/lib/wallet-meta";
+import type { WalletType } from "@prisma/client";
 
 interface BankAccount {
   id: string;
@@ -52,6 +55,8 @@ export default function WithdrawPage() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>("");
   const [selectedCryptoWallet, setSelectedCryptoWallet] = useState<string>("");
+  const [walletType, setWalletType] = useState<WalletType>("ENGAGEMENT");
+  const [walletBalances, setWalletBalances] = useState<Record<string, number>>({});
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -61,13 +66,19 @@ export default function WithdrawPage() {
   const load = useCallback(() => {
     apiFetch<{ accounts: BankAccount[] }>("/api/bank-accounts").then((res) => {
       setAccounts(res.accounts);
-      if (res.accounts.length > 0) setSelectedAccount((prev) => prev || res.accounts[0].id);
+      if (res.accounts.length > 0) {
+        const eligible = res.accounts.find((a) => a.isVerified && a.autoVerified);
+        setSelectedAccount((prev) => prev || eligible?.id || res.accounts[0].id);
+      }
     });
     apiFetch<{ wallets: CryptoWallet[] }>("/api/crypto-wallets").then((res) => {
       setCryptoWallets(res.wallets);
       if (res.wallets.length > 0) setSelectedCryptoWallet((prev) => prev || res.wallets[0].id);
     });
     apiFetch<{ withdrawals: Withdrawal[] }>("/api/withdrawals").then((res) => setWithdrawals(res.withdrawals));
+    apiFetch<{ wallets: { type: string; balance: number }[] }>("/api/wallet").then((res) =>
+      setWalletBalances(Object.fromEntries(res.wallets.map((w) => [w.type, w.balance])))
+    );
   }, []);
 
   useEffect(() => {
@@ -86,6 +97,32 @@ export default function WithdrawPage() {
     setPendingOtp({ id: wallet.id, kind: "crypto" });
     setShowAddAccount(false);
     load();
+  }
+
+  async function resendBankOtp(accountId: string) {
+    setLoading(true);
+    try {
+      await apiFetch(`/api/bank-accounts/${accountId}/resend-otp`, { method: "POST" });
+      toast.success("OTP sent — check your email");
+      setPendingOtp({ id: accountId, kind: "bank" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send OTP");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendCryptoOtp(walletId: string) {
+    setLoading(true);
+    try {
+      await apiFetch(`/api/crypto-wallets/${walletId}/resend-otp`, { method: "POST" });
+      toast.success("OTP sent — check your email");
+      setPendingOtp({ id: walletId, kind: "crypto" });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send OTP");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function confirmOtp() {
@@ -114,8 +151,17 @@ export default function WithdrawPage() {
     }
   }
 
+  const selectedBankAccount = accounts.find((a) => a.id === selectedAccount);
+  const bankAccountBlocked = method === "BANK" && selectedBankAccount && !(selectedBankAccount.isVerified && selectedBankAccount.autoVerified);
+
   async function submitWithdrawal() {
     if (method === "BANK" && !selectedAccount) return toast.error("Add a bank account first");
+    if (method === "BANK" && selectedBankAccount && !selectedBankAccount.isVerified) {
+      return toast.error("Confirm this account with the OTP sent to you first");
+    }
+    if (method === "BANK" && selectedBankAccount && !selectedBankAccount.autoVerified) {
+      return toast.error("This account is still awaiting manual review before it can be paid out to");
+    }
     if (method === "USDT" && !selectedCryptoWallet) return toast.error("Add a USDT wallet first");
     if (!amount || Number(amount) <= 0) return toast.error("Enter a valid amount");
     setLoading(true);
@@ -125,6 +171,7 @@ export default function WithdrawPage() {
         body: JSON.stringify({
           amount: Number(amount),
           method,
+          walletType,
           bankAccountId: method === "BANK" ? selectedAccount : undefined,
           cryptoWalletId: method === "USDT" ? selectedCryptoWallet : undefined,
         }),
@@ -184,11 +231,11 @@ export default function WithdrawPage() {
           )}
           <div className="flex flex-col gap-2">
             {accounts.map((acc) => (
-              <button
+              <div
                 key={acc.id}
                 onClick={() => setSelectedAccount(acc.id)}
                 className={cn(
-                  "flex items-center justify-between rounded-xl border p-3 text-left text-sm",
+                  "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-left text-sm",
                   selectedAccount === acc.id ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
@@ -197,20 +244,36 @@ export default function WithdrawPage() {
                   <p className="text-xs text-foreground/50">{acc.bankName} · {acc.accountNumber}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {acc.autoVerified && (
-                    <span title="Automatically verified">
-                      <BadgeCheck className="h-4 w-4 text-brand-primary" />
+                  {acc.isVerified && acc.autoVerified ? (
+                    <span className="flex items-center gap-1 rounded-full bg-brand-green/15 px-2 py-0.5 text-[10px] font-bold text-brand-green">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Ready
                     </span>
-                  )}
-                  {acc.isVerified && (
-                    <span title="OTP confirmed">
-                      <ShieldCheck className="h-4 w-4 text-brand-green" />
+                  ) : !acc.isVerified ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        resendBankOtp(acc.id);
+                      }}
+                      className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00] hover:bg-brand-amber/25"
+                    >
+                      Send OTP
+                    </button>
+                  ) : (
+                    <span className="rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00]">
+                      Awaiting review
                     </span>
                   )}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
+          {bankAccountBlocked && (
+            <p className="mt-2 text-xs text-[#a67c00]">
+              {!selectedBankAccount?.isVerified
+                ? "Confirm this account with the OTP sent to you before you can withdraw to it."
+                : "This account is still awaiting manual review — you'll be notified once it's approved."}
+            </p>
+          )}
 
           {showAddAccount ? (
             <div className="mt-3">
@@ -233,11 +296,11 @@ export default function WithdrawPage() {
           )}
           <div className="flex flex-col gap-2">
             {cryptoWallets.map((w) => (
-              <button
+              <div
                 key={w.id}
                 onClick={() => setSelectedCryptoWallet(w.id)}
                 className={cn(
-                  "flex items-center justify-between rounded-xl border p-3 text-left text-sm",
+                  "flex cursor-pointer items-center justify-between rounded-xl border p-3 text-left text-sm",
                   selectedCryptoWallet === w.id ? "border-brand-primary bg-brand-primary/5" : "border-border"
                 )}
               >
@@ -245,12 +308,22 @@ export default function WithdrawPage() {
                   <p className="break-all font-medium">{w.address}</p>
                   <p className="text-xs text-foreground/50">{w.network}</p>
                 </div>
-                {w.isVerified && (
+                {w.isVerified ? (
                   <span title="OTP confirmed">
                     <ShieldCheck className="h-4 w-4 flex-none text-brand-green" />
                   </span>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      resendCryptoOtp(w.id);
+                    }}
+                    className="flex-none rounded-full bg-brand-amber/15 px-2 py-0.5 text-[10px] font-bold text-[#a67c00] hover:bg-brand-amber/25"
+                  >
+                    Send OTP
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
           </div>
 
@@ -270,13 +343,45 @@ export default function WithdrawPage() {
       )}
 
       <Card>
+        <p className="mb-2 text-sm font-semibold">Withdraw from</p>
+        <div className="grid grid-cols-2 gap-2">
+          {TRANSFERABLE_WALLETS.map((w) => (
+            <button
+              key={w}
+              onClick={() => setWalletType(w)}
+              className={cn(
+                "rounded-xl border p-3 text-left",
+                walletType === w ? "border-brand-primary bg-brand-primary/5" : "border-border"
+              )}
+            >
+              <p className="text-sm font-medium">{WALLET_META[w].label}</p>
+              <p className="text-xs text-foreground/50">{formatCurrency(walletBalances[w] ?? 0)} available</p>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-foreground/50">
+          Deposit wallet is for deposits and site spending only — it can&apos;t be withdrawn from.
+        </p>
+        <Link
+          href="/wallet?transfer=1"
+          className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-border py-2.5 text-sm font-medium text-brand-primary"
+        >
+          <Repeat className="h-4 w-4" /> Transfer between wallets
+        </Link>
+        <p className="mt-2 text-xs text-foreground/50">
+          Short on balance in one of these? Move money from Engagement to Sales (or vice versa) so you have enough
+          to withdraw.
+        </p>
+      </Card>
+
+      <Card>
         <Input label="Amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
         {method === "USDT" && (
           <p className="mt-2 text-xs text-foreground/50">
             A flat network fee applies on top of the usual withdrawal fee for USDT payouts.
           </p>
         )}
-        <Button className="mt-3 w-full" loading={loading} onClick={submitWithdrawal}>
+        <Button className="mt-3 w-full" loading={loading} disabled={Boolean(bankAccountBlocked)} onClick={submitWithdrawal}>
           Request withdrawal
         </Button>
       </Card>

@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { creditWallet } from "@/lib/server/wallet";
 import { notifyUser } from "@/lib/server/notifications";
@@ -68,16 +69,48 @@ export async function bumpMiningStreak(userId: string, client: Tx) {
   });
 }
 
+/**
+ * Returns a `Date` at UTC midnight for the given day (local calendar day by
+ * default).
+ *
+ * `UserMissionProgress.date` is a MySQL `@db.Date` column. A plain
+ * `YYYY-MM-DD` string looked like the unambiguous choice, but Prisma's
+ * structured query builder (`findUniqueOrThrow`, `findMany`, etc.) rejects
+ * date-only strings outright - it requires a full ISO-8601 *date-time* or an
+ * actual `Date` object. A `Date` object works for both the structured
+ * builder and the raw `$executeRaw` INSERT below, but only if it carries no
+ * ambiguous time-of-day: a *local* midnight `Date` (via `setHours(0,0,0,0)`)
+ * has a non-zero UTC hour whenever the server isn't running in UTC, and the
+ * raw and structured query paths can disagree on which calendar day that
+ * represents. Pinning the instant to UTC hour 0 removes that ambiguity -
+ * there's no offset left that could round it onto a different day.
+ */
+export function dateOnlyKey(date: Date = new Date()): Date {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
 export async function incrementMissionProgress(userId: string, missionType: string, by: number, client: Tx) {
   const missions = await client.dailyMission.findMany({ where: { type: missionType, isActive: true } });
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = dateOnlyKey();
 
   for (const mission of missions) {
-    const progress = await client.userMissionProgress.upsert({
+    // Prisma's upsert() does a SELECT then INSERT-or-UPDATE, which isn't
+    // atomic - under MySQL's default REPEATABLE READ isolation, two
+    // near-simultaneous calls (e.g. a resubmitted request on a flaky
+    // connection) can both miss the SELECT, race to INSERT, and the loser
+    // throws a unique-constraint error. Worse, a plain retry-with-update
+    // can *also* fail with "record not found", because the loser's
+    // transaction snapshot may not yet see the winner's committed row even
+    // though the constraint proves it exists. A raw `INSERT ... ON
+    // DUPLICATE KEY UPDATE` is a single atomic statement at the database
+    // level, so this race can't happen at all.
+    await client.$executeRaw`
+      INSERT INTO \`UserMissionProgress\` (\`id\`, \`userId\`, \`missionId\`, \`date\`, \`progress\`, \`completed\`)
+      VALUES (${randomUUID()}, ${userId}, ${mission.id}, ${today}, ${by}, false)
+      ON DUPLICATE KEY UPDATE \`progress\` = \`progress\` + ${by}
+    `;
+    const progress = await client.userMissionProgress.findUniqueOrThrow({
       where: { userId_missionId_date: { userId, missionId: mission.id, date: today } },
-      update: { progress: { increment: by } },
-      create: { userId, missionId: mission.id, date: today, progress: by },
     });
 
     if (!progress.completed && progress.progress >= mission.target) {

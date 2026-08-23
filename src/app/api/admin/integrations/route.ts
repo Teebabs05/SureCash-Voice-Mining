@@ -23,7 +23,15 @@ export async function GET() {
     const credentials = INTEGRATION_KEYS.map((key) => {
       const row = dbValues.get(key);
       if (row) {
-        return { key, configured: true, source: "database" as const, preview: mask(decrypt(row.encryptedValue)), updatedAt: row.updatedAt };
+        // A single corrupted/undecryptable row (e.g. from a value that hit
+        // an old column-size limit) shouldn't take down every other
+        // provider's status - surface it as "configured but unreadable"
+        // instead of throwing and blanking the whole page.
+        try {
+          return { key, configured: true, source: "database" as const, preview: mask(decrypt(row.encryptedValue)), updatedAt: row.updatedAt };
+        } catch {
+          return { key, configured: true, source: "database" as const, preview: "⚠ unreadable - re-save this value", updatedAt: row.updatedAt };
+        }
       }
       const envValue = process.env[key];
       if (envValue) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Check, X } from "lucide-react";
+import { Plus, Check, X, Pencil, Trash2 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ interface TaskCenterTask {
   title: string;
   description: string;
   type: string;
+  actionUrl: string | null;
   rewardAmount: string;
   isActive: boolean;
   requiresProof: boolean;
@@ -36,6 +37,15 @@ export default function AdminTasksPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
+    title: "",
+    description: "",
+    type: "social",
+    actionUrl: "",
+    rewardAmount: "",
+    requiresProof: false,
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
     title: "",
     description: "",
     type: "social",
@@ -77,6 +87,51 @@ export default function AdminTasksPage() {
     }
   }
 
+  function startEdit(task: TaskCenterTask) {
+    setEditingId(task.id);
+    setEditForm({
+      title: task.title,
+      description: task.description,
+      type: task.type,
+      actionUrl: task.actionUrl ?? "",
+      rewardAmount: task.rewardAmount,
+      requiresProof: task.requiresProof,
+    });
+  }
+
+  async function saveEdit(id: string) {
+    setBusyId(id);
+    try {
+      await apiFetch(`/api/admin/tasks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...editForm, rewardAmount: Number(editForm.rewardAmount) }),
+      });
+      toast.success("Task updated");
+      setEditingId(null);
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update task");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function deleteTask(task: TaskCenterTask) {
+    if (!confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
+    setBusyId(task.id);
+    try {
+      const res = await apiFetch<{ hardDeleted: boolean; message?: string }>(`/api/admin/tasks/${task.id}`, {
+        method: "DELETE",
+      });
+      toast.success(res.hardDeleted ? "Task deleted" : res.message ?? "Task deactivated");
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Action failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function toggleActive(task: TaskCenterTask) {
     setBusyId(task.id);
     try {
@@ -112,21 +167,84 @@ export default function AdminTasksPage() {
           <CardTitle>Task templates</CardTitle>
         </CardHeader>
         <div className="flex flex-col gap-2">
-          {tasks.map((t) => (
-            <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
-              <div>
-                <p className="text-sm font-semibold">
-                  {t.title} {t.type === "sponsored_post" && <span className="text-xs text-brand-primary">(Sponsored Post)</span>}
-                  {t.requiresProof && <span className="text-xs text-brand-primary"> (needs proof)</span>}
-                </p>
-                <p className="text-xs text-foreground/50">{t.description}</p>
-                <p className="text-xs font-medium text-brand-green">{formatCurrency(t.rewardAmount)}</p>
+          {tasks.map((t) =>
+            editingId === t.id ? (
+              <div key={t.id} className="flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
+                <Input
+                  placeholder="Title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                />
+                <Input
+                  placeholder="Description"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                />
+                <select
+                  value={editForm.type}
+                  onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
+                >
+                  <option value="social">General task</option>
+                  <option value="sponsored_post">Sponsored Post (share on social media)</option>
+                </select>
+                <Input
+                  placeholder="Action URL (optional)"
+                  value={editForm.actionUrl}
+                  onChange={(e) => setEditForm({ ...editForm, actionUrl: e.target.value })}
+                />
+                <Input
+                  placeholder="Reward amount"
+                  type="number"
+                  value={editForm.rewardAmount}
+                  onChange={(e) => setEditForm({ ...editForm, rewardAmount: e.target.value })}
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editForm.requiresProof}
+                    onChange={(e) => setEditForm({ ...editForm, requiresProof: e.target.checked })}
+                  />
+                  Requires manual proof review
+                </label>
+                <div className="flex gap-2">
+                  <Button size="sm" loading={busyId === t.id} onClick={() => saveEdit(t.id)}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <Button size="sm" variant={t.isActive ? "outline" : "primary"} loading={busyId === t.id} onClick={() => toggleActive(t)}>
-                {t.isActive ? "Deactivate" : "Activate"}
-              </Button>
-            </div>
-          ))}
+            ) : (
+              <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {t.title} {t.type === "sponsored_post" && <span className="text-xs text-brand-primary">(Sponsored Post)</span>}
+                    {t.requiresProof && <span className="text-xs text-brand-primary"> (needs proof)</span>}
+                  </p>
+                  <p className="text-xs text-foreground/50">{t.description}</p>
+                  <p className="text-xs font-medium text-brand-green">{formatCurrency(t.rewardAmount)}</p>
+                </div>
+                <div className="flex flex-none gap-2">
+                  <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={t.isActive ? "outline" : "primary"}
+                    loading={busyId === t.id}
+                    onClick={() => toggleActive(t)}
+                  >
+                    {t.isActive ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button size="sm" variant="danger" loading={busyId === t.id} onClick={() => deleteTask(t)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         {showForm ? (

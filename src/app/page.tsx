@@ -11,15 +11,19 @@ import {
   ListChecks,
   Banknote,
   ArrowUpRight,
-  Star,
-  Quote,
   Smartphone,
   Wifi,
   Zap,
   Tv,
+  Megaphone,
+  ShieldCheck,
+  BadgeCheck,
+  Clock,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/server/current-user";
 import { formatCurrency } from "@/lib/utils";
+import { TestimonialsCarousel } from "@/components/landing/testimonials-carousel";
+import { getSetting } from "@/lib/server/settings";
 
 const FEATURES = [
   { icon: Mic, label: "Voice AI Tasks", description: "Read short prompts aloud and get paid per session." },
@@ -42,6 +46,12 @@ const VTU_SERVICES = [
   { icon: Zap, label: "Electricity" },
   { icon: Tv, label: "Cable TV" },
   { icon: Banknote, label: "Airtime to Cash" },
+];
+
+const TRUST_BADGES = [
+  { icon: ShieldCheck, label: "Bank-level security" },
+  { icon: BadgeCheck, label: "KYC verified members" },
+  { icon: Clock, label: "Fast payouts" },
 ];
 
 const STATS = [
@@ -90,11 +100,19 @@ const TESTIMONIALS = [
 export default async function Home() {
   const user = await getCurrentUser();
   if (user) redirect(user.role === "USER" ? "/dashboard" : "/admin");
+  const logoUrl = await getSetting("site_logo_url", "");
+  const businessWhatsappUrl = await getSetting("business_whatsapp_url", "");
+  const companyRcNumber = await getSetting("company_rc_number", "");
+  const companyOfficeAddress = await getSetting("company_office_address", "NO. 23, UDOEDEHE STREET, UYO.");
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md">
         <div className="profile-banner flex flex-col items-center gap-4 px-6 pb-12 pt-16 text-center">
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded logo
+            <img src={logoUrl} alt="SureCash Mining" className="h-36 w-auto max-w-[80%]" />
+          )}
           <div className="flex items-end gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25">
               <Banknote className="h-5 w-5" />
@@ -106,8 +124,8 @@ export default async function Home() {
               <Pickaxe className="h-5 w-5" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white">SureCash Mining</h1>
-          <p className="max-w-xs text-sm text-white/75">
+          <h1 className="text-4xl font-bold text-white sm:text-5xl">SureCash Mining</h1>
+          <p className="max-w-xs text-base text-white/75">
             Earn real cash with your voice, daily mining, tasks, and referrals — all in one wallet.
           </p>
           <div className="mt-2 flex w-full max-w-xs flex-col gap-3">
@@ -137,6 +155,27 @@ export default async function Home() {
         </div>
 
         <div className="flex flex-col gap-6 px-5 py-8">
+          <div className="card flex flex-col gap-2 p-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+              <Megaphone className="h-4.5 w-4.5" />
+            </div>
+            <h2 className="text-lg font-bold">Advertise your business with us</h2>
+            <p className="text-sm text-foreground/60">
+              Reach thousands of active members through Sponsored Posts — paid promotions our members share across
+              their own social media as one of their daily earning tasks. Real people, real reach, real results.
+            </p>
+            {businessWhatsappUrl && (
+              <a
+                href={businessWhatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 flex h-11 w-fit items-center justify-center rounded-xl gradient-brand px-5 text-sm font-bold text-white"
+              >
+                Partner with us
+              </a>
+            )}
+          </div>
+
           <div className="card flex flex-col items-center gap-1 overflow-hidden p-0 pb-4 text-center">
             <img
               src="/illustrations/celebrate-cashout.svg"
@@ -150,12 +189,7 @@ export default async function Home() {
           </div>
 
           <div className="card p-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Bills & VTU services</h2>
-              <span className="rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]">
-                Coming soon
-              </span>
-            </div>
+            <h2 className="text-lg font-bold">Bills & VTU services</h2>
             <p className="text-sm text-foreground/60">Pay for everyday essentials without leaving your wallet.</p>
             <div className="no-scrollbar mt-4 flex gap-4 overflow-x-auto pb-1">
               {VTU_SERVICES.map(({ icon: Icon, label }) => (
@@ -212,30 +246,7 @@ export default async function Home() {
 
           <div>
             <h2 className="text-lg font-bold">What members are saying</h2>
-            <div className="no-scrollbar mt-4 flex snap-x gap-3 overflow-x-auto pb-1">
-              {TESTIMONIALS.map((t) => (
-                <div key={t.name} className="card flex w-64 flex-none snap-start flex-col gap-3 p-4">
-                  <Quote className="h-5 w-5 text-brand-primary/40" />
-                  <p className="text-sm text-foreground/80">&ldquo;{t.quote}&rdquo;</p>
-                  <div className="mt-auto flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary/10 text-[11px] font-bold text-brand-primary">
-                        {t.initials}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold">{t.name}</p>
-                        <p className="text-[10px] text-foreground/50">{t.location}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: t.rating }).map((_, i) => (
-                        <Star key={i} className="h-3 w-3 fill-brand-amber text-brand-amber" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TestimonialsCarousel testimonials={TESTIMONIALS} />
           </div>
 
           <div>
@@ -257,16 +268,76 @@ export default async function Home() {
             </div>
           </div>
 
+          <div>
+            <h2 className="text-lg font-bold">Your money is safe with us</h2>
+            <p className="text-sm text-foreground/60">Real payouts, verified members, secured transactions.</p>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              {TRUST_BADGES.map(({ icon: Icon, label }) => (
+                <div key={label} className="card flex flex-col items-center gap-2 p-3 text-center">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <p className="text-xs font-semibold leading-tight">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-center text-[11px] text-foreground/40">
+              Deposits &amp; withdrawals powered by Paystack, Flutterwave, Monnify &amp; Korapay.
+            </p>
+          </div>
+
           <Link
             href="/register"
             className="flex h-12 w-full items-center justify-center rounded-xl gradient-brand text-sm font-bold text-white"
           >
             Get started — it&apos;s free
           </Link>
+        </div>
 
-          <p className="text-center text-xs text-foreground/40">
-            © {new Date().getFullYear()} SureCash Mining. All rights reserved.
-          </p>
+        <div className="border-t border-border bg-surface-muted px-5 py-8">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <p className="text-lg font-bold">SureCash Mining ⛏️</p>
+            <p className="max-w-xs text-xs text-foreground/60">
+              A Nigerian earning platform where members earn real cash through voice tasks, daily mining, task
+              completions, referrals, and more — all tracked across dedicated wallets. We also partner with
+              businesses to advertise their products and services through Sponsored Posts, tasks our members
+              complete and share on their own social media as part of their daily earning routine.
+            </p>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="mb-2 font-semibold text-foreground/70">Platform</p>
+              <div className="flex flex-col gap-2 text-foreground/50">
+                <Link href="/voice">Voice Tasks</Link>
+                <Link href="/tasks">Task Center</Link>
+                <Link href="/mine">Daily Mining</Link>
+                <Link href="/referrals">Referrals</Link>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 font-semibold text-foreground/70">Company</p>
+              <div className="flex flex-col gap-2 text-foreground/50">
+                <Link href="/faq">FAQ</Link>
+                <Link href="/support">Contact</Link>
+                <Link href="/privacy-policy">Privacy Policy</Link>
+                <Link href="/terms-and-conditions">Terms &amp; Conditions</Link>
+                <Link href="/refund-policy">Refund Policy</Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-1 border-t border-border pt-5 text-center text-[11px] text-foreground/40">
+            <p className="font-medium text-foreground/60">
+              SureCash Digital Technologies Ltd{companyRcNumber ? ` · RC ${companyRcNumber}` : ""}
+            </p>
+            <p>{companyOfficeAddress}</p>
+            <p className="mt-3">© {new Date().getFullYear()} SureCash Mining. All rights reserved.</p>
+            <p>
+              Registered with the Corporate Affairs Commission (CAC), Nigeria
+              {companyRcNumber ? ` · RC ${companyRcNumber}` : ""}
+            </p>
+          </div>
         </div>
       </div>
     </div>

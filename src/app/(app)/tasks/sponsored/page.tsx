@@ -1,49 +1,77 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
-import { Camera, CheckCircle2, ExternalLink, Clock, Share2, Upload } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Copy,
+  Image as ImageIcon,
+  MessageCircle,
+  Music2,
+  ThumbsUp,
+  Upload,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatCurrency } from "@/lib/utils";
 
-interface SponsoredTask {
-  id: string;
-  title: string;
-  description: string;
-  actionUrl: string | null;
-  rewardAmount: string;
-  isRepeatable: boolean;
-  requiresProof: boolean;
-  isCompleted: boolean;
-  isPending: boolean;
+type Platform = "FACEBOOK" | "INSTAGRAM" | "TIKTOK" | "WHATSAPP";
+type ShareStatus = "AVAILABLE" | "APPROVED" | "REJECTED";
+
+interface PlatformStatus {
+  platform: Platform;
+  status: ShareStatus;
+  reviewNote: string | null;
 }
 
-interface SocialAccounts {
-  facebookUrl: string | null;
-  instagramHandle: string | null;
-  tiktokHandle: string | null;
+interface CampaignResponse {
+  planRequired: boolean;
+  sectionDailyLimit: number | null;
+  sectionCompletedToday: number;
+  configured: boolean;
+  caption: string;
+  bannerUrl: string;
+  linkUrl: string;
+  shareUrl: string;
+  rewardAmount: number;
+  platforms: PlatformStatus[];
+}
+
+const PLATFORM_META: Record<
+  Platform,
+  { label: string; icon: typeof ThumbsUp; iconClass: string; mode: "intent" | "copy" }
+> = {
+  FACEBOOK: { label: "Facebook", icon: ThumbsUp, iconClass: "bg-[#1877F2]/15 text-[#1877F2]", mode: "intent" },
+  WHATSAPP: { label: "WhatsApp", icon: MessageCircle, iconClass: "bg-[#25D366]/15 text-[#25D366]", mode: "intent" },
+  INSTAGRAM: { label: "Instagram", icon: ImageIcon, iconClass: "bg-[#E1306C]/15 text-[#E1306C]", mode: "copy" },
+  TIKTOK: { label: "TikTok", icon: Music2, iconClass: "bg-foreground/10 text-foreground", mode: "copy" },
+};
+
+const PLATFORM_ORDER: Platform[] = ["FACEBOOK", "WHATSAPP", "INSTAGRAM", "TIKTOK"];
+
+function shareIntentUrl(platform: Platform, caption: string, shareUrl: string) {
+  const text = `${caption}\n\n${shareUrl}`;
+  if (platform === "FACEBOOK") {
+    return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(caption)}`;
+  }
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
 export default function SponsoredPostsPage() {
-  const [tasks, setTasks] = useState<SponsoredTask[]>([]);
-  const [linkedCount, setLinkedCount] = useState(0);
+  const [data, setData] = useState<CampaignResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [completingId, setCompletingId] = useState<string | null>(null);
-  const [proofTaskId, setProofTaskId] = useState<string | null>(null);
-  const [proof, setProof] = useState({ proofUrl: "", proofText: "" });
+  const [proofPlatform, setProofPlatform] = useState<Platform | null>(null);
   const [proofImage, setProofImage] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: SponsoredTask[] }>("/api/tasks?category=sponsored").then((res) => setTasks(res.tasks));
-    apiFetch<{ socialAccounts: SocialAccounts }>("/api/profile/social-accounts")
-      .then((res) => {
-        const { facebookUrl, instagramHandle, tiktokHandle } = res.socialAccounts;
-        setLinkedCount([facebookUrl, instagramHandle, tiktokHandle].filter(Boolean).length);
-      })
+    apiFetch<CampaignResponse>("/api/sponsored-posts")
+      .then(setData)
+      .catch(() => toast.error("Could not load sponsored posts"))
       .finally(() => setLoading(false));
   }, []);
 
@@ -51,131 +79,208 @@ export default function SponsoredPostsPage() {
     load();
   }, [load]);
 
-  const canSubmit = linkedCount >= 2;
+  /** Downloads the campaign banner as a File so it can be handed to the OS
+   * share sheet alongside the caption - null if it can't be fetched (e.g.
+   * offline, or the browser blocks the cross-origin read). */
+  async function buildBannerFile(bannerUrl: string): Promise<File | null> {
+    try {
+      const res = await fetch(bannerUrl);
+      const blob = await res.blob();
+      const extension = blob.type.split("/")[1] || "jpg";
+      return new File([blob], `surecash-sponsored.${extension}`, { type: blob.type });
+    } catch {
+      return null;
+    }
+  }
 
-  async function submitProof(task: SponsoredTask) {
-    setCompletingId(task.id);
+  function fallbackShare(platform: Platform) {
+    if (!data) return;
+    const meta = PLATFORM_META[platform];
+    if (meta.mode === "intent") {
+      window.open(shareIntentUrl(platform, data.caption, data.shareUrl), "_blank", "noopener,noreferrer");
+    } else {
+      const text = `${data.caption}\n\n${data.shareUrl}`;
+      navigator.clipboard
+        .writeText(text)
+        .then(() => toast.success(`Caption copied! Paste it into your ${meta.label} post.`))
+        .catch(() => toast.error("Could not copy caption"));
+      window.open(data.shareUrl, "_blank", "noopener,noreferrer");
+    }
+    setProofPlatform(platform);
+    setProofImage(null);
+  }
+
+  /** Prefers the device's native share sheet (Web Share API) so the banner
+   * image actually gets handed to the chosen app's composer instead of just
+   * a link/caption - this is the only legitimate way a website can attach
+   * an image directly into another app's post flow. Falls back to the old
+   * per-platform link/copy behavior on desktop or unsupported browsers. */
+  async function openShare(platform: Platform) {
+    if (!data) return;
+    const limitReached =
+      data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
+    if (limitReached) {
+      toast.error(`You've reached today's plan limit for Sponsored Posts (${data.sectionDailyLimit}/day)`);
+      return;
+    }
+
+    const text = `${data.caption}\n\n${data.shareUrl}`;
+    const file = data.bannerUrl ? await buildBannerFile(data.bannerUrl) : null;
+
+    if (file && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], text });
+        setProofPlatform(platform);
+        setProofImage(null);
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return; // user canceled - not an error
+        // Any other failure (e.g. no matching app installed) - fall through to the link-based approach below.
+      }
+    }
+
+    fallbackShare(platform);
+  }
+
+  async function submitProof() {
+    if (!proofPlatform || !proofImage) {
+      toast.error("Upload a screenshot of your post first");
+      return;
+    }
+    setSubmitting(true);
     try {
       const form = new FormData();
-      form.append("taskId", task.id);
-      if (proof.proofUrl) form.append("proofUrl", proof.proofUrl);
-      if (proof.proofText) form.append("proofText", proof.proofText);
-      if (proofImage) form.append("proofImage", proofImage);
-
-      const res = await apiFetch<{ pending: boolean; reward?: number }>("/api/tasks/complete", {
+      form.append("platform", proofPlatform);
+      form.append("proofImage", proofImage);
+      const res = await apiFetch<{ reward: number }>("/api/sponsored-posts/share", {
         method: "POST",
         body: form,
         headers: {},
       });
-      toast.success(
-        res.pending ? "Submitted for admin review" : `Approved! +${formatCurrency(res.reward ?? 0)} added to your Task wallet`
-      );
-      setProofTaskId(null);
-      setProof({ proofUrl: "", proofText: "" });
+      toast.success(`Approved! +${formatCurrency(res.reward)} added to your Engagement wallet`);
+      setProofPlatform(null);
       setProofImage(null);
       load();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not submit proof");
     } finally {
-      setCompletingId(null);
+      setSubmitting(false);
     }
-  }
-
-  function startProof(task: SponsoredTask) {
-    if (!canSubmit) {
-      toast.error("Link at least 2 social accounts first");
-      return;
-    }
-    setProofTaskId(task.id);
-    if (task.actionUrl) window.open(task.actionUrl, "_blank", "noopener,noreferrer");
   }
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading…</p>;
+
+  if (!data?.configured) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="text-xl font-bold">Sponsored Posts</h1>
+          <p className="text-sm text-foreground/60">Share posts on your social accounts to earn.</p>
+        </div>
+        <p className="py-10 text-center text-sm text-foreground/50">No sponsored posts available right now. Check back later.</p>
+      </div>
+    );
+  }
+
+  const limitReached =
+    data.sectionDailyLimit !== null && data.sectionCompletedToday >= data.sectionDailyLimit;
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold">Sponsored Posts</h1>
-        <p className="text-sm text-foreground/60">Share posts on your social accounts to earn.</p>
+        <p className="text-sm text-foreground/60">
+          Share the post below to earn {formatCurrency(data.rewardAmount)} per platform
+          {data.sectionDailyLimit !== null ? `, up to ${data.sectionDailyLimit} shares a day` : ""}.
+        </p>
       </div>
 
-      {!canSubmit && (
-        <Link href="/profile/social-accounts">
-          <Card className="flex items-center justify-between gradient-brand text-white">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <Share2 className="h-4 w-4" /> Link at least 2 social accounts to start earning
-            </span>
-            <ExternalLink className="h-4 w-4" />
-          </Card>
-        </Link>
+      {data.planRequired && <PlanGateBanner reason="free_trial" feature="sponsored posts" />}
+      {!data.planRequired && limitReached && (
+        <PlanGateBanner reason="limit_reached" feature="submit sponsored posts" dailyLimit={data.sectionDailyLimit ?? undefined} />
       )}
 
-      {tasks.length === 0 && (
-        <p className="py-10 text-center text-sm text-foreground/50">No sponsored posts available right now.</p>
-      )}
+      <Card className="flex flex-col gap-3">
+        {data.bannerUrl && (
+          // eslint-disable-next-line @next/next/no-img-element -- admin-uploaded campaign banner preview
+          <img src={data.bannerUrl} alt="" className="w-full rounded-xl" />
+        )}
+        <p className="whitespace-pre-wrap text-sm">{data.caption}</p>
+        <p className="truncate text-xs text-foreground/50">{data.shareUrl}</p>
+      </Card>
 
-      {tasks.map((task) => (
-        <Card key={task.id}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-red-500/15 p-2.5 text-red-500">
-                <Camera className="h-4 w-4" />
+      <div className="flex flex-col gap-3">
+        {PLATFORM_ORDER.map((platform) => {
+          const meta = PLATFORM_META[platform];
+          const Icon = meta.icon;
+          const status = data.platforms.find((p) => p.platform === platform);
+          const isOpenProof = proofPlatform === platform;
+
+          return (
+            <Card key={platform}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className={`rounded-full p-2.5 ${meta.iconClass}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">{meta.label}</p>
+                    <p className="text-xs font-semibold text-brand-green">{formatCurrency(data.rewardAmount)}</p>
+                  </div>
+                </div>
+
+                {status?.status === "APPROVED" ? (
+                  <span className="flex items-center gap-1 text-xs font-medium text-brand-green">
+                    <CheckCircle2 className="h-4 w-4" /> Paid
+                  </span>
+                ) : status?.status === "REJECTED" ? (
+                  <span className="flex items-center gap-1 text-xs font-medium text-red-500">
+                    <XCircle className="h-4 w-4" /> Rejected
+                  </span>
+                ) : (
+                  <Button size="sm" disabled={limitReached} onClick={() => openShare(platform)}>
+                    {meta.mode === "copy" ? <Copy className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
+                    Share
+                  </Button>
+                )}
               </div>
-              <div>
-                <p className="font-semibold">{task.title}</p>
-                <p className="text-xs text-foreground/50">{task.description}</p>
-                <p className="mt-0.5 text-xs font-semibold text-brand-green">{formatCurrency(task.rewardAmount)}</p>
-              </div>
-            </div>
 
-            {task.isPending ? (
-              <span className="flex items-center gap-1 text-xs font-medium text-brand-amber">
-                <Clock className="h-4 w-4" /> Review
-              </span>
-            ) : task.isCompleted ? (
-              <span className="flex items-center gap-1 text-xs font-medium text-brand-green">
-                <CheckCircle2 className="h-4 w-4" /> Done
-              </span>
-            ) : (
-              <Button size="sm" loading={completingId === task.id} onClick={() => startProof(task)}>
-                {task.actionUrl && <ExternalLink className="h-3.5 w-3.5" />}
-                Go
-              </Button>
-            )}
-          </div>
+              {status?.status === "REJECTED" && status.reviewNote && (
+                <p className="mt-2 text-xs text-red-500">{status.reviewNote}</p>
+              )}
 
-          {proofTaskId === task.id && (
-            <div className="mt-3 flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
-              <p className="text-xs text-foreground/60">
-                Upload a screenshot of your post for instant approval, or paste a link/description for admin review.
-              </p>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-4 text-sm text-foreground/60">
-                <Upload className="h-4 w-4" />
-                {proofImage ? proofImage.name : "Upload screenshot"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => setProofImage(e.target.files?.[0] ?? null)}
-                />
-              </label>
-              <Input
-                placeholder="Post link (optional)"
-                value={proof.proofUrl}
-                onChange={(e) => setProof({ ...proof, proofUrl: e.target.value })}
-              />
-              <Input
-                placeholder="Describe your submission"
-                value={proof.proofText}
-                onChange={(e) => setProof({ ...proof, proofText: e.target.value })}
-              />
-              <Button size="sm" loading={completingId === task.id} onClick={() => submitProof(task)}>
-                Submit
-              </Button>
-            </div>
-          )}
-        </Card>
-      ))}
+              {isOpenProof && status?.status === "AVAILABLE" && (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
+                  <p className="text-xs text-foreground/60">
+                    Upload a screenshot of your {meta.label} post to get paid instantly.
+                  </p>
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border py-4 text-sm text-foreground/60">
+                    <Upload className="h-4 w-4" />
+                    {proofImage ? proofImage.name : "Upload screenshot"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setProofImage(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  <Button size="sm" loading={submitting} onClick={submitProof}>
+                    Submit for reward
+                  </Button>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card className="flex items-start gap-2 text-xs text-foreground/50">
+        <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>
+          Shares reset daily. On your phone, Share opens your device&apos;s share sheet with the banner and caption
+          ready to post - on desktop or older browsers, the caption is copied for you to paste in instead.
+        </span>
+      </Card>
     </div>
   );
 }

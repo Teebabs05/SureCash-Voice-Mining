@@ -18,6 +18,7 @@ import {
   BadgeCheck,
   Camera,
   Crown,
+  IdCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -47,6 +48,8 @@ export default function ProfilePage() {
   const [me, setMe] = useState<Me["user"] | null>(null);
   const [hasBankAccount, setHasBankAccount] = useState(false);
   const [linkedSocialCount, setLinkedSocialCount] = useState(0);
+  const [kycStatus, setKycStatus] = useState<"UNVERIFIED" | "PENDING" | "APPROVED" | "REJECTED">("UNVERIFIED");
+  const [kycEnabled, setKycEnabled] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   function load() {
@@ -60,6 +63,12 @@ export default function ProfilePage() {
       const { facebookUrl, instagramHandle, tiktokHandle } = res.socialAccounts;
       setLinkedSocialCount([facebookUrl, instagramHandle, tiktokHandle].filter(Boolean).length);
     });
+    apiFetch<{ kycStatus: "UNVERIFIED" | "PENDING" | "APPROVED" | "REJECTED"; enabled: boolean }>("/api/kyc").then(
+      (res) => {
+        setKycStatus(res.kycStatus);
+        setKycEnabled(res.enabled);
+      }
+    );
   }, []);
 
   async function uploadAvatar(file: File) {
@@ -131,9 +140,12 @@ export default function ProfilePage() {
         <p className="mt-4 text-lg font-bold text-white">{me.fullName}</p>
         <p className="text-sm text-white/60">@{handle}</p>
 
-        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#10201d]">
+        <Link
+          href="/plans"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-[#10201d]"
+        >
           <Crown className="h-3.5 w-3.5 text-brand-amber" /> {membershipLabel}
-        </span>
+        </Link>
       </div>
 
       {!me.emailVerified && (
@@ -168,6 +180,19 @@ export default function ProfilePage() {
       })()}
 
       <div className="flex flex-col gap-3">
+        <Link href="/plans" className="card flex items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-amber/15 text-[#a67c00]">
+              <Crown className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">My Plan</p>
+              <p className="text-xs text-foreground/50">{membershipLabel} · tap to upgrade</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-foreground/30" />
+        </Link>
+
         <Link href="/profile/personal-info" className="card flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
@@ -201,6 +226,39 @@ export default function ProfilePage() {
             {hasBankAccount ? "Added" : "Add"}
           </span>
         </Link>
+
+        {(kycEnabled || kycStatus !== "UNVERIFIED") && (
+          <Link href="/profile/kyc" className="card flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-primary/10 text-brand-primary">
+                <IdCard className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Identity Verification</p>
+                <p className="text-xs text-foreground/50">Verify your identity (KYC)</p>
+              </div>
+            </div>
+            <span
+              className={
+                kycStatus === "APPROVED"
+                  ? "rounded-full bg-brand-green/15 px-2.5 py-1 text-[10px] font-bold text-brand-green"
+                  : kycStatus === "PENDING"
+                    ? "rounded-full bg-brand-amber/15 px-2.5 py-1 text-[10px] font-bold text-[#a67c00]"
+                    : kycStatus === "REJECTED"
+                      ? "rounded-full bg-red-500/15 px-2.5 py-1 text-[10px] font-bold text-red-500"
+                      : "rounded-full bg-surface-muted px-2.5 py-1 text-[10px] font-bold text-foreground/50"
+              }
+            >
+              {kycStatus === "APPROVED"
+                ? "Verified"
+                : kycStatus === "PENDING"
+                  ? "Pending"
+                  : kycStatus === "REJECTED"
+                    ? "Rejected"
+                    : "Not verified"}
+            </span>
+          </Link>
+        )}
 
         <Link href="/profile/social-accounts" className="card flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">

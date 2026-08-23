@@ -13,6 +13,13 @@ const schema = z.object({
   taskReward: z.number().nonnegative(),
   referralCommission: z.number().nonnegative(),
   sortOrder: z.number().int().default(0),
+  isPopular: z.boolean().default(false),
+  voiceEarnDailyLimit: z.number().int().positive().default(9999),
+  wordGameDailyLimit: z.number().int().positive().default(9999),
+  taskCenterDailyLimit: z.number().int().positive().default(9999),
+  sponsoredPostsDailyLimit: z.number().int().positive().default(9999),
+  spinDailyLimit: z.number().int().positive().default(9999),
+  watchAdsDailyLimit: z.number().int().positive().default(9999),
 });
 
 export async function GET() {

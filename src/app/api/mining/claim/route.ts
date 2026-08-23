@@ -9,6 +9,7 @@ import { MINING_CONFIG, XP_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { getMiningBaseReward } from "@/lib/server/mining-settings";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
 import { notifyUser } from "@/lib/server/notifications";
+import { isActivePlanRequired } from "@/lib/server/plan-gate";
 import type { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user.emailVerified) {
       return jsonError("Please verify your email before mining", 403);
+    }
+    if ((await isActivePlanRequired()) && !user.planId) {
+      return jsonError("Activate a plan to start mining", 403);
     }
     const { ipAddress, userAgent } = getRequestMeta(req);
 

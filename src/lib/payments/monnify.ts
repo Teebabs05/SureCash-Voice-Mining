@@ -89,7 +89,7 @@ export async function initializeTransaction(params: {
       paymentDescription: "SureCash Mining wallet funding",
       currencyCode: "NGN",
       contractCode,
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/wallet/deposit`,
+      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?deposit=${params.reference}`,
       paymentMethods: ["CARD", "ACCOUNT_TRANSFER"],
     }),
   });
@@ -158,6 +158,55 @@ export async function initiateTransfer(params: {
 
 export async function isMonnifyConfigured(): Promise<boolean> {
   return Boolean(await getCredentials());
+}
+
+export interface BankListEntry {
+  code: string;
+  name: string;
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function listBanks(): Promise<BankListEntry[]> {
+  if (!(await getCredentials())) return [];
+
+  const res = await fetch(`${BASE_URL}/api/v1/banks`);
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !Array.isArray(data?.responseBody)) return [];
+
+  return data.responseBody.map((b: { code: string; name: string }) => ({ code: b.code, name: b.name }));
+}
+
+/** Same call as listBanks, but returns the raw response for admin diagnostics. */
+export async function debugListBanks() {
+  if (!(await getCredentials())) return { ok: false, status: 0, body: { error: "Monnify is not configured" } };
+
+  const res = await fetch(`${BASE_URL}/api/v1/banks`);
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, body };
+}
+
+/** Best-effort, same standing as the rest of this file - unverified against a live response. */
+export async function resolveBankAccount(bankCode: string, accountNumber: string): Promise<string | null> {
+  if (!(await getCredentials())) return null;
+
+  const res = await authedFetch(
+    `/api/v1/disbursements/account/validate?accountNumber=${encodeURIComponent(accountNumber)}&bankCode=${encodeURIComponent(bankCode)}`
+  );
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.responseBody?.accountName) return null;
+  return data.responseBody.accountName as string;
+}
+
+/** Same call as resolveBankAccount, but returns the raw response for admin diagnostics. */
+export async function debugResolveBankAccount(bankCode: string, accountNumber: string) {
+  if (!(await getCredentials())) {
+    return { ok: false, status: 0, request: { accountNumber, bankCode }, body: { error: "Monnify is not configured" } };
+  }
+  const res = await authedFetch(
+    `/api/v1/disbursements/account/validate?accountNumber=${encodeURIComponent(accountNumber)}&bankCode=${encodeURIComponent(bankCode)}`
+  );
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, status: res.status, request: { accountNumber, bankCode }, body };
 }
 
 export async function verifyWebhookSignature(rawBody: string, signature: string | null): Promise<boolean> {

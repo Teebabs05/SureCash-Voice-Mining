@@ -20,6 +20,9 @@ import {
 const schema = z.object({
   amount: z.number().positive(),
   method: z.enum(["BANK", "USDT"]).default("BANK"),
+  // Main wallet is deposit/site-spending only - withdrawals only ever draw
+  // from Engagement or Sales.
+  walletType: z.enum(["ENGAGEMENT", "SALES"]).default("ENGAGEMENT"),
   bankAccountId: z.string().min(1).optional(),
   cryptoWalletId: z.string().min(1).optional(),
 });
@@ -43,6 +46,12 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user.emailVerified) {
       return jsonError("Please verify your email before withdrawing", 403);
+    }
+    if (user.withdrawalsLocked) {
+      return jsonError(
+        user.withdrawalLockNote || "Withdrawals are currently locked on your account. Contact support for help.",
+        403
+      );
     }
 
     const body = schema.parse(await req.json());
@@ -68,6 +77,13 @@ export async function POST(req: NextRequest) {
       if (!bankAccount.isVerified) {
         return jsonError("Please confirm this bank account with the OTP sent to you before withdrawing", 403);
       }
+      // autoVerified is set either by a gateway's real-time name lookup at
+      // add-time, or by an admin manually approving it afterward (Admin >
+      // Bank Accounts) - a bank account that skipped both isn't cleared to
+      // pay out to yet, regardless of OTP status.
+      if (!bankAccount.autoVerified) {
+        return jsonError("This bank account is still awaiting manual review. We'll notify you once it's approved.", 403);
+      }
 
       const fee = Number((body.amount * (feePercent / 100)).toFixed(2));
       const totalDebit = body.amount + fee;
@@ -75,7 +91,7 @@ export async function POST(req: NextRequest) {
       withdrawal = await prisma.$transaction(async (tx) => {
         await debitWallet({
           userId: user.id,
-          type: "MAIN",
+          type: body.walletType,
           amount: totalDebit,
           reason: "WITHDRAWAL",
           description: `Withdrawal request ${reference}`,
@@ -87,6 +103,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             method: "BANK",
+            walletType: body.walletType,
             bankAccountId: body.bankAccountId,
             amount: body.amount,
             fee,
@@ -115,7 +132,7 @@ export async function POST(req: NextRequest) {
       withdrawal = await prisma.$transaction(async (tx) => {
         await debitWallet({
           userId: user.id,
-          type: "MAIN",
+          type: body.walletType,
           amount: totalDebit,
           reason: "WITHDRAWAL",
           description: `USDT withdrawal request ${reference}`,
@@ -127,6 +144,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: user.id,
             method: "USDT",
+            walletType: body.walletType,
             cryptoWalletId: body.cryptoWalletId,
             amount: body.amount,
             usdtAmount,

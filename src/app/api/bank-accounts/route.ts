@@ -10,6 +10,9 @@ import { sendEmail, otpEmailHtml } from "@/lib/notifications/email";
 const schema = z.object({
   bankCode: z.string().min(2),
   accountNumber: z.string().regex(/^[0-9]{10}$/, "Account number must be 10 digits"),
+  // Only used as a fallback when the account couldn't be auto-verified -
+  // the account holder's self-reported name, pending admin review.
+  accountName: z.string().trim().min(1).max(191).optional(),
 });
 
 export async function GET() {
@@ -38,12 +41,15 @@ export async function POST(req: NextRequest) {
 
     const resolved = await resolveBankAccount({ bankCode: body.bankCode, accountNumber: body.accountNumber });
 
-    // Automatic verification is the whole point of this flow — if a real
-    // provider is configured, refuse to save an account it couldn't
-    // resolve to a name (matches "cannot save an invalid account number").
-    if (resolved.configured && !resolved.verified) {
-      return jsonError("Could not verify this account number for the selected bank. Please double-check the details.", 422);
+    // Whether nothing's configured, or a configured gateway just can't
+    // resolve this particular bank (common for newer fintech/MFB banks),
+    // fall back to the account holder's self-reported name and route it
+    // through manual admin review rather than blocking them outright.
+    if (!resolved.verified && !body.accountName) {
+      return jsonError("We couldn't automatically verify this account. Please enter the account holder's name.", 422);
     }
+
+    const accountCount = await prisma.bankAccount.count({ where: { userId: user.id } });
 
     const account = await prisma.bankAccount.create({
       data: {
@@ -51,9 +57,13 @@ export async function POST(req: NextRequest) {
         bankName: bank.name,
         bankCode: body.bankCode,
         accountNumber: body.accountNumber,
-        accountName: resolved.configured ? resolved.accountName : "Unverified — pending manual review",
+        accountName: resolved.verified ? resolved.accountName : body.accountName!,
         autoVerified: resolved.verified,
         isVerified: false,
+        // The first account a user ever adds becomes their default payout
+        // method automatically - later ones are added alongside it until
+        // the user explicitly switches the default.
+        isPrimary: accountCount === 0,
       },
     });
 

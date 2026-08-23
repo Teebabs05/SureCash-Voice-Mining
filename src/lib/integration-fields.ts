@@ -57,6 +57,19 @@ export const INTEGRATION_GROUPS = [
     ],
   },
   {
+    category: "Bills & VTU",
+    provider: "VTU.ng",
+    fields: [
+      { key: "VTU_NG_USERNAME", label: "Account email or username", placeholder: "" },
+      { key: "VTU_NG_PASSWORD", label: "Password", placeholder: "" },
+    ],
+  },
+  {
+    category: "Bills & VTU",
+    provider: "VTUAfrica",
+    fields: [{ key: "VTUAFRICA_API_KEY", label: "API key", placeholder: "" }],
+  },
+  {
     category: "Notifications",
     provider: "Email (Resend)",
     fields: [
@@ -80,6 +93,55 @@ export const INTEGRATION_GROUPS = [
       { key: "WHATSAPP_PHONE_NUMBER_ID", label: "Phone number ID", placeholder: "" },
       { key: "WHATSAPP_TEMPLATE_NAME", label: "Approved template name (optional)", placeholder: "" },
       { key: "WHATSAPP_TEMPLATE_LANGUAGE", label: "Template language code (optional)", placeholder: "en_US" },
+    ],
+  },
+  {
+    category: "Notifications",
+    provider: "Push Notifications (Web/browser)",
+    fields: [
+      { key: "VAPID_PUBLIC_KEY", label: "VAPID public key", placeholder: "" },
+      { key: "VAPID_PRIVATE_KEY", label: "VAPID private key", placeholder: "" },
+      { key: "VAPID_SUBJECT", label: "Contact (mailto: or https:, optional)", placeholder: "mailto:support@surecash.app" },
+    ],
+  },
+  {
+    category: "Notifications",
+    provider: "Push Notifications (Firebase, for the Android app)",
+    fields: [
+      { key: "FIREBASE_PROJECT_ID", label: "Project ID", placeholder: "surecash-mining" },
+      {
+        key: "FIREBASE_CLIENT_EMAIL",
+        label: "Client email",
+        placeholder: "firebase-adminsdk-xxxxx@surecash-mining.iam.gserviceaccount.com",
+      },
+      {
+        key: "FIREBASE_PRIVATE_KEY",
+        label: "Private key (paste with \\n, not real line breaks)",
+        placeholder: "-----BEGIN PRIVATE KEY-----\\nMIIE...\\n-----END PRIVATE KEY-----\\n",
+      },
+    ],
+  },
+  {
+    category: "Voice Verification",
+    provider: "Groq (recommended — free tier, usually no card needed)",
+    fields: [{ key: "GROQ_API_KEY", label: "API key", placeholder: "gsk_..." }],
+  },
+  {
+    category: "Voice Verification",
+    provider: "Google Gemini",
+    fields: [{ key: "GEMINI_API_KEY", label: "API key", placeholder: "AIza..." }],
+  },
+  {
+    category: "Voice Verification",
+    provider: "OpenAI Whisper",
+    fields: [{ key: "OPENAI_API_KEY", label: "API key", placeholder: "sk-..." }],
+  },
+  {
+    category: "Voice Verification",
+    provider: "Azure Speech",
+    fields: [
+      { key: "AZURE_SPEECH_KEY", label: "API key", placeholder: "" },
+      { key: "AZURE_SPEECH_REGION", label: "Region", placeholder: "e.g. westeurope" },
     ],
   },
 ] as const;

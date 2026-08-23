@@ -1,15 +1,18 @@
 import "server-only";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/server/auth";
 
-export async function getCurrentUser() {
+// Memoized per-request - safe to call from multiple server components/layouts
+// in the same render without paying for a repeat User table lookup.
+export const getCurrentUser = cache(async () => {
   const session = await getSession();
   if (!session) return null;
 
   const user = await prisma.user.findUnique({ where: { id: session.userId } });
   if (!user || user.isBanned) return null;
   return user;
-}
+});
 
 export async function requireUser() {
   const user = await getCurrentUser();

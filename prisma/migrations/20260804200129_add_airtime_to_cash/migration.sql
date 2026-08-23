@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `BillPurchase` ADD COLUMN `creditAmount` DECIMAL(18, 2) NULL,
+    MODIFY `serviceType` ENUM('AIRTIME', 'DATA', 'ELECTRICITY', 'CABLE_TV', 'AIRTIME_TO_CASH') NOT NULL;

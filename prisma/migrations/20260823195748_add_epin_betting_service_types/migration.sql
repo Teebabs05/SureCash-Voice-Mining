@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `BillPurchase` MODIFY `serviceType` ENUM('AIRTIME', 'DATA', 'ELECTRICITY', 'CABLE_TV', 'AIRTIME_TO_CASH', 'EPIN', 'BETTING') NOT NULL;

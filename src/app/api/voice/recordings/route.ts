@@ -6,6 +6,7 @@ import { creditWallet } from "@/lib/server/wallet";
 import { addXp, incrementMissionProgress, checkAchievements } from "@/lib/server/gamification";
 import { payReferralCommission } from "@/lib/server/referral-commission";
 import { getVoiceAiProvider } from "@/lib/voice-ai/provider";
+import { scorePromptMatch } from "@/lib/voice-ai/match";
 import {
   hashAudioBuffer,
   analyzeAudioEnergy,
@@ -19,6 +20,7 @@ import { upsertDevice, estimateVpnSuspicion } from "@/lib/server/device";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { XP_CONFIG, TIER_CONFIG } from "@/lib/config";
 import { writeAuditLog, getRequestMeta } from "@/lib/server/audit";
+import { isActivePlanRequired, planSectionDailyLimit } from "@/lib/server/plan-gate";
 
 export const runtime = "nodejs";
 
@@ -71,14 +73,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const section = voiceTask.category === "word_game" ? "wordGame" : "voiceEarn";
+    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    if (!plan && (await isActivePlanRequired())) {
+      return jsonError(
+        section === "wordGame" ? "Activate a plan to play Word Game" : "Activate a plan to submit voice tasks",
+        403
+      );
+    }
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const todayCount = await prisma.voiceRecording.count({
-      where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay } },
-    });
+    // Only count APPROVED recordings against daily limits - a rejected/
+    // mismatched attempt didn't earn anything, so it shouldn't cost the
+    // user one of their limited daily tries.
+    const [todayCount, sectionCompletedToday] = await Promise.all([
+      prisma.voiceRecording.count({
+        where: { userId: user.id, voiceTaskId, createdAt: { gte: startOfDay }, status: "APPROVED" },
+      }),
+      prisma.voiceRecording.count({
+        where: {
+          userId: user.id,
+          createdAt: { gte: startOfDay },
+          status: "APPROVED",
+          // Voice Earn's plan limit is per language - Word Game is a single
+          // language so this is equivalent to a category-wide count there.
+          voiceTask:
+            section === "voiceEarn"
+              ? { category: voiceTask.category, language: voiceTask.language }
+              : { category: voiceTask.category },
+        },
+      }),
+    ]);
     const effectiveDailyLimit = voiceTask.dailyLimit * TIER_CONFIG[user.tier].dailyLimitMultiplier;
     if (todayCount >= effectiveDailyLimit) {
       return jsonError("You've reached today's limit for this task", 429);
+    }
+    const sectionDailyLimit = planSectionDailyLimit(plan, section);
+    if (sectionDailyLimit !== null && sectionCompletedToday >= sectionDailyLimit) {
+      return jsonError(
+        section === "wordGame"
+          ? `You've reached today's plan limit for Word Game (${sectionDailyLimit}/day) - upgrade for more`
+          : `You've reached today's plan limit for this language (${sectionDailyLimit}/day) - try another language or upgrade for more`,
+        429
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -111,7 +149,7 @@ export async function POST(req: NextRequest) {
     // Safari's audio/mp4 output isn't a WebM container).
     const noise = (await analyzeAudioEnergy(buffer, file.type || "audio/webm")) ?? detectBackgroundNoiseHeuristic(buffer);
 
-    const provider = getVoiceAiProvider();
+    const provider = await getVoiceAiProvider();
     const transcription = await provider.transcribe(buffer, file.type || "audio/webm");
 
     // Prefer real pitch-contour analysis on decoded PCM; fall back to the
@@ -125,14 +163,46 @@ export async function POST(req: NextRequest) {
         byteLength: buffer.byteLength,
       });
 
+    // The actual content check: does what was transcribed match the prompt
+    // the user was asked to read? Without this, a submission could pass
+    // every fraud/quality heuristic while containing completely unrelated
+    // speech (or, with no real transcription provider configured, nothing
+    // meaningful at all) and still get approved.
+    const promptMatchScore = scorePromptMatch(transcription.transcript, voiceTask.promptText);
+    const promptMismatch = promptMatchScore < 0.5;
+
     const passed =
-      !isDuplicate && !isReplayAttack && !noise.flagged && !isSynthesizedVoice && transcription.confidence >= 0.6;
+      !isDuplicate &&
+      !isReplayAttack &&
+      !noise.flagged &&
+      !isSynthesizedVoice &&
+      !promptMismatch &&
+      transcription.confidence >= 0.6;
+
+    // The system is the sole decision-maker on every submission - approved
+    // or rejected immediately, nothing sits in a manual review queue. Pick
+    // the most specific reason first (fraud-related checks before
+    // quality-related ones) so the user knows exactly what to fix.
+    const rejectionReason = passed
+      ? null
+      : isReplayAttack
+        ? "This sounds like a replay of a previous recording, not a fresh live reading."
+        : isDuplicate
+          ? "This recording matches one that's already been submitted."
+          : isSynthesizedVoice
+            ? "This sounds like a synthesized or AI-generated voice rather than a real live reading."
+            : noise.flagged
+              ? "Too much background noise - please record somewhere quieter."
+              : promptMismatch
+                ? "What we heard doesn't match the required text - please read the prompt exactly as shown."
+                : transcription.confidence < 0.6
+                  ? "We couldn't clearly make out your speech - please read the prompt clearly and try again."
+                  : "This submission didn't pass automatic review.";
 
     // A user's active plan re-prices every voice activity at a flat rate for
     // that activity type (session vs word game), overriding the individual
     // task's own rewardAmount. Users with no active plan keep today's
-    // per-task reward.
-    const plan = user.planId ? await prisma.plan.findUnique({ where: { id: user.planId } }) : null;
+    // per-task reward. (plan was already fetched above for the feature gate.)
     const effectiveReward = plan
       ? voiceTask.category === "word_game"
         ? plan.wordGameReward
@@ -154,7 +224,7 @@ export async function POST(req: NextRequest) {
           audioHash,
           durationSec,
           deviceId: device.id,
-          status: passed ? "APPROVED" : isDuplicate || isReplayAttack || isSynthesizedVoice ? "FLAGGED" : "REJECTED",
+          status: passed ? "APPROVED" : "REJECTED",
           rewardAmount: passed ? effectiveReward : null,
           reviewedAt: new Date(),
         },
@@ -221,6 +291,7 @@ export async function POST(req: NextRequest) {
       recording: result,
       passed,
       reward: passed ? Number(effectiveReward) : 0,
+      reason: rejectionReason,
     });
   } catch (error) {
     return handleApiError(error);

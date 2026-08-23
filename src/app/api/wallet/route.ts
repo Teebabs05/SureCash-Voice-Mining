@@ -12,7 +12,7 @@ export async function GET() {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const [recentTransactions, todayCredits] = await Promise.all([
+    const [recentTransactions, todayCredits, plan] = await Promise.all([
       prisma.walletTransaction.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
@@ -23,6 +23,7 @@ export async function GET() {
         where: { userId: user.id, type: "CREDIT", createdAt: { gte: startOfDay } },
         _sum: { amount: true },
       }),
+      user.planId ? prisma.plan.findUnique({ where: { id: user.planId }, select: { name: true } }) : null,
     ]);
 
     const todayByWallet = new Map(todayCredits.map((t) => [t.walletId, Number(t._sum.amount ?? 0)]));
@@ -31,7 +32,13 @@ export async function GET() {
       todayEarnings: todayByWallet.get(w.id) ?? 0,
     }));
 
-    return NextResponse.json({ wallets: walletsWithToday, totalBalance: total, recentTransactions });
+    return NextResponse.json({
+      wallets: walletsWithToday,
+      totalBalance: total,
+      recentTransactions,
+      fullName: user.fullName,
+      plan,
+    });
   } catch (error) {
     return handleApiError(error);
   }

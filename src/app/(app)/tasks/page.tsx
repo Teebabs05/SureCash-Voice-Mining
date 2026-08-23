@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { ClipboardCheck, CheckCircle2, ExternalLink, Clock, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { PlanGateBanner } from "@/components/plan-gate-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -24,6 +25,9 @@ interface TaskCenterTask {
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<TaskCenterTask[]>([]);
+  const [planRequired, setPlanRequired] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [sectionDailyLimit, setSectionDailyLimit] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [proofTaskId, setProofTaskId] = useState<string | null>(null);
@@ -31,8 +35,18 @@ export default function TasksPage() {
   const [proofImage, setProofImage] = useState<File | null>(null);
 
   const load = useCallback(() => {
-    apiFetch<{ tasks: TaskCenterTask[] }>("/api/tasks")
-      .then((res) => setTasks(res.tasks))
+    apiFetch<{
+      tasks: TaskCenterTask[];
+      planRequired: boolean;
+      sectionDailyLimit: number | null;
+      sectionCompletedToday: number;
+    }>("/api/tasks")
+      .then((res) => {
+        setTasks(res.tasks);
+        setPlanRequired(res.planRequired);
+        setSectionDailyLimit(res.sectionDailyLimit);
+        setLimitReached(res.sectionDailyLimit !== null && res.sectionCompletedToday >= res.sectionDailyLimit);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -50,9 +64,12 @@ export default function TasksPage() {
     setCompletingId(task.id);
     try {
       if (task.actionUrl) window.open(task.actionUrl, "_blank", "noopener,noreferrer");
+      const form = new FormData();
+      form.append("taskId", task.id);
       const res = await apiFetch<{ reward: number }>("/api/tasks/complete", {
         method: "POST",
-        body: JSON.stringify({ taskId: task.id }),
+        body: form,
+        headers: {},
       });
       toast.success(`+${formatCurrency(res.reward)} added to your Task wallet`);
       load();
@@ -100,6 +117,11 @@ export default function TasksPage() {
         <p className="text-sm text-foreground/60">Complete simple tasks for extra rewards.</p>
       </div>
 
+      {planRequired && <PlanGateBanner reason="free_trial" feature="tasks" />}
+      {!planRequired && limitReached && (
+        <PlanGateBanner reason="limit_reached" feature="complete tasks" dailyLimit={sectionDailyLimit ?? undefined} />
+      )}
+
       {tasks.length === 0 && (
         <p className="py-10 text-center text-sm text-foreground/50">No tasks available right now.</p>
       )}
@@ -127,7 +149,12 @@ export default function TasksPage() {
                 <CheckCircle2 className="h-4 w-4" /> Done
               </span>
             ) : (
-              <Button size="sm" loading={completingId === task.id} onClick={() => complete(task)}>
+              <Button
+                size="sm"
+                disabled={limitReached}
+                loading={completingId === task.id}
+                onClick={() => complete(task)}
+              >
                 {task.actionUrl && <ExternalLink className="h-3.5 w-3.5" />}
                 Go
               </Button>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Plus, Check, X, Trash2 } from "lucide-react";
+import { Plus, Check, X, Trash2, Pencil } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,11 @@ interface VoiceTask {
   title: string;
   promptText: string;
   category: string;
+  syllables: string | null;
   rewardAmount: string;
   dailyLimit: number;
+  minDuration: number;
+  maxDuration: number;
   isActive: boolean;
 }
 
@@ -40,7 +43,27 @@ export default function AdminVoiceTasksPage() {
   const [flagged, setFlagged] = useState<FlaggedRecording[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
+  const [form, setForm] = useState({
+    title: "",
+    promptText: "",
+    category: "session",
+    syllables: "",
+    rewardAmount: "",
+    dailyLimit: "5",
+    minDuration: "3",
+    maxDuration: "30",
+  });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    promptText: "",
+    category: "session",
+    syllables: "",
+    rewardAmount: "",
+    dailyLimit: "",
+    minDuration: "",
+    maxDuration: "",
+  });
 
   const loadTasks = useCallback(() => {
     apiFetch<{ tasks: VoiceTask[] }>("/api/admin/voice-tasks").then((res) => setTasks(res.tasks));
@@ -64,16 +87,68 @@ export default function AdminVoiceTasksPage() {
           title: form.title,
           promptText: form.promptText,
           category: form.category,
+          syllables: form.syllables || undefined,
           rewardAmount: Number(form.rewardAmount),
           dailyLimit: Number(form.dailyLimit),
+          minDuration: Number(form.minDuration),
+          maxDuration: Number(form.maxDuration),
         }),
       });
       toast.success("Voice task created");
-      setForm({ title: "", promptText: "", category: "session", rewardAmount: "", dailyLimit: "5" });
+      setForm({
+        title: "",
+        promptText: "",
+        category: "session",
+        syllables: "",
+        rewardAmount: "",
+        dailyLimit: "5",
+        minDuration: "3",
+        maxDuration: "30",
+      });
       setShowForm(false);
       loadTasks();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not create task");
+    }
+  }
+
+  function startEdit(task: VoiceTask) {
+    setEditingId(task.id);
+    setEditForm({
+      title: task.title,
+      promptText: task.promptText,
+      category: task.category,
+      syllables: task.syllables ?? "",
+      rewardAmount: task.rewardAmount,
+      dailyLimit: String(task.dailyLimit),
+      minDuration: String(task.minDuration),
+      maxDuration: String(task.maxDuration),
+    });
+  }
+
+  async function saveEdit(id: string) {
+    setBusyId(id);
+    try {
+      await apiFetch(`/api/admin/voice-tasks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: editForm.title,
+          promptText: editForm.promptText,
+          category: editForm.category,
+          syllables: editForm.syllables,
+          rewardAmount: Number(editForm.rewardAmount),
+          dailyLimit: Number(editForm.dailyLimit),
+          minDuration: Number(editForm.minDuration),
+          maxDuration: Number(editForm.maxDuration),
+        }),
+      });
+      toast.success("Voice task updated");
+      setEditingId(null);
+      loadTasks();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not update task");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -129,32 +204,102 @@ export default function AdminVoiceTasksPage() {
           <CardTitle>Task templates</CardTitle>
         </CardHeader>
         <div className="flex flex-col gap-2">
-          {tasks.map((t) => (
-            <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
-              <div>
-                <p className="text-sm font-semibold">
-                  {t.title} {t.category === "word_game" && <span className="text-xs text-brand-primary">(Word Game)</span>}
-                </p>
-                <p className="text-xs text-foreground/50">{t.promptText}</p>
-                <p className="text-xs font-medium text-brand-green">
-                  {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={t.isActive ? "outline" : "primary"}
-                  loading={busyId === t.id}
-                  onClick={() => toggleActive(t)}
+          {tasks.map((t) =>
+            editingId === t.id ? (
+              <div key={t.id} className="flex flex-col gap-2 rounded-xl bg-surface-muted p-3">
+                <Input
+                  placeholder="Title"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                />
+                <Input
+                  placeholder="Prompt text to read aloud"
+                  value={editForm.promptText}
+                  onChange={(e) => setEditForm({ ...editForm, promptText: e.target.value })}
+                />
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  className="h-11 w-full rounded-xl border border-border bg-surface px-3.5 text-sm outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
                 >
-                  {t.isActive ? "Deactivate" : "Activate"}
-                </Button>
-                <Button size="sm" variant="danger" loading={busyId === t.id} onClick={() => deleteTask(t)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                  <option value="session">Voice Earn session</option>
+                  <option value="word_game">Word Game</option>
+                </select>
+                {editForm.category === "word_game" && (
+                  <Input
+                    placeholder="Syllables, e.g. Op-por-tu-ni-ty"
+                    value={editForm.syllables}
+                    onChange={(e) => setEditForm({ ...editForm, syllables: e.target.value })}
+                  />
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Reward amount"
+                    type="number"
+                    value={editForm.rewardAmount}
+                    onChange={(e) => setEditForm({ ...editForm, rewardAmount: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Daily limit"
+                    type="number"
+                    value={editForm.dailyLimit}
+                    onChange={(e) => setEditForm({ ...editForm, dailyLimit: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    label="Min seconds"
+                    type="number"
+                    value={editForm.minDuration}
+                    onChange={(e) => setEditForm({ ...editForm, minDuration: e.target.value })}
+                  />
+                  <Input
+                    label="Max seconds"
+                    type="number"
+                    value={editForm.maxDuration}
+                    onChange={(e) => setEditForm({ ...editForm, maxDuration: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" loading={busyId === t.id} onClick={() => saveEdit(t.id)}>
+                    Save
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={t.id} className="flex items-center justify-between rounded-xl bg-surface-muted p-3">
+                <div>
+                  <p className="text-sm font-semibold">
+                    {t.title} {t.category === "word_game" && <span className="text-xs text-brand-primary">(Word Game)</span>}
+                  </p>
+                  <p className="text-xs text-foreground/50">{t.promptText}</p>
+                  {t.syllables && <p className="text-xs text-foreground/40">Syllables: {t.syllables}</p>}
+                  <p className="text-xs font-medium text-brand-green">
+                    {formatCurrency(t.rewardAmount)} · {t.dailyLimit}/day · {t.minDuration}-{t.maxDuration}s
+                  </p>
+                </div>
+                <div className="flex flex-none gap-2">
+                  <Button size="sm" variant="outline" onClick={() => startEdit(t)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={t.isActive ? "outline" : "primary"}
+                    loading={busyId === t.id}
+                    onClick={() => toggleActive(t)}
+                  >
+                    {t.isActive ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button size="sm" variant="danger" loading={busyId === t.id} onClick={() => deleteTask(t)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         {showForm ? (
@@ -173,6 +318,13 @@ export default function AdminVoiceTasksPage() {
               <option value="session">Voice Earn session</option>
               <option value="word_game">Word Game</option>
             </select>
+            {form.category === "word_game" && (
+              <Input
+                placeholder="Syllables, e.g. Op-por-tu-ni-ty"
+                value={form.syllables}
+                onChange={(e) => setForm({ ...form, syllables: e.target.value })}
+              />
+            )}
             <div className="flex gap-2">
               <Input
                 placeholder="Reward amount"
@@ -187,6 +339,24 @@ export default function AdminVoiceTasksPage() {
                 onChange={(e) => setForm({ ...form, dailyLimit: e.target.value })}
               />
             </div>
+            <div className="flex gap-2">
+              <Input
+                label="Min seconds"
+                type="number"
+                value={form.minDuration}
+                onChange={(e) => setForm({ ...form, minDuration: e.target.value })}
+              />
+              <Input
+                label="Max seconds"
+                type="number"
+                value={form.maxDuration}
+                onChange={(e) => setForm({ ...form, maxDuration: e.target.value })}
+              />
+            </div>
+            <p className="text-xs text-foreground/50">
+              Word Game is untimed for the user - min/max seconds are only used to reject recordings that are
+              suspiciously short or long.
+            </p>
             <Button onClick={createTask}>Create task</Button>
           </div>
         ) : (
