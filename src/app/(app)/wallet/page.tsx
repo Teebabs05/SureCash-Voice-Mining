@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowDownLeft, ArrowUpRight, Repeat, Gift } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Repeat, Gift, RotateCw } from "lucide-react";
 import { WalletCarousel, type WalletCardData } from "@/components/wallet/wallet-carousel";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ export default function WalletPage() {
   const [planName, setPlanName] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<WalletTxn[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [showTransfer, setShowTransfer] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("transfer") === "1"
   );
@@ -50,8 +51,10 @@ export default function WalletPage() {
         setTransactions(res.recentTransactions);
         setFullName(res.fullName);
         setPlanName(res.plan?.name ?? null);
+        setLoadError(false);
       })
       .catch((err) => {
+        setLoadError(true);
         toast.error(err instanceof ApiError ? err.message : "Could not load your wallet");
       })
       .finally(() => setLoading(false));
@@ -99,6 +102,17 @@ export default function WalletPage() {
   }
 
   if (loading) return <p className="py-10 text-center text-sm text-foreground/50">Loading wallets…</p>;
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p className="text-sm text-foreground/60">Couldn&apos;t load your wallet. Your real balance may not be ₦0 — this is a failed request, not confirmed data.</p>
+        <Button size="sm" onClick={load}>
+          <RotateCw className="h-4 w-4" /> Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
