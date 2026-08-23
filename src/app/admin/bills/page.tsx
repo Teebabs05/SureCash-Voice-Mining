@@ -10,7 +10,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 interface Purchase {
   id: string;
   provider: string;
-  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV" | "AIRTIME_TO_CASH";
+  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV" | "AIRTIME_TO_CASH" | "EPIN" | "BETTING";
   serviceId: string;
   recipient: string;
   amount: string;
@@ -19,6 +19,7 @@ interface Purchase {
   status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "REFUNDED";
   token: string | null;
   units: string | null;
+  pins: string[] | null;
   errorMessage: string | null;
   createdAt: string;
   user: { fullName: string; email: string };
@@ -105,6 +106,11 @@ export default function AdminBillsPage() {
                   <p className="mt-1 text-xs">
                     Token: <span className="font-mono font-semibold">{p.token}</span>
                     {p.units && ` · ${p.units}`}
+                  </p>
+                )}
+                {p.pins && p.pins.length > 0 && (
+                  <p className="mt-1 text-xs">
+                    Pins: <span className="font-mono font-semibold">{p.pins.join(", ")}</span>
                   </p>
                 )}
                 {p.errorMessage && <p className="mt-1 text-xs text-red-500">{p.errorMessage}</p>}

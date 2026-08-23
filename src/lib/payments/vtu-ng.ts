@@ -26,6 +26,15 @@ import type {
  * not for routine automatic completions. Every purchase call here reads
  * its own response status; requeryOrder is the fallback for anything left
  * in an in-flight state.
+ *
+ * buyEpins/verifyBettingCustomer/fundBetting are the one exception to the
+ * "confirmed against the docs page" claim above: direct network access to
+ * vtu.ng was blocked in the environment that added them, so their request
+ * shape (/api/v2/epins, /api/v2/betting) was cross-checked against indexed
+ * excerpts of VTU.ng's own doc page rather than the live page itself.
+ * Confirm against the dashboard docs before relying on these for real
+ * money - a wrong field fails cleanly and auto-refunds rather than losing
+ * funds, but "fails cleanly" still means the feature doesn't work yet.
  */
 
 const BASE_URL = "https://vtu.ng/wp-json";
@@ -113,6 +122,7 @@ function toPurchaseResult(response: unknown): VtuPurchaseResult {
     amountCharged: data.amount_charged != null ? Number(data.amount_charged) : undefined,
     token: data.token != null ? String(data.token) : undefined,
     units: data.units != null ? String(data.units) : undefined,
+    pins: Array.isArray(data.epins) ? data.epins.map(String) : undefined,
     message,
     raw: response,
   };
@@ -227,6 +237,40 @@ export class VtuNgProvider implements VtuProviderAdapter {
       service_id: params.provider,
       variation_id: params.variationId,
       subscription_type: "change",
+    });
+    return toPurchaseResult(res);
+  }
+
+  /**
+   * ePIN denominations aren't a live-fetched catalog like data/cable
+   * variations - VTU.ng's own docs fix them at 100/200/500 per pin, so the
+   * purchase routes validate against that same fixed set client-side
+   * rather than adding a needless "list variations" round trip.
+   */
+  async buyEpins(params: { reference: string; network: string; value: number; quantity: number }): Promise<VtuPurchaseResult> {
+    const res = await authRequest("POST", "/api/v2/epins", {
+      request_id: params.reference,
+      service_id: params.network,
+      value: params.value,
+      quantity: params.quantity,
+    });
+    return toPurchaseResult(res);
+  }
+
+  async verifyBettingCustomer(params: { customerId: string; provider: string }): Promise<VtuCustomerInfo> {
+    const res = await authRequest("POST", "/api/v2/verify-customer", {
+      customer_id: params.customerId,
+      service_id: params.provider,
+    });
+    return toCustomerInfo(res);
+  }
+
+  async fundBetting(params: { reference: string; customerId: string; provider: string; amount: number }): Promise<VtuPurchaseResult> {
+    const res = await authRequest("POST", "/api/v2/betting", {
+      request_id: params.reference,
+      customer_id: params.customerId,
+      service_id: params.provider,
+      amount: params.amount,
     });
     return toPurchaseResult(res);
   }

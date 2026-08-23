@@ -13,6 +13,8 @@ const SERVICE_LABELS: Record<BillServiceType, string> = {
   ELECTRICITY: "Electricity",
   CABLE_TV: "Cable TV",
   AIRTIME_TO_CASH: "Airtime to Cash",
+  EPIN: "Recharge Card (ePIN)",
+  BETTING: "Betting",
 };
 
 /**
@@ -94,6 +96,7 @@ export async function resolvePurchase(id: string, result: VtuPurchaseResult) {
         providerOrderId: result.providerOrderId,
         token: result.token,
         units: result.units,
+        pins: result.pins ?? undefined,
         providerResponse: (result.raw ?? undefined) as object | undefined,
         processedAt: new Date(),
       },

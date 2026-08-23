@@ -161,6 +161,60 @@ export class VtuAfricaProvider implements VtuProviderAdapter, AirtimeToCashProvi
     };
   }
 
+  /**
+   * airtime-pin / betpay: found via VTUAfrica's published developer pages
+   * (api/airtime-pins.php, api/betting.php), not the more authoritative
+   * primary API doc that airtime/data/electricity above were confirmed
+   * against — network access to vtu.ng and vtuafrica.com.ng itself was
+   * blocked in the environment that wrote this, so these two were
+   * cross-checked against public documentation excerpts instead. Treat the
+   * exact param names as best-effort: a wrong one fails cleanly (the
+   * purchaseBill flow refunds MAIN on any non-completed result) rather
+   * than losing funds, but confirm against the live VTUAfrica dashboard
+   * docs before relying on this in production.
+   */
+  async buyEpins(params: { reference: string; network: string; value: number; quantity: number }): Promise<VtuPurchaseResult> {
+    const { ok, description, raw } = await request("airtime-pin", {
+      network: params.network,
+      amount: params.value,
+      quantity: params.quantity,
+      ref: params.reference,
+    });
+    if (!ok || !description) return { status: "failed", message: extractMessage(raw), raw };
+    return {
+      status: mapStatus(description.Status),
+      amountCharged: description.Amount_Charged != null ? Number(description.Amount_Charged) : undefined,
+      pins: Array.isArray(description.pins) ? description.pins.map(String) : undefined,
+      message: typeof description.message === "string" ? description.message : undefined,
+      raw,
+    };
+  }
+
+  async verifyBettingCustomer(): Promise<VtuCustomerInfo> {
+    return { name: "Not verified — VTUAfrica has no confirmed betting-account verification endpoint. Double-check the user ID before continuing." };
+  }
+
+  async fundBetting(params: { reference: string; customerId: string; provider: string; amount: number }): Promise<VtuPurchaseResult> {
+    const { ok, description, raw } = await request("betpay", {
+      service: params.provider,
+      userid: params.customerId,
+      amount: params.amount,
+      ref: params.reference,
+    });
+    if (!ok || !description) return { status: "failed", message: extractMessage(raw), raw };
+    return {
+      status: mapStatus(description.Status),
+      amountCharged:
+        description.Amount_Charged != null
+          ? Number(description.Amount_Charged)
+          : description.Charge != null
+            ? Number(description.Charge)
+            : undefined,
+      message: typeof description.message === "string" ? description.message : undefined,
+      raw,
+    };
+  }
+
   async requeryOrder(): Promise<VtuPurchaseResult | null> {
     throw new Error("VTUAfrica doesn't have a confirmed transaction-status endpoint yet — check their dashboard directly");
   }

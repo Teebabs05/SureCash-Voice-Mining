@@ -30,6 +30,8 @@ export interface VtuPurchaseResult {
   amountCharged?: number;
   token?: string;
   units?: string;
+  /** ePIN purchases only - the actual recharge card PINs printed. */
+  pins?: string[];
   message?: string;
   raw?: unknown;
 }
@@ -65,6 +67,14 @@ export interface VtuProviderAdapter {
     smartcardNumber: string;
     provider: string;
     variationId: string;
+  }): Promise<VtuPurchaseResult>;
+  buyEpins(params: { reference: string; network: string; value: number; quantity: number }): Promise<VtuPurchaseResult>;
+  verifyBettingCustomer(params: { customerId: string; provider: string }): Promise<VtuCustomerInfo>;
+  fundBetting(params: {
+    reference: string;
+    customerId: string;
+    provider: string;
+    amount: number;
   }): Promise<VtuPurchaseResult>;
   /** Returns null if the provider has no record of this order at all. */
   requeryOrder(reference: string): Promise<VtuPurchaseResult | null>;

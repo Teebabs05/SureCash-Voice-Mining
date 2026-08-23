@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Smartphone, Wifi, Zap, Tv, Banknote } from "lucide-react";
+import { ArrowLeft, RefreshCw, Smartphone, Wifi, Zap, Tv, Banknote, Ticket, Dice5 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { apiFetch, ApiError } from "@/lib/api-client";
@@ -10,7 +10,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 
 interface Purchase {
   id: string;
-  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV" | "AIRTIME_TO_CASH";
+  serviceType: "AIRTIME" | "DATA" | "ELECTRICITY" | "CABLE_TV" | "AIRTIME_TO_CASH" | "EPIN" | "BETTING";
   serviceId: string;
   recipient: string;
   amount: string;
@@ -18,17 +18,28 @@ interface Purchase {
   status: "PENDING" | "PROCESSING" | "SUCCESS" | "FAILED" | "REFUNDED";
   token: string | null;
   units: string | null;
+  pins: string[] | null;
   errorMessage: string | null;
   createdAt: string;
 }
 
-const SERVICE_ICON = { AIRTIME: Smartphone, DATA: Wifi, ELECTRICITY: Zap, CABLE_TV: Tv, AIRTIME_TO_CASH: Banknote } as const;
+const SERVICE_ICON = {
+  AIRTIME: Smartphone,
+  DATA: Wifi,
+  ELECTRICITY: Zap,
+  CABLE_TV: Tv,
+  AIRTIME_TO_CASH: Banknote,
+  EPIN: Ticket,
+  BETTING: Dice5,
+} as const;
 const SERVICE_LABEL = {
   AIRTIME: "Airtime",
   DATA: "Data",
   ELECTRICITY: "Electricity",
   CABLE_TV: "Cable TV",
   AIRTIME_TO_CASH: "Airtime to Cash",
+  EPIN: "Recharge Card (ePIN)",
+  BETTING: "Betting",
 } as const;
 
 const STATUS_STYLE: Record<Purchase["status"], string> = {
@@ -110,6 +121,15 @@ export default function BillsHistoryPage() {
                   Token: <span className="font-mono font-semibold">{p.token}</span>
                   {p.units && ` · ${p.units}`}
                 </p>
+              )}
+              {p.pins && p.pins.length > 0 && (
+                <div className="flex flex-col gap-1 rounded-lg bg-surface-muted px-3 py-2 text-xs">
+                  {p.pins.map((pin, i) => (
+                    <span key={i} className="font-mono font-semibold">
+                      {pin}
+                    </span>
+                  ))}
+                </div>
               )}
               {p.errorMessage && p.status === "FAILED" && <p className="text-xs text-red-500">{p.errorMessage}</p>}
               {(p.status === "PENDING" || p.status === "PROCESSING") && (

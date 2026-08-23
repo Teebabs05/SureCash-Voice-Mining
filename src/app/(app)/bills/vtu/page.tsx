@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Smartphone, Wifi, Banknote, ChevronRight } from "lucide-react";
+import { ArrowLeft, Smartphone, Wifi, Banknote, Ticket, ChevronRight } from "lucide-react";
 import { MainWalletBalance } from "@/components/bills/main-wallet-balance";
 
 const VTU_SERVICES = [
@@ -18,6 +18,13 @@ const VTU_SERVICES = [
     iconClass: "bg-brand-green/15 text-brand-green",
     description: "Buy data bundles straight from your deposit wallet.",
     href: "/bills/data",
+  },
+  {
+    label: "ePINs",
+    icon: Ticket,
+    iconClass: "bg-brand-primary/15 text-brand-primary",
+    description: "Print recharge card PINs straight from your deposit wallet.",
+    href: "/bills/epins",
   },
   {
     label: "Airtime to Cash",

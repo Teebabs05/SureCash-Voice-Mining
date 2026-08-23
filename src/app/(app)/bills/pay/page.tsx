@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Zap, Tv, ChevronRight } from "lucide-react";
+import { ArrowLeft, Zap, Tv, Dice5, ChevronRight } from "lucide-react";
 import { MainWalletBalance } from "@/components/bills/main-wallet-balance";
 
 const BILL_SERVICES = [
@@ -18,6 +18,13 @@ const BILL_SERVICES = [
     iconClass: "bg-red-500/15 text-red-500",
     description: "Renew TV subscriptions straight from your deposit wallet.",
     href: "/bills/cable-tv",
+  },
+  {
+    label: "Betting",
+    icon: Dice5,
+    iconClass: "bg-brand-green/15 text-brand-green",
+    description: "Fund your betting account straight from your deposit wallet.",
+    href: "/bills/betting",
   },
 ];
 

@@ -522,6 +522,8 @@ enum BillServiceType {
   ELECTRICITY
   CABLE_TV
   AIRTIME_TO_CASH
+  EPIN
+  BETTING
 }
 
 enum BillPurchaseStatus {
@@ -567,6 +569,7 @@ model BillPurchase {
   status           BillPurchaseStatus @default(PENDING)
   token            String? // electricity prepaid token
   units            String? // electricity units purchased
+  pins             Json? // EPIN only - array of recharge card PINs printed
   providerResponse Json?
   errorMessage     String?
   processedAt      DateTime?
