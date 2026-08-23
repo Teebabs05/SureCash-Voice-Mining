@@ -51,6 +51,9 @@ export default function WalletPage() {
         setFullName(res.fullName);
         setPlanName(res.plan?.name ?? null);
       })
+      .catch((err) => {
+        toast.error(err instanceof ApiError ? err.message : "Could not load your wallet");
+      })
       .finally(() => setLoading(false));
   }
 
